@@ -1,0 +1,12 @@
+*.vim
+*.log
+*.a
+*.o
+*.so
+
+.vscode
+
+tests/tmp_*
+
+builds/*
+!builds/.keep
