@@ -3,6 +3,7 @@
 *.a
 *.o
 *.so
+*.yml
 
 .vscode
 
