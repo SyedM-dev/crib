@@ -44,7 +44,7 @@ Editor *new_editor(const char *filename, Coord position, Coord size) {
   editor->selection = {0, 0};
   editor->scroll = {0, 0};
   editor->root = load(str, len, optimal_chunk_size(len));
-  editor->folded = (int *)calloc(editor->root->line_count + 2, sizeof(int));
+  editor->folded.resize(editor->root->line_count + 2);
   std::string query = get_exe_dir() + "/../grammar/ruby.scm";
   if (!(len > (1024 * 1024))) {
     editor->parser = ts_parser_new();
@@ -57,8 +57,6 @@ Editor *new_editor(const char *filename, Coord position, Coord size) {
 }
 
 void free_editor(Editor *editor) {
-  if (editor->folded)
-    free(editor->folded);
   ts_parser_delete(editor->parser);
   if (editor->tree)
     ts_tree_delete(editor->tree);
@@ -195,7 +193,7 @@ void cursor_down(Editor *editor, uint32_t number) {
       editor->cursor.row = editor->root->line_count - 1;
       break;
     };
-    if (editor->folded && editor->folded[editor->cursor.row] != 0)
+    if (editor->folded[editor->cursor.row] != 0)
       number++;
   } while (--number > 0);
   free(it);
@@ -219,7 +217,7 @@ void cursor_up(Editor *editor, uint32_t number) {
   free(line_content);
   while (number > 0 && editor->cursor.row > 0) {
     editor->cursor.row--;
-    if (editor->folded && editor->folded[editor->cursor.row] != 0)
+    if (editor->folded[editor->cursor.row] != 0)
       continue;
     number--;
   }
@@ -251,7 +249,7 @@ void cursor_right(Editor *editor, uint32_t number) {
       free(line);
       line = nullptr;
       uint32_t next_row = editor->cursor.row + 1;
-      while (editor->folded && next_row < editor->root->line_count &&
+      while (next_row < editor->root->line_count &&
              editor->folded[next_row] != 0)
         next_row++;
       if (next_row >= editor->root->line_count) {
@@ -299,7 +297,7 @@ void cursor_left(Editor *editor, uint32_t number) {
       if (editor->cursor.row == 0)
         break;
       int32_t prev_row = editor->cursor.row - 1;
-      while (editor->folded && prev_row >= 0 && editor->folded[prev_row] != 0)
+      while (prev_row >= 0 && editor->folded[prev_row] != 0)
         prev_row--;
       if (prev_row < 0)
         break;
@@ -363,11 +361,6 @@ void ensure_scroll(Editor *editor) {
 void fold(Editor *editor, uint32_t start_line, uint32_t end_line) {
   if (!editor)
     return;
-  if (!editor->folded) {
-    editor->folded = (int *)calloc(editor->root->line_count + 2, sizeof(int));
-    if (!editor->folded)
-      return;
-  }
   for (uint32_t i = start_line; i <= end_line && i < editor->size.row; i++)
     editor->folded[i] = 1;
   editor->folded[start_line] = 2;
@@ -397,7 +390,7 @@ void render_editor(Editor *editor) {
   uint32_t global_byte_offset = line_to_byte(editor->root, line_index, nullptr);
   span_cursor.sync(global_byte_offset);
   while (rendered_rows < screen_rows) {
-    if (editor->folded && editor->folded[line_index]) {
+    if (editor->folded[line_index]) {
       if (editor->folded[line_index] == 2) {
         update_render_fold_marker(rendered_rows, screen_cols);
         rendered_rows++;

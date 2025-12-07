@@ -105,7 +105,7 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
     lock_1.unlock();
     std::unique_lock lock_2(editor->knot_mtx);
     editor->root = insert(editor->root, pos, (char *)"\n", 1);
-    editor->folded = (int *)calloc(editor->root->line_count + 2, sizeof(int));
+    editor->folded.resize(editor->root->line_count + 2);
     lock_2.unlock();
     if (editor->tree) {
       TSInputEdit edit = {
