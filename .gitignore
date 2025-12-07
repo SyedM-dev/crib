@@ -10,7 +10,7 @@
 tests/*
 !tests/.keep
 
-builds/*
-!builds/.keep
+build/*
+bin/*
 
-src/cpp/__tmp__
+__old__
