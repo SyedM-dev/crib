@@ -103,7 +103,7 @@
   method: [
     (identifier)
     (constant)
-  ;; #ff5689 #000000 0 0 0 1
+;; #ff5689 #000000 0 0 0 2
   ] @function.call)
 
 (alias
@@ -318,14 +318,10 @@
   "::"
 ] @punctuation.delimiter
 
-;; #bd9ae6 #000000 0 0 0 1
-
-(regex
-  "/" @punctuation.bracket)
-
 (pair
   ":" @punctuation.delimiter)
 
+;; #bd9ae6 #000000 0 0 0 1
 [
   "("
   ")"
@@ -337,10 +333,13 @@
   "%i("
 ] @punctuation.bracket
 
+(regex
+  "/" @punctuation.bracket)
+
 (block_parameters
   "|" @punctuation.bracket)
 
-;; #e6a24c #000000 0 0 0 1
+;; #e6a24c #000000 0 0 0 2
 (interpolation
   "#{" @punctuation.special
   "}" @punctuation.special)
