@@ -185,14 +185,14 @@ void ts_collect_spans(Editor *editor) {
     return;
   std::vector<TSInputEdit> edits;
   TSInputEdit edit;
-  if (copy) {
+  if (copy)
     while (editor->edit_queue.pop(edit)) {
       edits.push_back(edit);
       ts_tree_edit(copy, &edits.back());
     }
-  }
   tree = ts_parser_parse(editor->parser, copy, tsinput);
-  ts_tree_delete(copy);
+  if (copy)
+    ts_tree_delete(copy);
   while (editor->edit_queue.pop(edit)) {
     edits.push_back(edit);
     ts_tree_edit(tree, &edits.back());
