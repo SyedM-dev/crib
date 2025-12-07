@@ -10,7 +10,7 @@
 tests/*
 !tests/.keep
 
-build/*
-bin/*
+build
+bin
 
 __old__
