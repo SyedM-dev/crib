@@ -382,7 +382,6 @@ void render_editor(Editor *editor) {
   uint32_t line_index = editor->scroll.row;
   SpanCursor span_cursor(editor->spans);
   std::shared_lock knot_lock(editor->knot_mtx);
-  std::shared_lock span_lock(editor->span_mtx);
   LineIterator *it = begin_l_iter(editor->root, line_index);
   if (!it)
     return;

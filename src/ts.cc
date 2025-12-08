@@ -1,6 +1,7 @@
 #include "../include/ts.h"
 #include "../include/editor.h"
 #include "../include/rope.h"
+#include <algorithm>
 #include <cstdint>
 #include <fstream>
 #include <regex>
@@ -177,10 +178,10 @@ void ts_collect_spans(Editor *editor) {
       .decode = nullptr,
   };
   TSTree *tree, *copy = nullptr;
-  std::unique_lock lock_0(editor->knot_mtx);
+  std::unique_lock knot_mtx(editor->knot_mtx);
   if (editor->tree)
     copy = ts_tree_copy(editor->tree);
-  lock_0.unlock();
+  knot_mtx.unlock();
   if (!running)
     return;
   std::vector<TSInputEdit> edits;
@@ -189,21 +190,17 @@ void ts_collect_spans(Editor *editor) {
     while (editor->edit_queue.pop(edit)) {
       edits.push_back(edit);
       ts_tree_edit(copy, &edits.back());
-    }
+    };
+  editor->spans.mid_parse = true;
   tree = ts_parser_parse(editor->parser, copy, tsinput);
   if (copy)
     ts_tree_delete(copy);
-  while (editor->edit_queue.pop(edit)) {
-    edits.push_back(edit);
-    ts_tree_edit(tree, &edits.back());
-  }
-  lock_0.lock();
+  knot_mtx.lock();
   if (editor->tree)
     ts_tree_delete(editor->tree);
   editor->tree = tree;
   copy = ts_tree_copy(tree);
-  lock_0.unlock();
-  std::shared_lock lock_1(editor->span_mtx);
+  knot_mtx.unlock();
   TSQueryCursor *cursor = ts_query_cursor_new();
   ts_query_cursor_exec(cursor, editor->query, ts_tree_root_node(copy));
   std::vector<Span> new_spans;
@@ -232,12 +229,16 @@ void ts_collect_spans(Editor *editor) {
       free(load.prev);
     return;
   }
-  lock_1.unlock();
   std::sort(new_spans.begin(), new_spans.end());
-  std::unique_lock lock_2(editor->span_mtx);
-  editor->spans.swap(new_spans);
-  lock_2.unlock();
+  std::unique_lock span_mtx(editor->spans.mtx);
+  editor->spans.mid_parse = false;
+  editor->spans.spans.swap(new_spans);
+  span_mtx.unlock();
+  std::pair<uint32_t, int64_t> span_edit;
+  while (editor->spans.edits.pop(span_edit))
+    editor->spans.apply(span_edit.first, span_edit.second);
   ts_query_cursor_delete(cursor);
+  ts_tree_delete(copy);
   if (load.prev)
     free(load.prev);
 }

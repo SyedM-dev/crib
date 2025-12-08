@@ -75,6 +75,9 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
       };
       editor->edit_queue.push(edit);
     }
+    editor->spans.apply(pos, 1);
+    if (editor->spans.mid_parse)
+      editor->spans.edits.push({pos, 1});
     cursor_right(editor, 1);
   }
   if (event.key_type == KEY_CHAR && event.c == '\t') {
@@ -96,6 +99,9 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
       };
       editor->edit_queue.push(edit);
     }
+    editor->spans.apply(pos, 2);
+    if (editor->spans.mid_parse)
+      editor->spans.edits.push({pos, 2});
     cursor_right(editor, 2);
   }
   if (event.key_type == KEY_CHAR && (event.c == '\n' || event.c == '\r')) {
@@ -118,6 +124,9 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
       };
       editor->edit_queue.push(edit);
     }
+    editor->spans.apply(pos + 1, 1);
+    if (editor->spans.mid_parse)
+      editor->spans.edits.push({pos + 1, 1});
     cursor_right(editor, 1);
   }
   if (event.key_type == KEY_CHAR && event.c == 0x7F) {
@@ -143,6 +152,9 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
       };
       editor->edit_queue.push(edit);
     }
+    editor->spans.apply(start, start - pos);
+    if (editor->spans.mid_parse)
+      editor->spans.edits.push({start, start - pos});
   }
   ensure_scroll(editor);
 }

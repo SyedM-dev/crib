@@ -3,9 +3,11 @@
 #include "./rope.h"
 #include "./ui.h"
 #include "./utils.h"
+#include <algorithm>
 #include <cstdint>
 #include <map>
 #include <shared_mutex>
+#include <unordered_map>
 
 struct Highlight {
   uint32_t fg;
@@ -22,37 +24,71 @@ struct Span {
   bool operator<(const Span &other) const { return start < other.start; }
 };
 
+struct Spans {
+  std::vector<Span> spans;
+  Queue<std::pair<uint32_t, int64_t>> edits;
+  bool mid_parse = false;
+  std::shared_mutex mtx;
+
+  void apply(uint32_t x, int64_t y) {
+    std::unique_lock lock(mtx);
+    auto it = std::lower_bound(
+        spans.begin(), spans.end(), Span{.start = x, .end = 0, .hl = nullptr},
+        [](auto &a, auto &b) { return a.start < b.start; });
+    while (it != spans.begin()) {
+      auto prev = std::prev(it);
+      if (prev->end <= x)
+        break;
+      it = prev;
+    }
+    while (it != spans.end()) {
+      if (it->start < x && it->end > x) {
+        it->end += y;
+      } else if (it->start > x) {
+        it->start += y;
+        it->end += y;
+      }
+      if (it->end <= it->start)
+        it = spans.erase(it);
+      else
+        ++it;
+    }
+  }
+};
+
 struct SpanCursor {
-  const std::vector<Span> &spans;
+  Spans &spans;
   size_t index = 0;
   std::vector<Span *> active;
+  std::shared_lock<std::shared_mutex> lock;
 
-  SpanCursor(const std::vector<Span> &s) : spans(s) {}
+  SpanCursor(Spans &s) : spans(s) {}
   Highlight *get_highlight(uint32_t byte_offset) {
     for (int i = (int)active.size() - 1; i >= 0; i--)
       if (active[i]->end <= byte_offset)
         active.erase(active.begin() + i);
-    while (index < spans.size() && spans[index].start <= byte_offset) {
-      if (spans[index].end > byte_offset)
-        active.push_back(const_cast<Span *>(&spans[index]));
+    while (index < spans.spans.size() &&
+           spans.spans[index].start <= byte_offset) {
+      if (spans.spans[index].end > byte_offset)
+        active.push_back(const_cast<Span *>(&spans.spans[index]));
       index++;
     }
     Highlight *best = nullptr;
     int max_prio = -1;
-    for (auto *s : active) {
+    for (auto *s : active)
       if (s->hl->priority > max_prio) {
         max_prio = s->hl->priority;
         best = s->hl;
       }
-    }
     return best;
   }
   void sync(uint32_t byte_offset) {
+    lock = std::shared_lock(spans.mtx);
     active.clear();
-    size_t left = 0, right = spans.size();
+    size_t left = 0, right = spans.spans.size();
     while (left < right) {
       size_t mid = (left + right) / 2;
-      if (spans[mid].start <= byte_offset)
+      if (spans.spans[mid].start <= byte_offset)
         left = mid + 1;
       else
         right = mid;
@@ -60,9 +96,9 @@ struct SpanCursor {
     index = left;
     while (left > 0) {
       left--;
-      if (spans[left].end > byte_offset)
-        active.push_back(const_cast<Span *>(&spans[left]));
-      else if (byte_offset - spans[left].end > 1000)
+      if (spans.spans[left].end > byte_offset)
+        active.push_back(const_cast<Span *>(&spans.spans[left]));
+      else if (byte_offset - spans.spans[left].end > 1000)
         break;
     }
   }
@@ -72,7 +108,6 @@ struct Editor {
   const char *filename;                 // Filename of the editor
   Knot *root;                           // A rope
   std::shared_mutex knot_mtx;           // A mutex
-  std::shared_mutex span_mtx;           // A mutex
   Coord cursor;                         // position of the cursor
   uint32_t cursor_preffered;            // preffered visual column
   Coord selection;                      // position of the selection
@@ -87,7 +122,7 @@ struct Editor {
   Queue<TSInputEdit> edit_queue;        // Tree-sitter edit queue
   std::vector<Highlight> query_map;     // Tree-sitter query map
   std::vector<int8_t> folded;           // folded lines indexed by line number
-  std::vector<Span> spans;              // Highlighted spans
+  Spans spans;                          // Highlighted spans
   std::map<uint32_t, bool> folded_node; // maps content hash to fold state
                                         // - built by tree-sitter helpers
 };
