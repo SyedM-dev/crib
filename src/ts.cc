@@ -191,6 +191,10 @@ void ts_collect_spans(Editor *editor) {
       edits.push_back(edit);
       ts_tree_edit(copy, &edits.back());
     };
+  if (copy && edits.empty()) {
+    ts_tree_delete(copy);
+    return;
+  }
   editor->spans.mid_parse = true;
   tree = ts_parser_parse(editor->parser, copy, tsinput);
   if (copy)
@@ -222,13 +226,12 @@ void ts_collect_spans(Editor *editor) {
         new_spans.push_back({start, end, hl});
     }
   }
-  if (!running) {
-    ts_tree_delete(copy);
-    ts_query_cursor_delete(cursor);
-    if (load.prev)
-      free(load.prev);
+  ts_query_cursor_delete(cursor);
+  ts_tree_delete(copy);
+  if (load.prev)
+    free(load.prev);
+  if (!running)
     return;
-  }
   std::sort(new_spans.begin(), new_spans.end());
   std::unique_lock span_mtx(editor->spans.mtx);
   editor->spans.mid_parse = false;
@@ -237,8 +240,4 @@ void ts_collect_spans(Editor *editor) {
   std::pair<uint32_t, int64_t> span_edit;
   while (editor->spans.edits.pop(span_edit))
     editor->spans.apply(span_edit.first, span_edit.second);
-  ts_query_cursor_delete(cursor);
-  ts_tree_delete(copy);
-  if (load.prev)
-    free(load.prev);
 }
