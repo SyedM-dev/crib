@@ -43,7 +43,7 @@ Knot *load(char *str, uint32_t len, uint32_t chunk_size) {
     node->line_count = left->line_count + right->line_count;
     return node;
   } else {
-    Knot *node = (Knot *)malloc(sizeof(Knot) + chunk_size);
+    Knot *node = (Knot *)malloc(sizeof(Knot) + chunk_size + 1);
     if (!node)
       return nullptr;
     node->left = nullptr;
@@ -66,7 +66,7 @@ Knot *load(char *str, uint32_t len, uint32_t chunk_size) {
 // leaf if consumed and freed (so dont use or free it after)
 // left and right are the new nodes
 static void split_leaf(Knot *leaf, uint32_t k, Knot **left, Knot **right) {
-  Knot *left_node = (Knot *)malloc(sizeof(Knot) + leaf->chunk_size);
+  Knot *left_node = (Knot *)malloc(sizeof(Knot) + leaf->chunk_size + 1);
   left_node->left = nullptr;
   left_node->right = nullptr;
   left_node->chunk_size = leaf->chunk_size;
@@ -82,7 +82,7 @@ static void split_leaf(Knot *leaf, uint32_t k, Knot **left, Knot **right) {
   left_node->line_count = newline_count;
   uint16_t right_line_count = leaf->line_count - newline_count;
   *left = left_node;
-  Knot *right_node = (Knot *)malloc(sizeof(Knot) + leaf->chunk_size);
+  Knot *right_node = (Knot *)malloc(sizeof(Knot) + leaf->chunk_size + 1);
   right_node->left = nullptr;
   right_node->right = nullptr;
   right_node->chunk_size = leaf->chunk_size;
@@ -190,7 +190,7 @@ Knot *concat(Knot *left, Knot *right) {
   }
   if (left->depth == 0 && right->depth == 0) {
     if (left->char_count + right->char_count <= left->chunk_size) {
-      Knot *node = (Knot *)malloc(sizeof(Knot) + left->chunk_size);
+      Knot *node = (Knot *)malloc(sizeof(Knot) + left->chunk_size + 1);
       node->left = nullptr;
       node->right = nullptr;
       node->chunk_size = left->chunk_size;
@@ -230,8 +230,6 @@ Knot *concat(Knot *left, Knot *right) {
 Knot *insert(Knot *node, uint32_t offset, char *str, uint32_t len) {
   if (!node)
     return nullptr;
-  if (len == 0)
-    return node;
   if (node->depth == 0 && node->char_count + len <= node->chunk_size) {
     if (offset < node->char_count)
       memmove(node->data + offset + len, node->data + offset,
@@ -260,7 +258,7 @@ Knot *insert(Knot *node, uint32_t offset, char *str, uint32_t len) {
   Knot *left_part = nullptr;
   Knot *right_part = nullptr;
   split(node, offset, &left_part, &right_part);
-  Knot *middle_part = load(str, len, node->chunk_size);
+  Knot *middle_part = load(str, len, left_part->chunk_size);
   return concat(concat(left_part, middle_part), right_part);
 }
 
@@ -538,10 +536,10 @@ char *next_line(LineIterator *it) {
     char *end = it->node->data + it->node->char_count;
     char *newline_ptr = (char *)memchr(start, '\n', end - start);
     size_t chunk_len;
-    bool found_newline = false;
+    int found_newline = 0;
     if (newline_ptr) {
       chunk_len = (newline_ptr - start) + 1;
-      found_newline = true;
+      found_newline = 1;
     } else {
       chunk_len = end - start;
     }
@@ -650,12 +648,17 @@ char next_byte(ByteIterator *it) {
     it->offset_g += it->offset_l;
     it->offset_l = 1;
     char *data = next_leaf(it->it);
-    it->char_count = strlen(data);
-    it->data = data;
-    if (it->data)
-      return *it->data;
-    else
+    if (!data)
       return '\0';
+    it->char_count = strlen(data);
+    while (it->char_count <= 0) {
+      data = next_leaf(it->it);
+      if (!data)
+        return '\0';
+      it->char_count = strlen(data);
+    }
+    it->data = data;
+    return *it->data;
   }
 }
 
@@ -763,96 +766,3 @@ uint32_t optimal_chunk_size(uint64_t length) {
   final_chunk_size = 1U << (32 - __builtin_clz(final_chunk_size - 1));
   return final_chunk_size;
 }
-
-// Basic correctness test & usage example
-/*
-int _main() {
-  char *buffer = (char *)malloc(44 * 4 + 5);
-  strcpy(buffer, "The quick brown fox jumps over the lazy dog.\n\
-The quick brown fox jumps over the lazy dog.\n\
-The quick brown fox jumps over the lazy dog.\n\
-The quick brown fox jumps over the lazy dog.");
-  // This loads all (excluding \0 put in by strcpy)
-  Knot *root = load(buffer, 44 * 4 + 3, optimal_chunk_size(44 * 4 + 3));
-  Knot *left = nullptr, *right = nullptr;
-  // Splits root into left and right (root is no longer valid)
-  split(root, 5, &left, &right);
-  // simple read based on byte offset and length
-  char *s1 = read(left, 0, 100);
-  printf("%s\n:\n", s1);
-  char *s2 = read(right, 0, 100);
-  printf("%s\n;\n", s2);
-  free(s1);
-  free(s2);
-  // Recombines left and right into root (both can
-  // be valid or invalid in optimized cases)
-  // they are to not be used after concat
-  root = concat(left, right);
-  // root should be set to return value from insert always
-  root = insert(root, 5, buffer, 5);
-  free(buffer);
-  char *s3 = read(root, 0, 100);
-  printf("%s\n,\n", s3);
-  // Similar to insert but for erase
-  root = erase(root, 5, 5);
-  char *s4 = read(root, 0, 100);
-  printf("%s\n.\n", s4);
-  free(s3);
-  free(s4);
-  uint32_t byte_offset;
-  uint32_t len;
-  // Byte offset given reltive to how it would
-  // be in a file offset + len includes the \n
-  // at the end of the line (or nothing is EOF)
-  byte_offset = line_to_byte(root, 2, &len);
-  char *s5 = read(root, byte_offset, len);
-  printf("%s\n'\n", s5);
-  free(s5);
-  // returns line number of which line that
-  // byte position would be in.
-  // the ending \n position is included in this
-  uint32_t line = byte_to_line(root, byte_offset + len - 1);
-  printf("%u\n:\n", line);
-  // From second line onwards (0 indexed)
-  LineIterator *it = begin_l_iter(root, 0);
-  char *c = nullptr;
-  while ((c = next_line(it)) != nullptr) {
-    printf("%s :wow:\n", c);
-    free(c);
-  }
-  free(it);
-  printf("\n/\n");
-  // Starts at first byte (to be used for regex search)
-  ByteIterator *it2 = begin_b_iter(root);
-
-  uint32_t saved[40];
-
-  for (int i = 0; i < 40; i++)
-    saved[i] = 0;
-
-  // std::string pattern = "f.x";
-
-  // Inst *program = compile_regex(pattern);
-  //
-  // bool result;
-  // while ((result = next_match(program, it2, saved))) {
-  //   printf("\nRES: %d\n", result);
-  //   for (int i = 0; i < 40; i++)
-  //     printf("%d, ", saved[i]);
-  // }
-
-  // char c2 = ' ';
-  // while ((c2 = next_byte(it2)) != '\0')
-  //   printf("%c :wow!:\n", c2);
-  // free(it2);
-  // search // uses leaf iterator internally // PCRE2 based
-  std::vector<std::pair<size_t, size_t>> matches = search_rope(root, "f.x");
-  for (size_t i = 0; i < matches.size(); i++)
-    printf("\n%lu %lu", matches[i].first, matches[i].second);
-  // A rope needs to be freed only once if last action on the rope is
-  // insert or concat or erase.
-  // for splits we need to free both left and right separately
-  free_rope(root);
-  return 0;
-}
-*/
