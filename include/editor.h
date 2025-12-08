@@ -1,4 +1,6 @@
-#pragma once
+#ifndef EDITOR_H
+#define EDITOR_H
+
 #include "../libs/tree-sitter/lib/include/tree_sitter/api.h"
 #include "./rope.h"
 #include "./ui.h"
@@ -143,3 +145,5 @@ void cursor_down(Editor *editor, uint32_t number);
 void cursor_left(Editor *editor, uint32_t number);
 void cursor_right(Editor *editor, uint32_t number);
 void ensure_scroll(Editor *editor);
+
+#endif

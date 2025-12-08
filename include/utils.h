@@ -1,3 +1,6 @@
+#ifndef UTILS_H
+#define UTILS_H
+
 #include <mutex>
 #include <queue>
 #include <string>
@@ -30,3 +33,5 @@ uint32_t get_bytes_from_visual_col(const char *line,
                                    uint32_t target_visual_col);
 void log(const char *fmt, ...);
 std::string get_exe_dir();
+
+#endif

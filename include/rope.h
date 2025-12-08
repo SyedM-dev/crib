@@ -1,5 +1,5 @@
-#ifndef ROPE_HPP
-#define ROPE_HPP
+#ifndef ROPE_H
+#define ROPE_H
 
 #include <cstdint>
 #include <vector>
@@ -154,4 +154,4 @@ std::vector<std::pair<size_t, size_t>> search_rope(Knot *root,
 // This must be called only once when the rope is no longer needed
 void free_rope(Knot *root);
 
-#endif // ROPE_HPP
+#endif // ROPE_H

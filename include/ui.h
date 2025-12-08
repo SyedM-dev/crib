@@ -1,4 +1,6 @@
-#pragma once
+#ifndef UI_H
+#define UI_H
+
 #include <atomic>
 #include <cstdint>
 #include <mutex>
@@ -104,3 +106,5 @@ int read_input(char *buf, size_t buflen);
 KeyEvent read_key();
 
 int display_width(const char *str);
+
+#endif
