@@ -5,10 +5,11 @@ OBJ_DIR := build
 TARGET_DEBUG := $(BIN_DIR)/crib-dbg
 TARGET_RELEASE := $(BIN_DIR)/crib
 
-CXX_DEBUG := g++
-CXX_RELEASE := clang++
+CCACHE := ccache
+CXX_DEBUG := $(CCACHE) g++
+CXX_RELEASE := $(CCACHE) clang++
 
-CFLAGS_DEBUG := -std=c++20 -Wall -Wextra -O0 -g -fno-inline -gsplit-dwarf -fsanitize=address
+CFLAGS_DEBUG := -std=c++20 -Wall -Wextra -O0 -fno-inline -gsplit-dwarf -g -fsanitize=address -fno-omit-frame-pointer
 CFLAGS_RELEASE := -std=c++20 -O3 -march=native -flto=thin \
 	-fno-exceptions -fno-rtti -fstrict-aliasing -ffast-math -funroll-loops \
 	-fomit-frame-pointer -DNDEBUG -s \
