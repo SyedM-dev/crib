@@ -8,7 +8,7 @@ TARGET_RELEASE := $(BIN_DIR)/crib
 CXX_DEBUG := g++
 CXX_RELEASE := clang++
 
-CFLAGS_DEBUG := -std=c++20 -Wall -Wextra -O0 -g -fno-inline -gsplit-dwarf
+CFLAGS_DEBUG := -std=c++20 -Wall -Wextra -O0 -g -fno-inline -gsplit-dwarf -fsanitize=address
 CFLAGS_RELEASE := -std=c++20 -O3 -march=native -flto=thin \
 	-fno-exceptions -fno-rtti -fstrict-aliasing -ffast-math -funroll-loops \
 	-fomit-frame-pointer -DNDEBUG -s \
