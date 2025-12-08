@@ -97,7 +97,7 @@
 ;; #aad84c #000000 0 0 0 1
 "defined?" @function
 
-;; #aad84c #000000 0 0 0 1
+;; #aad84c #000000 0 0 0 3
 (call
   receiver: (constant)? @type
   method: [
