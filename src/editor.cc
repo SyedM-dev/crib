@@ -40,19 +40,20 @@ Editor *new_editor(const char *filename, Coord position, Coord size) {
   editor->size = size;
   editor->tree = nullptr;
   editor->cursor = {0, 0};
+  editor->cursor_preffered = UINT32_MAX;
   editor->selection_active = false;
   editor->selection = {0, 0};
   editor->scroll = {0, 0};
   editor->root = load(str, len, optimal_chunk_size(len));
+  free(str);
   editor->folded.resize(editor->root->line_count + 2);
   std::string query = get_exe_dir() + "/../grammar/ruby.scm";
-  if (!(len > (1024 * 1024))) {
+  if (len < (1024 * 64)) {
     editor->parser = ts_parser_new();
     editor->language = tree_sitter_ruby();
     ts_parser_set_language(editor->parser, editor->language);
     editor->query = load_query(query.c_str(), editor);
   }
-  free(str);
   return editor;
 }
 
@@ -183,8 +184,10 @@ void cursor_down(Editor *editor, uint32_t number) {
   char *line_content = next_line(it);
   if (line_content == nullptr)
     return;
-  uint32_t visual_col =
-      get_visual_col_from_bytes(line_content, editor->cursor.col);
+  if (editor->cursor_preffered == UINT32_MAX)
+    editor->cursor_preffered =
+        get_visual_col_from_bytes(line_content, editor->cursor.col);
+  uint32_t visual_col = editor->cursor_preffered;
   do {
     free(line_content);
     line_content = next_line(it);
@@ -212,8 +215,10 @@ void cursor_up(Editor *editor, uint32_t number) {
     free(it);
     return;
   }
-  uint32_t visual_col =
-      get_visual_col_from_bytes(line_content, editor->cursor.col);
+  if (editor->cursor_preffered == UINT32_MAX)
+    editor->cursor_preffered =
+        get_visual_col_from_bytes(line_content, editor->cursor.col);
+  uint32_t visual_col = editor->cursor_preffered;
   free(line_content);
   while (number > 0 && editor->cursor.row > 0) {
     editor->cursor.row--;
@@ -275,6 +280,19 @@ void cursor_right(Editor *editor, uint32_t number) {
     }
     number--;
   }
+  LineIterator *it2 = begin_l_iter(editor->root, editor->cursor.row);
+  char *cur_line = next_line(it2);
+  free(it2);
+  if (cur_line) {
+    uint32_t len2 = strlen(cur_line);
+    if (len2 > 0 && cur_line[len2 - 1] == '\n')
+      cur_line[--len2] = '\0';
+    editor->cursor_preffered =
+        get_visual_col_from_bytes(cur_line, editor->cursor.col);
+    free(cur_line);
+  } else {
+    editor->cursor_preffered = UINT32_MAX;
+  }
   if (line)
     free(line);
 }
@@ -328,6 +346,19 @@ void cursor_left(Editor *editor, uint32_t number) {
     }
     number--;
   }
+  LineIterator *it2 = begin_l_iter(editor->root, editor->cursor.row);
+  char *cur_line = next_line(it2);
+  free(it2);
+  if (cur_line) {
+    uint32_t len2 = strlen(cur_line);
+    if (len2 > 0 && cur_line[len2 - 1] == '\n')
+      cur_line[--len2] = '\0';
+    editor->cursor_preffered =
+        get_visual_col_from_bytes(cur_line, editor->cursor.col);
+    free(cur_line);
+  } else {
+    editor->cursor_preffered = UINT32_MAX;
+  }
   if (line)
     free(line);
 }
@@ -374,6 +405,29 @@ void update_render_fold_marker(uint32_t row, uint32_t cols) {
     update(row, i, (char[2]){marker[i], 0}, 0xc6c6c6, 0, 0);
   for (; i < cols; i++)
     update(row, i, " ", 0xc6c6c6, 0, 0);
+}
+
+void apply_edit(std::vector<Span> &spans, uint32_t x, int64_t y) {
+  Span key{.start = x, .end = 0, .hl = nullptr};
+  auto it = std::lower_bound(
+      spans.begin(), spans.end(), key,
+      [](const Span &a, const Span &b) { return a.start < b.start; });
+  size_t idx = std::distance(spans.begin(), it);
+  while (idx > 0 && spans.at(idx - 1).end > x)
+    --idx;
+  for (size_t i = idx; i < spans.size();) {
+    Span &s = spans.at(i);
+    if (s.start < x && s.end > x) {
+      s.end += y;
+    } else if (s.start > x) {
+      s.start += y;
+      s.end += y;
+    }
+    if (s.end <= s.start)
+      spans.erase(spans.begin() + i);
+    else
+      ++i;
+  }
 }
 
 void render_editor(Editor *editor) {

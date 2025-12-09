@@ -142,17 +142,17 @@
 ((identifier) @keyword.modifier
   (#match? @keyword.modifier "^(private|protected|public)$" ))
 
-;; #fbb152 #000000 0 0 0 1
+;; #fbb152 #000000 0 0 0 3
 (program
   (call
     (identifier) @keyword.import)
   (#match? @keyword.import "^(require|require_relative|load)$"))
 
-;; #fbb152 #000000 0 0 0 2
+;; #fbb152 #000000 0 0 0 4
 ((identifier) @constant.builtin
   (#match? @constant.builtin "^(__callee__|__dir__|__id__|__method__|__send__|__ENCODING__|__FILE__|__LINE__)$" ))
 
-;; #aad84c #000000 0 0 0 1
+;; #aad84c #000000 0 0 0 3
 ((identifier) @function.builtin
   (#match? @function.builtin "^(attr_reader|attr_writer|attr_accessor|module_function)$" ))
 

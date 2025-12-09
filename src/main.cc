@@ -75,10 +75,10 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
       };
       editor->edit_queue.push(edit);
     }
-    editor->spans.apply(pos, 1);
+    cursor_right(editor, 1);
+    apply_edit(editor->spans.spans, pos, 1);
     if (editor->spans.mid_parse)
       editor->spans.edits.push({pos, 1});
-    cursor_right(editor, 1);
   }
   if (event.key_type == KEY_CHAR && event.c == '\t') {
     std::shared_lock lock_1(editor->knot_mtx);
@@ -99,10 +99,11 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
       };
       editor->edit_queue.push(edit);
     }
-    editor->spans.apply(pos, 2);
+    cursor_right(editor, 2);
+    std::unique_lock lock_3(editor->spans.mtx);
+    apply_edit(editor->spans.spans, pos, 2);
     if (editor->spans.mid_parse)
       editor->spans.edits.push({pos, 2});
-    cursor_right(editor, 2);
   }
   if (event.key_type == KEY_CHAR && (event.c == '\n' || event.c == '\r')) {
     std::shared_lock lock_1(editor->knot_mtx);
@@ -120,14 +121,15 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
           .new_end_byte = pos + 1,
           .start_point = {editor->cursor.row, editor->cursor.col},
           .old_end_point = {editor->cursor.row, editor->cursor.col},
-          .new_end_point = {editor->cursor.row, editor->cursor.col + 1},
+          .new_end_point = {editor->cursor.row + 1, 0},
       };
       editor->edit_queue.push(edit);
     }
-    editor->spans.apply(pos + 1, 1);
+    cursor_right(editor, 1);
+    std::unique_lock lock_3(editor->spans.mtx);
+    apply_edit(editor->spans.spans, pos + 1, 1);
     if (editor->spans.mid_parse)
       editor->spans.edits.push({pos + 1, 1});
-    cursor_right(editor, 1);
   }
   if (event.key_type == KEY_CHAR && event.c == 0x7F) {
     std::shared_lock lock_1(editor->knot_mtx);
@@ -152,7 +154,8 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
       };
       editor->edit_queue.push(edit);
     }
-    editor->spans.apply(start, start - pos);
+    std::unique_lock lock_3(editor->spans.mtx);
+    apply_edit(editor->spans.spans, start, start - pos);
     if (editor->spans.mid_parse)
       editor->spans.edits.push({start, start - pos});
   }

@@ -29,7 +29,6 @@ LIBS := \
 	libs/tree-sitter-ruby/libtree-sitter-ruby.a \
 	-lpcre2-8
 
-
 SRC := $(wildcard $(SRC_DIR)/*.cc)
 OBJ_DEBUG := $(patsubst $(SRC_DIR)/%.cc,$(OBJ_DIR)/debug/%.o,$(SRC))
 OBJ_RELEASE := $(patsubst $(SRC_DIR)/%.cc,$(OBJ_DIR)/release/%.o,$(SRC))
@@ -53,7 +52,6 @@ $(TARGET_RELEASE): $(OBJ_RELEASE) $(UNICODE_OBJ_RELEASE)
 	mkdir -p $(BIN_DIR)
 	$(CXX_RELEASE) $(CFLAGS_RELEASE) -o $@ $^ $(LIBS)
 
-# Pattern rules for object files + dependency generation
 $(OBJ_DIR)/debug/%.o: $(SRC_DIR)/%.cc
 	mkdir -p $(dir $@)
 	$(CXX_DEBUG) $(CFLAGS_DEBUG) -MMD -MP -c $< -o $@
@@ -70,7 +68,6 @@ $(OBJ_DIR)/release/unicode_width/%.o: libs/unicode_width/%.c
 	mkdir -p $(dir $@)
 	$(CXX_RELEASE) $(CFLAGS_RELEASE) -MMD -MP -c $< -o $@
 
-# Include deps if they exist
 DEP_DEBUG += $(UNICODE_OBJ_DEBUG:.o=.d)
 DEP_RELEASE += $(UNICODE_OBJ_RELEASE:.o=.d)
 

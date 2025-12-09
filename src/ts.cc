@@ -94,7 +94,7 @@ static inline bool ts_predicate(TSQuery *query, const TSQueryMatch &match,
       ts_query_predicates_for_pattern(query, match.pattern_index, &step_count);
   if (!steps || step_count != 4)
     return true;
-  if (source->char_count >= (64 * 1024))
+  if (source->char_count >= (16 * 1024))
     return false;
   std::string command;
   std::string regex_txt;
@@ -233,11 +233,11 @@ void ts_collect_spans(Editor *editor) {
   if (!running)
     return;
   std::sort(new_spans.begin(), new_spans.end());
+  std::pair<uint32_t, int64_t> span_edit;
+  while (editor->spans.edits.pop(span_edit))
+    apply_edit(new_spans, span_edit.first, span_edit.second);
   std::unique_lock span_mtx(editor->spans.mtx);
   editor->spans.mid_parse = false;
   editor->spans.spans.swap(new_spans);
   span_mtx.unlock();
-  std::pair<uint32_t, int64_t> span_edit;
-  while (editor->spans.edits.pop(span_edit))
-    editor->spans.apply(span_edit.first, span_edit.second);
 }

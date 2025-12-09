@@ -31,31 +31,6 @@ struct Spans {
   Queue<std::pair<uint32_t, int64_t>> edits;
   bool mid_parse = false;
   std::shared_mutex mtx;
-
-  void apply(uint32_t x, int64_t y) {
-    std::unique_lock lock(mtx);
-    auto it = std::lower_bound(
-        spans.begin(), spans.end(), Span{.start = x, .end = 0, .hl = nullptr},
-        [](auto &a, auto &b) { return a.start < b.start; });
-    while (it != spans.begin()) {
-      auto prev = std::prev(it);
-      if (prev->end <= x)
-        break;
-      it = prev;
-    }
-    while (it != spans.end()) {
-      if (it->start < x && it->end > x) {
-        it->end += y;
-      } else if (it->start > x) {
-        it->start += y;
-        it->end += y;
-      }
-      if (it->end <= it->start)
-        it = spans.erase(it);
-      else
-        ++it;
-    }
-  }
 };
 
 struct SpanCursor {
@@ -145,5 +120,6 @@ void cursor_down(Editor *editor, uint32_t number);
 void cursor_left(Editor *editor, uint32_t number);
 void cursor_right(Editor *editor, uint32_t number);
 void ensure_scroll(Editor *editor);
+void apply_edit(std::vector<Span> &spans, uint32_t x, int64_t y);
 
 #endif
