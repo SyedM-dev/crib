@@ -1,6 +1,6 @@
 [submodule "libs/libgrapheme"]
 	path = libs/libgrapheme
-	url = https://git.suckless.org/libgrapheme.git
+	url = git://git.suckless.org/libgrapheme
   ignore = dirty
 
 ; tree-sitter
