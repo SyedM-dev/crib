@@ -36,6 +36,7 @@ typedef struct LeafIterator {
   Knot *node;
   uint8_t top;
   uint32_t offset;
+  uint32_t adjustment;
   Knot *stack[64];
 } LeafIterator;
 
@@ -122,13 +123,15 @@ char *next_line(LineIterator *it);
 // Used to start an iterator over leaf data
 // root is the root of the rope
 // the caller must free the iterator after use
-LeafIterator *begin_k_iter(Knot *root);
+// start_offset is the byte from which the iterator should start
+LeafIterator *begin_k_iter(Knot *root, uint32_t start_offset);
 
 // Returns the next leaf data as a null terminated string
 // `it` is the iterator returned from begin_k_iter
 // ! Strings returned must never be freed by the caller !
 // to mutate the string a copy must be made
-char *next_leaf(LeafIterator *it);
+// `out_len` is set to the length of the returned string
+char *next_leaf(LeafIterator *it, uint32_t *out_len);
 
 // Used to start an iterator over byte data (one byte at a time)
 // Uses leaf iterator internally
@@ -139,6 +142,13 @@ ByteIterator *begin_b_iter(Knot *root);
 // Returns '\0' if there are no more bytes left
 // `it` is the iterator returned from begin_b_iter
 char next_byte(ByteIterator *it);
+
+// Returns a leaf data as a null terminated string
+// root is the root of the rope
+// start_offset is the byte from which the leaf data should start
+// `out_len` is set to the length of the returned string
+// return value must never be freed
+char *leaf_from_offset(Knot *root, uint32_t start_offset, uint32_t *out_len);
 
 // Used to search for a pattern in the rope
 // Pattern is a null terminated string representing a regular expression (DFA

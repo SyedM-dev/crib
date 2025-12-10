@@ -570,31 +570,32 @@ char *next_line(LineIterator *it) {
   return nullptr;
 }
 
-LeafIterator *begin_k_iter(Knot *root) {
+LeafIterator *begin_k_iter(Knot *root, uint32_t start_offset) {
   if (!root)
     return nullptr;
   LeafIterator *it = (LeafIterator *)malloc(sizeof(LeafIterator));
   if (!it)
     return nullptr;
   it->top = 0;
+  it->adjustment = 0;
   Knot *curr = root;
   while (curr) {
     it->stack[it->top++] = curr;
     if (!curr->left && !curr->right) {
+      if (start_offset > curr->char_count) {
+        free(it);
+        return nullptr;
+      }
       it->node = curr;
+      it->adjustment = start_offset;
       return it;
     }
-    curr = curr->left;
-    if (!curr) {
-      curr = it->stack[--it->top]->right;
-      Knot *temp = it->stack[it->top];
-      it->stack[it->top++] = temp;
-      curr = temp->left ? temp->left : temp->right;
-      Knot *parent = it->stack[it->top - 1];
-      curr = parent->left;
-      if (!curr) {
-        curr = parent->right;
-      }
+    uint32_t left_size = (curr->left) ? curr->left->char_count : 0;
+    if (start_offset < left_size) {
+      curr = curr->left;
+    } else {
+      start_offset -= left_size;
+      curr = curr->right;
     }
   }
   free(it);
@@ -602,11 +603,14 @@ LeafIterator *begin_k_iter(Knot *root) {
 }
 
 // Caller must never free the returned string
-char *next_leaf(LeafIterator *it) {
+char *next_leaf(LeafIterator *it, uint32_t *out_len) {
   if (!it || !it->node)
     return nullptr;
-  char *data_to_return = it->node->data;
-  data_to_return[it->node->char_count] = '\0';
+  char *data_to_return = it->node->data + it->adjustment;
+  if (out_len)
+    *out_len = it->node->char_count - it->adjustment;
+  it->node->data[it->node->char_count] = '\0';
+  it->adjustment = 0;
   Knot *prev_leaf = it->node;
   Knot *parent = nullptr;
   while (it->top > 0) {
@@ -632,7 +636,7 @@ char *next_leaf(LeafIterator *it) {
 
 ByteIterator *begin_b_iter(Knot *root) {
   ByteIterator *b_it = (ByteIterator *)malloc(sizeof(ByteIterator));
-  LeafIterator *l_it = begin_k_iter(root);
+  LeafIterator *l_it = begin_k_iter(root, 0);
   b_it->it = l_it;
   b_it->offset_g = 0;
   b_it->offset_l = 0;
@@ -647,19 +651,44 @@ char next_byte(ByteIterator *it) {
   } else {
     it->offset_g += it->offset_l;
     it->offset_l = 1;
-    char *data = next_leaf(it->it);
+    char *data = next_leaf(it->it, &it->char_count);
     if (!data)
       return '\0';
-    it->char_count = strlen(data);
     while (it->char_count <= 0) {
-      data = next_leaf(it->it);
+      data = next_leaf(it->it, &it->char_count);
       if (!data)
         return '\0';
-      it->char_count = strlen(data);
     }
     it->data = data;
     return *it->data;
   }
+}
+
+// Caller must NOT free returned string.
+// Returns nullptr if offset is invalid or no leaf found.
+char *leaf_from_offset(Knot *root, uint32_t start_offset, uint32_t *out_len) {
+  if (!root)
+    return nullptr;
+  Knot *curr = root;
+  while (curr) {
+    if (!curr->left && !curr->right) {
+      if (start_offset > curr->char_count)
+        return nullptr;
+      char *result = curr->data + start_offset;
+      if (out_len)
+        *out_len = curr->char_count - start_offset;
+      curr->data[curr->char_count] = '\0';
+      return result;
+    }
+    uint32_t left_size = curr->left ? curr->left->char_count : 0;
+    if (start_offset < left_size) {
+      curr = curr->left;
+    } else {
+      start_offset -= left_size;
+      curr = curr->right;
+    }
+  }
+  return nullptr;
 }
 
 std::vector<std::pair<size_t, size_t>> search_rope(Knot *root,
@@ -675,7 +704,7 @@ std::vector<std::pair<size_t, size_t>> search_rope(Knot *root,
   }
   pcre2_match_data *mdata = pcre2_match_data_create(128, nullptr);
   int workspace[PCRE_WORKSPACE_SIZE];
-  LeafIterator *it = begin_k_iter(root);
+  LeafIterator *it = begin_k_iter(root, 0);
   if (!it) {
     pcre2_code_free(re);
     pcre2_match_data_free(mdata);
@@ -686,7 +715,7 @@ std::vector<std::pair<size_t, size_t>> search_rope(Knot *root,
   bool match_in_progress = false;
   int flags = PCRE2_PARTIAL_SOFT;
   while (1) {
-    const char *chunk_start = next_leaf(it);
+    const char *chunk_start = next_leaf(it, nullptr);
     if (!chunk_start)
       break;
     size_t chunk_len = strlen(chunk_start);

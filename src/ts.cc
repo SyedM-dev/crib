@@ -141,24 +141,12 @@ const char *read_ts(void *payload, uint32_t byte_index, TSPoint,
     *bytes_read = 0;
     return "";
   }
-  TSLoad *load = (TSLoad *)payload;
-  Knot *root = load->editor->root;
-  if (load->prev)
-    free(load->prev);
-  if (byte_index >= root->char_count) {
+  Editor *editor = (Editor *)payload;
+  if (byte_index >= editor->root->char_count) {
     *bytes_read = 0;
-    load->prev = nullptr;
     return "";
   }
-  uint32_t chunk_size = 4096;
-  uint32_t remaining = root->char_count - byte_index;
-  uint32_t len_to_read = remaining > chunk_size ? chunk_size : remaining;
-  std::shared_lock lock(load->editor->knot_mtx);
-  char *buffer = read(root, byte_index, len_to_read);
-  lock.unlock();
-  load->prev = buffer;
-  *bytes_read = len_to_read;
-  return buffer;
+  return leaf_from_offset(editor->root, byte_index, bytes_read);
 }
 
 static inline Highlight *safe_get(std::vector<Highlight> &vec, size_t index) {
@@ -170,9 +158,8 @@ static inline Highlight *safe_get(std::vector<Highlight> &vec, size_t index) {
 void ts_collect_spans(Editor *editor) {
   if (!editor->parser || !editor->root || !editor->query)
     return;
-  TSLoad load = {editor, nullptr};
   TSInput tsinput = {
-      .payload = &load,
+      .payload = editor,
       .read = read_ts,
       .encoding = TSInputEncodingUTF8,
       .decode = nullptr,
@@ -196,7 +183,9 @@ void ts_collect_spans(Editor *editor) {
     return;
   }
   editor->spans.mid_parse = true;
+  std::shared_lock lock(editor->knot_mtx);
   tree = ts_parser_parse(editor->parser, copy, tsinput);
+  lock.unlock();
   if (copy)
     ts_tree_delete(copy);
   knot_mtx.lock();
@@ -228,8 +217,6 @@ void ts_collect_spans(Editor *editor) {
   }
   ts_query_cursor_delete(cursor);
   ts_tree_delete(copy);
-  if (load.prev)
-    free(load.prev);
   if (!running)
     return;
   std::sort(new_spans.begin(), new_spans.end());

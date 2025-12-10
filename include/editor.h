@@ -104,11 +104,6 @@ struct Editor {
                                         // - built by tree-sitter helpers
 };
 
-typedef struct TSLoad {
-  Editor *editor;
-  char *prev = nullptr;
-} TSLoad;
-
 Editor *new_editor(const char *filename, Coord position, Coord size);
 void free_editor(Editor *editor);
 void render_editor(Editor *editor);
