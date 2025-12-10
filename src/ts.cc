@@ -172,6 +172,7 @@ static inline Highlight *safe_get(std::vector<Highlight> &vec, size_t index) {
 }
 
 void ts_collect_spans(Editor *editor) {
+  static int parse_counter = 0;
   if (!editor->parser || !editor->root || !editor->query)
     return;
   TSInput tsinput = {
@@ -194,10 +195,12 @@ void ts_collect_spans(Editor *editor) {
       edits.push_back(edit);
       ts_tree_edit(copy, &edits.back());
     };
-  if (copy && edits.empty()) {
+  if (copy && edits.empty() && parse_counter < 64) {
+    parse_counter++;
     ts_tree_delete(copy);
     return;
   }
+  parse_counter = 0;
   editor->spans.mid_parse = true;
   // TODO: Remove this lock and replace with an index
   //       modifier based on edits made in the `read_ts` function.
