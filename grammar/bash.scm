@@ -281,7 +281,7 @@
   (extglob_pattern)
 ] @string.regexp
 
-;; #fbb152 #000000 0 0 0 3
+;; #51eeba #000000 0 0 0 3
 ((program
   .
   (comment) @keyword.directive @nospell)

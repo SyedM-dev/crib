@@ -245,23 +245,11 @@
 ;; #AAAAAA #000000 0 1 0 1
 (comment) @comment
 
-(program
-  (comment)+ @comment.documentation
-  (class))
-
-(module
-  (comment)+ @comment.documentation
-  (body_statement
-    (class)))
-
-(class
-  (comment)+ @comment.documentation
-  (body_statement
-    (method)))
-
-(body_statement
-  (comment)+ @comment.documentation
-  (method))
+;; #51eeba #000000 0 0 0 3
+((program
+  .
+  (comment) @shebang @nospell)
+  (#match? @shebang "^#!/"))
 
 ;; #ffffff #000000 0 0 0 1
 [

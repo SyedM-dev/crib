@@ -8,7 +8,27 @@
 #include <string>
 #include <unordered_map>
 
-static std::unordered_map<std::string, std::regex> regex_cache;
+std::unordered_map<std::string, pcre2_code *> regex_cache;
+
+void clear_regex_cache() {
+  for (auto &kv : regex_cache) {
+    pcre2_code_free(kv.second);
+  }
+  regex_cache.clear();
+}
+
+pcre2_code *get_re(const std::string &pattern) {
+  auto it = regex_cache.find(pattern);
+  if (it != regex_cache.end())
+    return it->second;
+  int errornum;
+  PCRE2_SIZE erroffset;
+  pcre2_code *re =
+      pcre2_compile((PCRE2_SPTR)pattern.c_str(), PCRE2_ZERO_TERMINATED, 0,
+                    &errornum, &erroffset, nullptr);
+  regex_cache[pattern] = re;
+  return re;
+}
 
 static const std::regex scm_regex(
     R"((@[A-Za-z0-9_.]+)|(;; \#[0-9a-fA-F]{6} \#[0-9a-fA-F]{6} [01] [01] [01] \d+))");
@@ -94,8 +114,6 @@ static inline bool ts_predicate(TSQuery *query, const TSQueryMatch &match,
       ts_query_predicates_for_pattern(query, match.pattern_index, &step_count);
   if (!steps || step_count != 4)
     return true;
-  if (source->char_count >= (16 * 1024))
-    return false;
   std::string command;
   std::string regex_txt;
   uint32_t subject_id = 0;
@@ -124,15 +142,13 @@ static inline bool ts_predicate(TSQuery *query, const TSQueryMatch &match,
   }
   const TSNode *node = find_capture_node(match, subject_id);
   std::string subject = node_text(*node, source);
-  auto it = regex_cache.find(regex_txt);
-  if (it == regex_cache.end())
-    it = regex_cache.emplace(regex_txt, std::regex(regex_txt)).first;
-  const std::regex &re = it->second;
-  if (command == "match?")
-    return std::regex_match(subject, re);
-  else if (command == "not-match?")
-    return !std::regex_match(subject, re);
-  return false;
+  pcre2_code *re = get_re(regex_txt);
+  pcre2_match_data *md = pcre2_match_data_create_from_pattern(re, nullptr);
+  int rc = pcre2_match(re, (PCRE2_SPTR)subject.c_str(), subject.size(), 0, 0,
+                       md, nullptr);
+  pcre2_match_data_free(md);
+  bool ok = (rc >= 0);
+  return (command == "match?" ? ok : !ok);
 }
 
 const char *read_ts(void *payload, uint32_t byte_index, TSPoint,

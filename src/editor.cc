@@ -12,8 +12,11 @@ Editor *new_editor(const char *filename, Coord position, Coord size) {
     return nullptr;
   uint32_t len = 0;
   char *str = load_file(filename, &len);
-  if (!str)
+  if (!str) {
+    free_editor(editor);
+    log("me?");
     return nullptr;
+  }
   editor->filename = filename;
   editor->position = position;
   editor->size = size;

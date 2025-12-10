@@ -5,22 +5,14 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
-#include <iostream>
 #include <sys/ioctl.h>
 #include <thread>
 
 std::atomic<bool> running{true};
 Queue<KeyEvent> event_queue;
 
-std::atomic<uint64_t> render_frames{0};
-std::atomic<uint64_t> worker_frames{0};
-
-auto start_time = std::chrono::high_resolution_clock::now();
-
 void background_worker(Editor *editor) {
   while (running) {
-    worker_frames++;
-
     ts_collect_spans(editor);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(16));
@@ -164,7 +156,7 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
 
 int main(int argc, char *argv[]) {
   Coord screen = start_screen();
-  const char *filename = (argc > 1) ? argv[1] : "ts.cpp";
+  const char *filename = (argc > 1) ? argv[1] : "";
 
   Editor *editor = new_editor(filename, {0, 0}, {screen.row, screen.col});
   if (!editor) {
@@ -173,14 +165,10 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  start_time = std::chrono::high_resolution_clock::now();
-
   std::thread input_thread(input_listener);
   std::thread work_thread(background_worker, editor);
 
   while (running) {
-    render_frames++;
-
     KeyEvent event;
     while (event_queue.pop(event))
       handle_editor_event(editor, event);
@@ -196,20 +184,9 @@ int main(int argc, char *argv[]) {
   if (work_thread.joinable())
     work_thread.join();
 
-  auto end_time = std::chrono::high_resolution_clock::now();
-  double seconds = std::chrono::duration<double>(end_time - start_time).count();
-
-  double render_fps = render_frames / seconds;
-  double worker_fps = worker_frames / seconds;
-
   end_screen();
 
-  std::cout << "\n======= Performance Summary =======\n";
-  std::cout << "Runtime: " << seconds << "s\n";
-  std::cout << "Render loop FPS: " << render_fps << "Hz\n";
-  std::cout << "Worker loop FPS: " << worker_fps << "Hz\n";
-  std::cout << "===================================\n";
-
   free_editor(editor);
+  clear_regex_cache();
   return 0;
 }
