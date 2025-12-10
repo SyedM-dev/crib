@@ -347,29 +347,53 @@ void cursor_left(Editor *editor, uint32_t number) {
 }
 
 void ensure_scroll(Editor *editor) {
-  LineIterator *it = begin_l_iter(editor->root, editor->scroll.row);
-  uint32_t rendered_lines = 0;
-  uint32_t line_index = editor->scroll.row;
-  char *line_content = nullptr;
-  while (rendered_lines <= editor->size.row) {
-    line_content = next_line(it);
-    if (!line_content)
-      break;
-    char *line_content_t = line_content;
-    if (rendered_lines == 0)
-      line_content_t = line_content + editor->scroll.col;
-    uint32_t len = grapheme_strlen(line_content_t);
-    free(line_content);
-    uint32_t wrapped_lines = (len + editor->size.col - 1) / editor->size.col;
-    rendered_lines += wrapped_lines;
-    line_index++;
+  if (editor->cursor.row < editor->scroll.row) {
+    uint32_t visual_delta = 0;
+    LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
+    for (uint32_t i = editor->cursor.row; i < editor->scroll.row; i++) {
+      char *line = next_line(it);
+      if (!line)
+        break;
+      uint32_t len = grapheme_strlen(line);
+      visual_delta += (len + editor->size.col - 1) / editor->size.col;
+      free(line);
+    }
+    free(it);
+    scroll_up(editor, visual_delta);
+    return;
   }
-  line_index -= 2;
+  uint32_t current_visual_y = 0;
+  LineIterator *it = begin_l_iter(editor->root, editor->scroll.row);
+  uint32_t i = editor->scroll.row;
+  char *line = nullptr;
+  bool found_cursor = false;
+  while ((line = next_line(it)) != nullptr) {
+    uint32_t lines_in_chunk;
+    uint32_t offset = (i == editor->scroll.row) ? editor->scroll.col : 0;
+    if (i == editor->cursor.row) {
+      uint32_t cursor_sub_row = editor->cursor.col / editor->size.col;
+      if (i == editor->scroll.row)
+        cursor_sub_row -= offset / editor->size.col;
+      current_visual_y += cursor_sub_row;
+      found_cursor = true;
+      free(line);
+      break;
+    }
+    uint32_t len = grapheme_strlen(line);
+    uint32_t visible_len = len - offset;
+    if (visible_len == 0)
+      visible_len = 1;
+    lines_in_chunk = (visible_len + editor->size.col - 1) / editor->size.col;
+    current_visual_y += lines_in_chunk;
+    free(line);
+    i++;
+  }
   free(it);
-  if (editor->cursor.row >= line_index && line_content)
-    scroll_down(editor, editor->cursor.row - line_index);
-  if (editor->cursor.row < editor->scroll.row)
-    scroll_up(editor, editor->scroll.row - editor->cursor.row);
+  if (found_cursor)
+    if (current_visual_y >= editor->size.row) {
+      uint32_t needed_scroll = current_visual_y - editor->size.row + 1;
+      scroll_down(editor, needed_scroll);
+    }
 }
 
 void fold(Editor *editor, uint32_t start_line, uint32_t end_line) {
