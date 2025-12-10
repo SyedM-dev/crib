@@ -54,3 +54,15 @@
 	path = libs/tree-sitter-bash
 	url = https://github.com/tree-sitter/tree-sitter-bash.git
   ignore = dirty
+[submodule "libs/tree-sitter-markdown"]
+	path = libs/tree-sitter-markdown
+	url = https://github.com/tree-sitter-grammars/tree-sitter-markdown
+[submodule "libs/tree-sitter-make"]
+	path = libs/tree-sitter-make
+	url = https://github.com/tree-sitter-grammars/tree-sitter-make
+[submodule "libs/tree-sitter-lua"]
+	path = libs/tree-sitter-lua
+	url = https://github.com/tree-sitter-grammars/tree-sitter-lua
+[submodule "libs/tree-sitter-fish"]
+	path = libs/tree-sitter-fish
+	url = https://github.com/ram02z/tree-sitter-fish

@@ -23,11 +23,17 @@ UNICODE_SRC := $(wildcard libs/unicode_width/*.c)
 UNICODE_OBJ_DEBUG := $(patsubst libs/unicode_width/%.c,$(OBJ_DIR)/debug/unicode_width/%.o,$(UNICODE_SRC))
 UNICODE_OBJ_RELEASE := $(patsubst libs/unicode_width/%.c,$(OBJ_DIR)/release/unicode_width/%.o,$(UNICODE_SRC))
 
+TREE_SITTER_LIBS := $(wildcard libs/tree-sitter-*/libtree-sitter*.a)
+FISH_OBJ_PARSER := libs/tree-sitter-fish/build/Release/obj.target/tree_sitter_fish_binding/src/parser.o
+FISH_OBJ_SCANNER := libs/tree-sitter-fish/build/Release/obj.target/tree_sitter_fish_binding/src/scanner.o
+
 LIBS := \
 	libs/libgrapheme/libgrapheme.a \
 	libs/tree-sitter/libtree-sitter.a \
-	libs/tree-sitter-ruby/libtree-sitter-ruby.a \
-	-lpcre2-8
+	$(TREE_SITTER_LIBS) \
+	$(FISH_OBJ_PARSER) \
+	$(FISH_OBJ_SCANNER) \
+	-lpcre2-8 -lmagic
 
 SRC := $(wildcard $(SRC_DIR)/*.cc)
 OBJ_DEBUG := $(patsubst $(SRC_DIR)/%.cc,$(OBJ_DIR)/debug/%.o,$(SRC))

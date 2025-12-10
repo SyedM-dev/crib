@@ -2,13 +2,18 @@ extern "C" {
 #include "../libs/libgrapheme/grapheme.h"
 }
 #include "../include/utils.h"
+#include <algorithm>
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
+#include <fstream>
 #include <limits.h>
+#include <magic.h>
 #include <string.h>
 #include <string>
 #include <unistd.h>
+#include <unordered_map>
 
 std::string get_exe_dir() {
   char exe_path[PATH_MAX];
@@ -76,12 +81,117 @@ void log(const char *fmt, ...) {
   FILE *fp = fopen("/tmp/log.txt", "a");
   if (!fp)
     return;
-
   va_list args;
   va_start(args, fmt);
   vfprintf(fp, fmt, args);
   va_end(args);
-
   fputc('\n', fp);
   fclose(fp);
+}
+
+char *load_file(const char *path, uint32_t *out_len) {
+  std::ifstream file(path, std::ios::in | std::ios::binary | std::ios::ate);
+  if (!file.is_open())
+    return nullptr;
+  std::streamsize len = file.tellg();
+  if (len < 0 || (std::uint32_t)len > 0xFFFFFFFF)
+    return nullptr;
+  file.seekg(0, std::ios::beg);
+  char *buf = (char *)malloc(static_cast<std::uint32_t>(len));
+  if (!buf)
+    return nullptr;
+  if (file.read(buf, len)) {
+    *out_len = static_cast<uint32_t>(len);
+    return buf;
+  } else {
+    free(buf);
+    return nullptr;
+  }
+}
+
+static std::string file_extension(const char *filename) {
+  std::string name(filename);
+  auto pos = name.find_last_of('.');
+  if (pos == std::string::npos)
+    return "";
+  std::string ext = name.substr(pos + 1);
+  std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+  return ext;
+}
+
+char *detect_file_type(const char *filename) {
+  magic_t magic = magic_open(MAGIC_MIME_TYPE);
+  if (!magic)
+    return nullptr;
+  if (magic_load(magic, nullptr) != 0) {
+    magic_close(magic);
+    return nullptr;
+  }
+  const char *type = magic_file(magic, filename);
+  if (!type) {
+    magic_close(magic);
+    return nullptr;
+  }
+  char *result = strdup(type);
+  magic_close(magic);
+  return result;
+}
+
+static const std::unordered_map<std::string, Language> ext_map = {
+    {"sh", {"bash", tree_sitter_bash}},
+    {"bash", {"bash", tree_sitter_bash}},
+    {"c", {"c", tree_sitter_c}},
+    {"cpp", {"cpp", tree_sitter_cpp}},
+    {"cxx", {"cpp", tree_sitter_cpp}},
+    {"cc", {"cpp", tree_sitter_cpp}},
+    {"hpp", {"cpp", tree_sitter_cpp}},
+    {"hh", {"cpp", tree_sitter_cpp}},
+    {"hxx", {"cpp", tree_sitter_cpp}},
+    {"h", {"cpp", tree_sitter_cpp}},
+    {"css", {"css", tree_sitter_css}},
+    {"fish", {"fish", tree_sitter_fish}},
+    {"go", {"go", tree_sitter_go}},
+    {"hs", {"haskell", tree_sitter_haskell}},
+    {"html", {"html", tree_sitter_html}},
+    {"htm", {"html", tree_sitter_html}},
+    {"js", {"javascript", tree_sitter_javascript}},
+    {"json", {"json", tree_sitter_json}},
+    {"lua", {"lua", tree_sitter_lua}},
+    {"mk", {"make", tree_sitter_make}},
+    {"makefile", {"make", tree_sitter_make}},
+    {"py", {"python", tree_sitter_python}},
+    {"rb", {"ruby", tree_sitter_ruby}},
+};
+
+static const std::unordered_map<std::string, Language> mime_map = {
+    {"text/x-c", {"c", tree_sitter_c}},
+    {"text/x-c++", {"cpp", tree_sitter_cpp}},
+    {"text/x-shellscript", {"bash", tree_sitter_bash}},
+    {"application/json", {"json", tree_sitter_json}},
+    {"text/javascript", {"javascript", tree_sitter_javascript}},
+    {"text/html", {"html", tree_sitter_html}},
+    {"text/css", {"css", tree_sitter_css}},
+    {"text/x-python", {"python", tree_sitter_python}},
+    {"text/x-ruby", {"ruby", tree_sitter_ruby}},
+    {"text/x-go", {"go", tree_sitter_go}},
+    {"text/x-haskell", {"haskell", tree_sitter_haskell}},
+    {"text/x-lua", {"lua", tree_sitter_lua}},
+};
+
+Language language_for_file(const char *filename) {
+  std::string ext = file_extension(filename);
+  if (!ext.empty()) {
+    auto it = ext_map.find(ext);
+    if (it != ext_map.end())
+      return it->second;
+  }
+  char *mime = detect_file_type(filename);
+  if (mime) {
+    std::string mime_type(mime);
+    free(mime);
+    auto it = mime_map.find(mime_type);
+    if (it != mime_map.end())
+      return it->second;
+  }
+  return {"unknown", nullptr};
 }

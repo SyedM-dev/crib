@@ -1,6 +1,7 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include "./ts_def.h"
 #include <mutex>
 #include <queue>
 #include <string>
@@ -33,5 +34,8 @@ uint32_t get_bytes_from_visual_col(const char *line,
                                    uint32_t target_visual_col);
 void log(const char *fmt, ...);
 std::string get_exe_dir();
+char *load_file(const char *path, uint32_t *out_len);
+char *detect_file_type(const char *filename);
+Language language_for_file(const char *filename);
 
 #endif

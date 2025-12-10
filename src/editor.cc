@@ -3,29 +3,8 @@ extern "C" {
 }
 #include "../include/editor.h"
 #include "../include/ts.h"
-#include "../libs/tree-sitter-ruby/bindings/c/tree-sitter-ruby.h"
+#include "../include/utils.h"
 #include <cstdint>
-#include <fstream>
-
-char *load_file(const char *path, uint32_t *out_len) {
-  std::ifstream file(path, std::ios::in | std::ios::binary | std::ios::ate);
-  if (!file.is_open())
-    return nullptr;
-  std::streamsize len = file.tellg();
-  if (len < 0 || (std::uint32_t)len > 0xFFFFFFFF)
-    return nullptr;
-  file.seekg(0, std::ios::beg);
-  char *buf = (char *)malloc(static_cast<std::uint32_t>(len));
-  if (!buf)
-    return nullptr;
-  if (file.read(buf, len)) {
-    *out_len = static_cast<uint32_t>(len);
-    return buf;
-  } else {
-    free(buf);
-    return nullptr;
-  }
-}
 
 Editor *new_editor(const char *filename, Coord position, Coord size) {
   Editor *editor = new Editor();
@@ -47,11 +26,12 @@ Editor *new_editor(const char *filename, Coord position, Coord size) {
   editor->root = load(str, len, optimal_chunk_size(len));
   free(str);
   editor->folded.resize(editor->root->line_count + 2);
-  std::string query = get_exe_dir() + "/../grammar/ruby.scm";
   if (len < (1024 * 64)) {
     editor->parser = ts_parser_new();
-    editor->language = tree_sitter_ruby();
+    Language language = language_for_file(filename);
+    editor->language = language.fn();
     ts_parser_set_language(editor->parser, editor->language);
+    std::string query = get_exe_dir() + "/../grammar/" + language.name + ".scm";
     editor->query = load_query(query.c_str(), editor);
   }
   return editor;
