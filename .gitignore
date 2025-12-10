@@ -7,8 +7,7 @@
 
 .vscode
 
-tests/*
-!tests/.keep
+samples/t_*
 
 build
 bin
