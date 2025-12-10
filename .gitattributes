@@ -1,3 +1,2 @@
-/libs/cjson/** linguist-vendored
 /libs/unicode_width/** linguist-vendored
 *.scm linguist-language=Tree-sitter-Query
