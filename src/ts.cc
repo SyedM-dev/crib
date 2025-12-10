@@ -183,7 +183,10 @@ void ts_collect_spans(Editor *editor) {
     return;
   }
   editor->spans.mid_parse = true;
+  // TODO: Remove this lock and replace with an index
+  //       modifier based on edits made in the `read_ts` function.
   std::shared_lock lock(editor->knot_mtx);
+  // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   tree = ts_parser_parse(editor->parser, copy, tsinput);
   lock.unlock();
   if (copy)
