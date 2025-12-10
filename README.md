@@ -6,7 +6,11 @@ A TUI IDE.
 
 # TODO
 
-- [ ] Add support for text selection.
+- [ ] Add support for text selection (slect range / all).
+- [ ] Add support for delete key.
+- [ ] Add support for copy/cut/paste.
+- [ ] Add mouse support.
+- [ ] Add modes for editing - insert, select, normal, etc.
 - [ ] Add folding support.
 - [ ] Add feature where doing enter uses tree-sitter to add newline with indentation.
     1. it should also put stuff like `}` on the next line.
