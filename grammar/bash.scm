@@ -31,7 +31,7 @@
   "&"
 ] @punctuation.delimiter
 
-;; #ffffff #000000 0 0 0 1
+;; #ffffff #000000 0 1 0 1
 [
   ">"
   ">>"

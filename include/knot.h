@@ -1,6 +1,7 @@
 #ifndef ROPE_H
 #define ROPE_H
 
+#include "./utils.h"
 #include <cstdint>
 #include <vector>
 
@@ -9,9 +10,6 @@
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define DEPTH(n) ((n) ? (n)->depth : 0)
-
-#define PCRE2_CODE_UNIT_WIDTH 8
-#define PCRE_WORKSPACE_SIZE 512
 
 // Rope node definition
 typedef struct Knot {

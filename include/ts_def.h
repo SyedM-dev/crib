@@ -7,18 +7,18 @@ struct Language {
 };
 
 extern "C" {
-const TSLanguage *tree_sitter_bash(void);
-const TSLanguage *tree_sitter_c(void);
-const TSLanguage *tree_sitter_cpp(void);
-const TSLanguage *tree_sitter_css(void);
-const TSLanguage *tree_sitter_fish(void);
-const TSLanguage *tree_sitter_go(void);
-const TSLanguage *tree_sitter_haskell(void);
-const TSLanguage *tree_sitter_html(void);
-const TSLanguage *tree_sitter_javascript(void);
-const TSLanguage *tree_sitter_json(void);
-const TSLanguage *tree_sitter_lua(void);
-const TSLanguage *tree_sitter_make(void);
-const TSLanguage *tree_sitter_python(void);
-const TSLanguage *tree_sitter_ruby(void);
+const TSLanguage *tree_sitter_bash();
+const TSLanguage *tree_sitter_c();
+const TSLanguage *tree_sitter_cpp();
+const TSLanguage *tree_sitter_css();
+const TSLanguage *tree_sitter_fish();
+const TSLanguage *tree_sitter_go();
+const TSLanguage *tree_sitter_haskell();
+const TSLanguage *tree_sitter_html();
+const TSLanguage *tree_sitter_javascript();
+const TSLanguage *tree_sitter_json();
+const TSLanguage *tree_sitter_lua();
+const TSLanguage *tree_sitter_make();
+const TSLanguage *tree_sitter_python();
+const TSLanguage *tree_sitter_ruby();
 }

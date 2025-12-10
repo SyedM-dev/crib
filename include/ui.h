@@ -1,6 +1,7 @@
 #ifndef UI_H
 #define UI_H
 
+#include "./utils.h"
 #include <atomic>
 #include <cstdint>
 #include <mutex>
@@ -63,11 +64,6 @@ struct ScreenCell {
   uint8_t flags = CF_NONE;
 };
 
-struct Coord {
-  uint32_t row;
-  uint32_t col;
-};
-
 struct KeyEvent {
   uint8_t key_type;
 
@@ -91,7 +87,6 @@ extern std::mutex screen_mutex;
 extern std::atomic<bool> running;
 
 void get_terminal_size();
-void die(const char *s);
 void enable_raw_mode();
 void disable_raw_mode();
 Coord start_screen();

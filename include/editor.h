@@ -2,7 +2,7 @@
 #define EDITOR_H
 
 #include "../libs/tree-sitter/lib/include/tree_sitter/api.h"
-#include "./rope.h"
+#include "./knot.h"
 #include "./ui.h"
 #include "./utils.h"
 #include <algorithm>
@@ -82,26 +82,25 @@ struct SpanCursor {
 };
 
 struct Editor {
-  const char *filename;                 // Filename of the editor
-  Knot *root;                           // A rope
-  std::shared_mutex knot_mtx;           // A mutex
-  Coord cursor;                         // position of the cursor
-  uint32_t cursor_preffered;            // preffered visual column
-  Coord selection;                      // position of the selection
-  bool selection_active;                // true if there is a selection
-  Coord position;                       // Position of the editor
-  Coord size;                           // Size of the editor
-  Coord scroll;                         // Position of the scroll
-  TSTree *tree;                         // Tree-sitter tree
-  TSParser *parser;                     // Tree-sitter parser
-  TSQuery *query;                       // Tree-sitter query
-  const TSLanguage *language;           // Tree-sitter language
-  Queue<TSInputEdit> edit_queue;        // Tree-sitter edit queue
-  std::vector<Highlight> query_map;     // Tree-sitter query map
-  std::vector<int8_t> folded;           // folded lines indexed by line number
-  Spans spans;                          // Highlighted spans
-  std::map<uint32_t, bool> folded_node; // maps content hash to fold state
-                                        // - built by tree-sitter helpers
+  const char *filename;
+  Knot *root;
+  std::shared_mutex knot_mtx;
+  Coord cursor;
+  uint32_t cursor_preffered;
+  Coord selection;
+  bool selection_active;
+  Coord position;
+  Coord size;
+  Coord scroll;
+  TSTree *tree;
+  TSParser *parser;
+  TSQuery *query;
+  const TSLanguage *language;
+  Queue<TSInputEdit> edit_queue;
+  std::vector<Highlight> query_map;
+  std::vector<int8_t> folded;
+  Spans spans;
+  std::map<uint32_t, bool> folded_node;
 };
 
 Editor *new_editor(const char *filename, Coord position, Coord size);

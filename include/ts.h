@@ -2,6 +2,7 @@
 #define TS_H
 
 #include "./editor.h"
+#include "./utils.h"
 #include <pcre2.h>
 
 #define HEX(s) (static_cast<uint32_t>(std::stoul(s, nullptr, 16)))

@@ -5,18 +5,15 @@ extern "C" {
 }
 #include "../include/ui.h"
 
-termios orig_termios;
-
 uint32_t rows, cols;
 int show_cursor = 0;
 std::vector<ScreenCell> screen;
 std::vector<ScreenCell> old_screen;
 std::mutex screen_mutex;
+termios orig_termios;
 
 int display_width(const char *str) {
-  if (!str)
-    return 0;
-  if (!strlen(str))
+  if (!str || !*str)
     return 0;
   if (str[0] == '\t')
     return 4;
@@ -40,7 +37,6 @@ int display_width(const char *str) {
       }
     }
   }
-
   return width;
 }
 
@@ -51,15 +47,9 @@ void get_terminal_size() {
   cols = w.ws_col;
 }
 
-void die(const char *s) {
-  perror(s);
-  disable_raw_mode();
-  exit(EXIT_FAILURE);
-}
-
 void enable_raw_mode() {
   if (tcgetattr(STDIN_FILENO, &orig_termios) == -1)
-    die("tcgetattr");
+    exit(EXIT_FAILURE);
   atexit(disable_raw_mode);
 
   struct termios raw = orig_termios;
@@ -72,7 +62,7 @@ void enable_raw_mode() {
   raw.c_cc[VTIME] = 0;
 
   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1)
-    die("tcsetattr");
+    exit(EXIT_FAILURE);
 
   std::string os = "\x1b[?1049h\x1b[2 q\x1b[?1002h\x1b[?25l";
   write(STDOUT_FILENO, os.c_str(), os.size());
@@ -246,7 +236,7 @@ void render() {
     } else if (written == -1) {
       if (errno == EINTR)
         continue;
-      die("write failed");
+      exit(EXIT_FAILURE);
       break;
     } else {
       ptr += written;

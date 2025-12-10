@@ -6,6 +6,9 @@
 #include <queue>
 #include <string>
 
+#define PCRE2_CODE_UNIT_WIDTH 8
+#define PCRE_WORKSPACE_SIZE 512
+
 template <typename T> struct Queue {
   std::queue<T> q;
   std::mutex m;
@@ -26,6 +29,11 @@ template <typename T> struct Queue {
     std::lock_guard<std::mutex> lock(m);
     return q.empty();
   }
+};
+
+struct Coord {
+  uint32_t row;
+  uint32_t col;
 };
 
 uint32_t grapheme_strlen(const char *s);

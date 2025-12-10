@@ -46,7 +46,7 @@ void capture_mouse(char *buf, KeyEvent *ret) {
   }
 }
 
-KeyEvent read_key_nonblock() {
+KeyEvent read_key() {
   KeyEvent ret;
   char buf[7];
   int n = read_input(buf, sizeof(buf));
@@ -112,12 +112,4 @@ KeyEvent read_key_nonblock() {
     }
   }
   return ret;
-}
-
-KeyEvent read_key() {
-  while (true) {
-    KeyEvent ret = read_key_nonblock();
-    if (ret.key_type != KEY_NONE)
-      return ret;
-  }
 }

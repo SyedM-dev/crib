@@ -22,6 +22,8 @@ void background_worker(Editor *editor) {
 void input_listener() {
   while (running) {
     KeyEvent event = read_key();
+    if (event.key_type == KEY_NONE)
+      continue;
     if (event.key_type == KEY_CHAR && event.c == CTRL('q'))
       running = false;
     event_queue.push(event);

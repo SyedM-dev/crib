@@ -14,7 +14,6 @@ Editor *new_editor(const char *filename, Coord position, Coord size) {
   char *str = load_file(filename, &len);
   if (!str) {
     free_editor(editor);
-    log("me?");
     return nullptr;
   }
   editor->filename = filename;
@@ -438,8 +437,7 @@ void apply_edit(std::vector<Span> &spans, uint32_t x, int64_t y) {
 }
 
 void render_editor(Editor *editor) {
-  uint32_t screen_rows = editor->size.row;
-  uint32_t screen_cols = editor->size.col;
+  Coord cursor = {UINT32_MAX, UINT32_MAX};
   uint32_t line_index = editor->scroll.row;
   SpanCursor span_cursor(editor->spans);
   std::shared_lock knot_lock(editor->knot_mtx);
@@ -449,10 +447,10 @@ void render_editor(Editor *editor) {
   uint32_t rendered_rows = 0;
   uint32_t global_byte_offset = line_to_byte(editor->root, line_index, nullptr);
   span_cursor.sync(global_byte_offset);
-  while (rendered_rows < screen_rows) {
+  while (rendered_rows < editor->size.row) {
     if (editor->folded[line_index]) {
       if (editor->folded[line_index] == 2) {
-        update_render_fold_marker(rendered_rows, screen_cols);
+        update_render_fold_marker(rendered_rows, editor->size.col);
         rendered_rows++;
       }
       do {
@@ -486,11 +484,11 @@ void render_editor(Editor *editor) {
         skipped_cols++;
       }
     }
-    while (current_byte_offset < line_len && rendered_rows < screen_rows) {
+    while (current_byte_offset < line_len && rendered_rows < editor->size.row) {
       uint32_t slice_byte_len = 0;
       uint32_t slice_visual_cols = 0;
       uint32_t probe_offset = current_byte_offset;
-      while (slice_visual_cols < screen_cols && probe_offset < line_len) {
+      while (slice_visual_cols < editor->size.col && probe_offset < line_len) {
         uint32_t len = grapheme_next_character_break_utf8(
             line + probe_offset, line_len - probe_offset);
         slice_byte_len += len;
@@ -501,9 +499,10 @@ void render_editor(Editor *editor) {
       uint32_t local_render_offset = 0;
       while (local_render_offset < slice_byte_len) {
         if (line_index == editor->cursor.row &&
-            editor->cursor.col == (current_byte_offset + local_render_offset))
-          set_cursor(editor->position.row + rendered_rows,
-                     editor->position.col + col, 1);
+            editor->cursor.col == (current_byte_offset + local_render_offset)) {
+          cursor.row = editor->position.row + rendered_rows;
+          cursor.col = editor->position.col + col;
+        }
         uint32_t absolute_byte_pos =
             global_byte_offset + current_byte_offset + local_render_offset;
         Highlight *hl = span_cursor.get_highlight(absolute_byte_pos);
@@ -523,10 +522,11 @@ void render_editor(Editor *editor) {
         col++;
       }
       if (line_index == editor->cursor.row &&
-          editor->cursor.col == (current_byte_offset + slice_byte_len))
-        set_cursor(editor->position.row + rendered_rows,
-                   editor->position.col + col, 1);
-      while (col < screen_cols) {
+          editor->cursor.col == (current_byte_offset + slice_byte_len)) {
+        cursor.row = editor->position.row + rendered_rows;
+        cursor.col = editor->position.col + col;
+      }
+      while (col < editor->size.col) {
         update(editor->position.row + rendered_rows, editor->position.col + col,
                " ", 0xFFFFFF, 0, 0);
         col++;
@@ -536,11 +536,12 @@ void render_editor(Editor *editor) {
     }
     if (line_len == 0 ||
         (current_byte_offset >= line_len && rendered_rows == 0)) {
-      if (editor->cursor.row == line_index)
-        set_cursor(editor->position.row + rendered_rows, editor->position.col,
-                   1);
+      if (editor->cursor.row == line_index) {
+        cursor.row = editor->position.row + rendered_rows;
+        cursor.col = editor->position.col;
+      }
       uint32_t col = 0;
-      while (col < screen_cols) {
+      while (col < editor->size.col) {
         update(editor->position.row + rendered_rows, editor->position.col + col,
                " ", 0xFFFFFF, 0, 0);
         col++;
@@ -551,8 +552,10 @@ void render_editor(Editor *editor) {
     line_index++;
     free(line);
   }
-  while (rendered_rows < screen_rows) {
-    for (uint32_t col = 0; col < screen_cols; col++)
+  if (cursor.row != UINT32_MAX && cursor.col != UINT32_MAX)
+    set_cursor(cursor.row, cursor.col, 1);
+  while (rendered_rows < editor->size.row) {
+    for (uint32_t col = 0; col < editor->size.col; col++)
       update(editor->position.row + rendered_rows, editor->position.col + col,
              " ", 0xFFFFFF, 0, 0);
     rendered_rows++;
