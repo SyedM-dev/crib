@@ -6,5 +6,10 @@ A TUI IDE.
 
 # TODO
 
-- [ ] VERY HIGH PRIORITY: fix bug when moving upwards into wrapped line (cuses random line amongst the wrapped lines to be visually focused while in reality the top is selected), has be somewhere in `ensure_scroll` function.
+- [ ] Add support for text selection.
+- [ ] Add folding support.
+- [ ] Add feature where doing enter uses tree-sitter to add newline with indentation.
+    1. it should also put stuff like `}` on the next line.
+- [ ] Add support for brackets/quotes to auto-close.
+- [ ] Add scm files for all the supported languages. (2/14) Done.
 - [ ] Add support for wide characters with wrapping.
