@@ -100,7 +100,7 @@ char *read(Knot *root, uint32_t offset, uint32_t len);
 void split(Knot *node, uint32_t offset, Knot **left, Knot **right);
 
 // Used to convert a byte offset to a line number that contains that byte
-uint32_t byte_to_line(Knot *node, uint32_t offset);
+uint32_t byte_to_line(Knot *node, uint32_t offset, uint32_t *out_col);
 
 // Used to convert a line number to a byte offset (start of the line)
 // also sets out_len to the length of the line

@@ -75,8 +75,7 @@ void scroll_up(Editor *editor, uint32_t number) {
     if (fold_state == 2) {
       stack.push_back({1, current_idx});
     } else if (fold_state == 0) {
-      uint32_t len =
-          (line_content != nullptr) ? grapheme_strlen(line_content) : 0;
+      uint32_t len = (line_content != nullptr) ? visual_width(line_content) : 0;
       stack.push_back({len, current_idx});
     }
     if (line_content)
@@ -135,7 +134,7 @@ void scroll_down(Editor *editor, uint32_t number) {
     if (fold_state == 2) {
       segments = 1;
     } else {
-      uint32_t len = grapheme_strlen(line_content);
+      uint32_t len = visual_width(line_content);
       segments = (len > 0) ? (len + wrap_limit - 1) / wrap_limit : 1;
     }
     uint32_t start_seg = (current_row == editor->scroll.row)
@@ -353,7 +352,7 @@ void ensure_scroll(Editor *editor) {
       char *line = next_line(it);
       if (!line)
         break;
-      uint32_t len = grapheme_strlen(line);
+      uint32_t len = visual_width(line);
       visual_delta += (len + editor->size.col - 1) / editor->size.col;
       free(line);
     }
@@ -378,7 +377,7 @@ void ensure_scroll(Editor *editor) {
       free(line);
       break;
     }
-    uint32_t len = grapheme_strlen(line);
+    uint32_t len = visual_width(line);
     uint32_t visible_len = len - offset;
     if (visible_len == 0)
       visible_len = 1;
@@ -434,6 +433,75 @@ void apply_edit(std::vector<Span> &spans, uint32_t x, int64_t y) {
     else
       ++i;
   }
+}
+
+void edit_erase(Editor *editor, uint32_t pos, uint32_t len) {
+  if (len == 0)
+    return;
+  std::shared_lock lock_1(editor->knot_mtx);
+  uint32_t col;
+  uint32_t row = byte_to_line(editor->root, pos, &col);
+  TSPoint start_point = {row, col};
+  row = byte_to_line(editor->root, pos + len, &col);
+  TSPoint old_end_point = {row, col};
+  lock_1.unlock();
+  std::unique_lock lock_2(editor->knot_mtx);
+  editor->root = erase(editor->root, pos, len);
+  lock_2.unlock();
+  if (editor->tree) {
+    TSInputEdit edit = {
+        .start_byte = pos,
+        .old_end_byte = pos + len,
+        .new_end_byte = pos,
+        .start_point = start_point,
+        .old_end_point = old_end_point,
+        .new_end_point = start_point,
+    };
+    editor->edit_queue.push(edit);
+  }
+  std::unique_lock lock_3(editor->spans.mtx);
+  apply_edit(editor->spans.spans, pos, -(int32_t)len);
+  if (editor->spans.mid_parse)
+    editor->spans.edits.push({pos, -(int32_t)len});
+}
+
+void edit_insert(Editor *editor, uint32_t pos, char *data, uint32_t len) {
+  std::shared_lock lock_1(editor->knot_mtx);
+  uint32_t col;
+  uint32_t row = byte_to_line(editor->root, pos, &col);
+  TSPoint start_point = {row, col};
+  lock_1.unlock();
+  std::unique_lock lock_2(editor->knot_mtx);
+  editor->root = insert(editor->root, pos, data, len);
+  if (memchr(data, '\n', len))
+    editor->folded.resize(editor->root->line_count + 2);
+  lock_2.unlock();
+  uint32_t cols = 0;
+  uint32_t rows = 0;
+  for (uint32_t i = 0; i < len; i++) {
+    if (data[i] == '\n') {
+      rows++;
+      cols = 0;
+    } else {
+      cols++;
+    }
+  }
+  if (editor->tree) {
+    TSInputEdit edit = {
+        .start_byte = pos,
+        .old_end_byte = pos,
+        .new_end_byte = pos + len,
+        .start_point = start_point,
+        .old_end_point = start_point,
+        .new_end_point = {start_point.row + rows,
+                          (rows == 0) ? (start_point.column + cols) : cols},
+    };
+    editor->edit_queue.push(edit);
+  }
+  std::unique_lock lock_3(editor->spans.mtx);
+  apply_edit(editor->spans.spans, pos, len);
+  if (editor->spans.mid_parse)
+    editor->spans.edits.push({pos, len});
 }
 
 void render_editor(Editor *editor) {

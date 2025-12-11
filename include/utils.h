@@ -36,7 +36,7 @@ struct Coord {
   uint32_t col;
 };
 
-uint32_t grapheme_strlen(const char *s);
+uint32_t visual_width(const char *s);
 uint32_t get_visual_col_from_bytes(const char *line, uint32_t byte_limit);
 uint32_t get_bytes_from_visual_col(const char *line,
                                    uint32_t target_visual_col);

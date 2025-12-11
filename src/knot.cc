@@ -391,25 +391,42 @@ static uint32_t find_nth_newline_offset(Knot *node, uint32_t n) {
   }
 }
 
-uint32_t byte_to_line(Knot *node, uint32_t offset) {
-  if (!node)
+uint32_t byte_to_line(Knot *node, uint32_t offset, uint32_t *out_col) {
+  if (!node) {
+    if (out_col)
+      *out_col = 0;
     return 0;
-  if (offset >= node->char_count)
+  }
+  if (offset >= node->char_count) {
+    if (out_col)
+      *out_col = 0;
     return node->line_count;
+  }
   if (node->depth == 0) {
-    uint32_t lines_before = 0;
-    uint32_t limit = (offset < node->char_count) ? offset : node->char_count;
-    for (uint32_t i = 0; i < limit; i++)
-      if (node->data[i] == '\n')
-        lines_before++;
-    return lines_before;
+    uint32_t line = 0;
+    uint32_t col = 0;
+    for (uint32_t i = 0; i < offset; i++) {
+      if (node->data[i] == '\n') {
+        line++;
+        col = 0;
+      } else {
+        col++;
+      }
+    }
+    if (out_col)
+      *out_col = col;
+    return line;
   }
   uint32_t left_chars = node->left ? node->left->char_count : 0;
   if (offset < left_chars) {
-    return byte_to_line(node->left, offset);
+    return byte_to_line(node->left, offset, out_col);
   } else {
-    uint32_t left_lines = node->left ? node->left->line_count : 0;
-    return left_lines + byte_to_line(node->right, offset - left_chars);
+    uint32_t sub_col = 0;
+    uint32_t line = (node->left ? node->left->line_count : 0) +
+                    byte_to_line(node->right, offset - left_chars, &sub_col);
+    if (out_col)
+      *out_col = sub_col;
+    return line;
   }
 }
 

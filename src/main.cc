@@ -1,10 +1,8 @@
 #include "../include/editor.h"
 #include "../include/ts.h"
 #include "../include/ui.h"
-#include "../libs/tree-sitter/lib/include/tree_sitter/api.h"
 #include <atomic>
 #include <chrono>
-#include <cstdint>
 #include <sys/ioctl.h>
 #include <thread>
 
@@ -51,107 +49,32 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
        event.c == ':' || event.c == '\'' || event.c == '"' || event.c == ',' ||
        event.c == '.' || event.c == '<' || event.c == '>' || event.c == '/' ||
        event.c == '?' || event.c == '`' || event.c == '~')) {
-    std::shared_lock lock_1(editor->knot_mtx);
-    uint32_t pos = line_to_byte(editor->root, editor->cursor.row, nullptr) +
-                   editor->cursor.col;
-    lock_1.unlock();
-    std::unique_lock lock_2(editor->knot_mtx);
-    editor->root = insert(editor->root, pos, &event.c, 1);
-    lock_2.unlock();
-    if (editor->tree) {
-      TSInputEdit edit = {
-          .start_byte = pos,
-          .old_end_byte = pos,
-          .new_end_byte = pos + 1,
-          .start_point = {editor->cursor.row, editor->cursor.col},
-          .old_end_point = {editor->cursor.row, editor->cursor.col},
-          .new_end_point = {editor->cursor.row, editor->cursor.col + 1},
-      };
-      editor->edit_queue.push(edit);
-    }
+    edit_insert(editor,
+                line_to_byte(editor->root, editor->cursor.row, nullptr) +
+                    editor->cursor.col,
+                &event.c, 1);
     cursor_right(editor, 1);
-    apply_edit(editor->spans.spans, pos, 1);
-    if (editor->spans.mid_parse)
-      editor->spans.edits.push({pos, 1});
   }
   if (event.key_type == KEY_CHAR && event.c == '\t') {
-    std::shared_lock lock_1(editor->knot_mtx);
-    uint32_t pos = line_to_byte(editor->root, editor->cursor.row, nullptr) +
-                   editor->cursor.col;
-    lock_1.unlock();
-    std::unique_lock lock_2(editor->knot_mtx);
-    editor->root = insert(editor->root, pos, (char *)"  ", 2);
-    lock_2.unlock();
-    if (editor->tree) {
-      TSInputEdit edit = {
-          .start_byte = pos,
-          .old_end_byte = pos,
-          .new_end_byte = pos + 2,
-          .start_point = {editor->cursor.row, editor->cursor.col},
-          .old_end_point = {editor->cursor.row, editor->cursor.col},
-          .new_end_point = {editor->cursor.row, editor->cursor.col + 2},
-      };
-      editor->edit_queue.push(edit);
-    }
+    edit_insert(editor,
+                line_to_byte(editor->root, editor->cursor.row, nullptr) +
+                    editor->cursor.col,
+                (char *)"  ", 2);
     cursor_right(editor, 2);
-    std::unique_lock lock_3(editor->spans.mtx);
-    apply_edit(editor->spans.spans, pos, 2);
-    if (editor->spans.mid_parse)
-      editor->spans.edits.push({pos, 2});
   }
   if (event.key_type == KEY_CHAR && (event.c == '\n' || event.c == '\r')) {
-    std::shared_lock lock_1(editor->knot_mtx);
-    uint32_t pos = line_to_byte(editor->root, editor->cursor.row, nullptr) +
-                   editor->cursor.col;
-    lock_1.unlock();
-    std::unique_lock lock_2(editor->knot_mtx);
-    editor->root = insert(editor->root, pos, (char *)"\n", 1);
-    editor->folded.resize(editor->root->line_count + 2);
-    lock_2.unlock();
-    if (editor->tree) {
-      TSInputEdit edit = {
-          .start_byte = pos,
-          .old_end_byte = pos,
-          .new_end_byte = pos + 1,
-          .start_point = {editor->cursor.row, editor->cursor.col},
-          .old_end_point = {editor->cursor.row, editor->cursor.col},
-          .new_end_point = {editor->cursor.row + 1, 0},
-      };
-      editor->edit_queue.push(edit);
-    }
+    edit_insert(editor,
+                line_to_byte(editor->root, editor->cursor.row, nullptr) +
+                    editor->cursor.col,
+                (char *)"\n", 1);
     cursor_right(editor, 1);
-    std::unique_lock lock_3(editor->spans.mtx);
-    apply_edit(editor->spans.spans, pos + 1, 1);
-    if (editor->spans.mid_parse)
-      editor->spans.edits.push({pos + 1, 1});
   }
   if (event.key_type == KEY_CHAR && event.c == 0x7F) {
-    std::shared_lock lock_1(editor->knot_mtx);
-    uint32_t pos = line_to_byte(editor->root, editor->cursor.row, nullptr) +
-                   editor->cursor.col;
-    TSPoint old_point = {editor->cursor.row, editor->cursor.col};
+    edit_erase(editor,
+               line_to_byte(editor->root, editor->cursor.row, nullptr) +
+                   editor->cursor.col,
+               1);
     cursor_left(editor, 1);
-    uint32_t start = line_to_byte(editor->root, editor->cursor.row, nullptr) +
-                     editor->cursor.col;
-    lock_1.unlock();
-    std::unique_lock lock_2(editor->knot_mtx);
-    editor->root = erase(editor->root, start, pos - start);
-    lock_2.unlock();
-    if (editor->tree) {
-      TSInputEdit edit = {
-          .start_byte = start,
-          .old_end_byte = pos,
-          .new_end_byte = start,
-          .start_point = {editor->cursor.row, editor->cursor.col},
-          .old_end_point = old_point,
-          .new_end_point = {editor->cursor.row, editor->cursor.col},
-      };
-      editor->edit_queue.push(edit);
-    }
-    std::unique_lock lock_3(editor->spans.mtx);
-    apply_edit(editor->spans.spans, start, start - pos);
-    if (editor->spans.mid_parse)
-      editor->spans.edits.push({start, start - pos});
   }
   ensure_scroll(editor);
 }

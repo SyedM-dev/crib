@@ -25,7 +25,7 @@ std::string get_exe_dir() {
   return path.substr(0, path.find_last_of('/'));
 }
 
-uint32_t grapheme_strlen(const char *s) {
+uint32_t visual_width(const char *s) {
   if (!s)
     return 0;
   uint32_t count = 0;
