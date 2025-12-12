@@ -113,7 +113,7 @@ void cursor_left(Editor *editor, uint32_t number);
 void cursor_right(Editor *editor, uint32_t number);
 void ensure_scroll(Editor *editor);
 void apply_edit(std::vector<Span> &spans, uint32_t x, int64_t y);
-void edit_erase(Editor *editor, uint32_t pos, int64_t len);
-void edit_insert(Editor *editor, uint32_t pos, char *data, uint32_t len);
+void edit_erase(Editor *editor, Coord pos, int64_t len);
+void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len);
 
 #endif

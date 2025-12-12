@@ -234,6 +234,111 @@ void cursor_left(Editor *editor, uint32_t number) {
     free(line);
 }
 
+Coord simulate_cursor_right(Editor *editor, Coord cursor, uint32_t number) {
+  Coord result = cursor;
+  if (!editor || !editor->root || number == 0)
+    return result;
+  uint32_t row = result.row;
+  uint32_t col = result.col;
+  uint32_t line_len = 0;
+  LineIterator *it = begin_l_iter(editor->root, row);
+  char *line = next_line(it, &line_len);
+  free(it);
+  if (!line)
+    return result;
+  if (line_len > 0 && line[line_len - 1] == '\n')
+    --line_len;
+  while (number > 0) {
+    if (col >= line_len) {
+      free(line);
+      line = nullptr;
+      uint32_t next_row = row + 1;
+      while (next_row < editor->root->line_count &&
+             editor->folded[next_row] != 0)
+        next_row++;
+      if (next_row >= editor->root->line_count) {
+        col = line_len;
+        break;
+      }
+      row = next_row;
+      col = 0;
+      it = begin_l_iter(editor->root, row);
+      line = next_line(it, &line_len);
+      free(it);
+      if (!line)
+        break;
+      if (line_len > 0 && line[line_len - 1] == '\n')
+        --line_len;
+    } else {
+      uint32_t inc =
+          grapheme_next_character_break_utf8(line + col, line_len - col);
+      if (inc == 0)
+        break;
+      col += inc;
+    }
+    number--;
+  }
+  if (line)
+    free(line);
+  result.row = row;
+  result.col = col;
+  return result;
+}
+
+Coord simulate_cursor_left(Editor *editor, Coord cursor, uint32_t number) {
+  Coord result = cursor;
+  if (!editor || !editor->root || number == 0)
+    return result;
+  uint32_t row = result.row;
+  uint32_t col = result.col;
+  uint32_t len = 0;
+  LineIterator *it = begin_l_iter(editor->root, row);
+  char *line = next_line(it, &len);
+  free(it);
+  if (!line)
+    return result;
+  if (len > 0 && line[len - 1] == '\n')
+    --len;
+  while (number > 0) {
+    if (col == 0) {
+      free(line);
+      line = nullptr;
+      if (row == 0)
+        break;
+      int32_t prev_row = row - 1;
+      while (prev_row >= 0 && editor->folded[prev_row] != 0)
+        prev_row--;
+      if (prev_row < 0)
+        break;
+      row = prev_row;
+      it = begin_l_iter(editor->root, row);
+      line = next_line(it, &len);
+      free(it);
+      if (!line)
+        break;
+      if (len > 0 && line[len - 1] == '\n')
+        --len;
+      col = len;
+    } else {
+      uint32_t new_col = 0;
+      while (new_col < col) {
+        uint32_t inc =
+            grapheme_next_character_break_utf8(line + new_col, len - new_col);
+        if (new_col + inc >= col)
+          break;
+        new_col += inc;
+      }
+      col = new_col;
+    }
+    number--;
+  }
+  if (line)
+    free(line);
+  result.row = row;
+  result.col = col;
+  return result;
+}
+
 void ensure_scroll(Editor *editor) {
   std::shared_lock knot_lock(editor->knot_mtx);
   if (editor->cursor.row < editor->scroll.row ||
@@ -417,72 +522,100 @@ void apply_edit(std::vector<Span> &spans, uint32_t x, int64_t y) {
   }
 }
 
-// Reverse erase will update the cursor position
-void edit_erase(Editor *editor, uint32_t pos, int64_t len) {
+void edit_erase(Editor *editor, Coord pos, int64_t len) {
   if (len == 0)
     return;
   if (len < 0) {
     std::shared_lock lock_1(editor->knot_mtx);
-    TSPoint old_point = {editor->cursor.row, editor->cursor.col};
-    cursor_left(editor, -len);
-    uint32_t start = line_to_byte(editor->root, editor->cursor.row, nullptr) +
-                     editor->cursor.col;
+    uint32_t cursor_original =
+        line_to_byte(editor->root, editor->cursor.row, nullptr) +
+        editor->cursor.col;
+    TSPoint old_point = {pos.row, pos.col};
+    uint32_t byte_pos = line_to_byte(editor->root, pos.row, nullptr) + pos.col;
+    Coord point = simulate_cursor_left(editor, pos, -len);
+    uint32_t start = line_to_byte(editor->root, point.row, nullptr) + point.col;
+    if (cursor_original > start && cursor_original <= byte_pos) {
+      editor->cursor = point;
+    } else if (cursor_original > byte_pos) {
+      uint32_t cursor_new = cursor_original - (byte_pos - start);
+      uint32_t new_col;
+      uint32_t new_row = byte_to_line(editor->root, cursor_new, &new_col);
+      editor->cursor = {new_row, new_col};
+    }
     lock_1.unlock();
     std::unique_lock lock_2(editor->knot_mtx);
-    editor->root = erase(editor->root, start, pos - start);
+    editor->root = erase(editor->root, start, byte_pos - start);
     lock_2.unlock();
     if (editor->tree) {
       TSInputEdit edit = {
           .start_byte = start,
-          .old_end_byte = pos,
+          .old_end_byte = byte_pos,
           .new_end_byte = start,
-          .start_point = {editor->cursor.row, editor->cursor.col},
+          .start_point = {point.row, point.col},
           .old_end_point = old_point,
-          .new_end_point = {editor->cursor.row, editor->cursor.col},
+          .new_end_point = {point.row, point.col},
       };
       editor->edit_queue.push(edit);
     }
     std::unique_lock lock_3(editor->spans.mtx);
-    apply_edit(editor->spans.spans, start, start - pos);
+    apply_edit(editor->spans.spans, start, start - byte_pos);
     if (editor->spans.mid_parse)
-      editor->spans.edits.push({start, start - pos});
+      editor->spans.edits.push({start, start - byte_pos});
   } else {
     std::shared_lock lock_1(editor->knot_mtx);
-    uint32_t col;
-    uint32_t row = byte_to_line(editor->root, pos, &col);
-    TSPoint start_point = {row, col};
-    row = byte_to_line(editor->root, pos + len, &col);
-    TSPoint old_end_point = {row, col};
+    uint32_t cursor_original =
+        line_to_byte(editor->root, editor->cursor.row, nullptr) +
+        editor->cursor.col;
+    TSPoint old_point = {pos.row, pos.col};
+    uint32_t byte_pos = line_to_byte(editor->root, pos.row, nullptr) + pos.col;
+    Coord point = simulate_cursor_right(editor, pos, len);
+    uint32_t end = line_to_byte(editor->root, point.row, nullptr) + point.col;
+    if (cursor_original > byte_pos && cursor_original <= end) {
+      editor->cursor = pos;
+    } else if (cursor_original > end) {
+      uint32_t cursor_new = cursor_original - (end - byte_pos);
+      uint32_t new_col;
+      uint32_t new_row = byte_to_line(editor->root, cursor_new, &new_col);
+      editor->cursor = {new_row, new_col};
+    }
     lock_1.unlock();
     std::unique_lock lock_2(editor->knot_mtx);
-    editor->root = erase(editor->root, pos, len);
+    editor->root = erase(editor->root, byte_pos, end - byte_pos);
     lock_2.unlock();
     if (editor->tree) {
       TSInputEdit edit = {
-          .start_byte = pos,
-          .old_end_byte = pos + (uint32_t)len,
-          .new_end_byte = pos,
-          .start_point = start_point,
-          .old_end_point = old_end_point,
-          .new_end_point = start_point,
+          .start_byte = byte_pos,
+          .old_end_byte = end,
+          .new_end_byte = byte_pos,
+          .start_point = old_point,
+          .old_end_point = {point.row, point.col},
+          .new_end_point = old_point,
       };
       editor->edit_queue.push(edit);
     }
     std::unique_lock lock_3(editor->spans.mtx);
-    apply_edit(editor->spans.spans, pos, -(int32_t)len);
+    apply_edit(editor->spans.spans, byte_pos, byte_pos - end);
     if (editor->spans.mid_parse)
-      editor->spans.edits.push({pos, -(int32_t)len});
+      editor->spans.edits.push({byte_pos, byte_pos - end});
   }
 }
 
-void edit_insert(Editor *editor, uint32_t pos, char *data, uint32_t len) {
+void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
   std::shared_lock lock_1(editor->knot_mtx);
-  uint32_t col;
-  uint32_t row = byte_to_line(editor->root, pos, &col);
-  TSPoint start_point = {row, col};
+  uint32_t cursor_original =
+      line_to_byte(editor->root, editor->cursor.row, nullptr) +
+      editor->cursor.col;
+  uint32_t byte_pos = line_to_byte(editor->root, pos.row, nullptr) + pos.col;
+  TSPoint start_point = {pos.row, pos.col};
+  if (cursor_original > byte_pos) {
+    uint32_t cursor_new = cursor_original + len;
+    uint32_t new_col;
+    uint32_t new_row = byte_to_line(editor->root, cursor_new, &new_col);
+    editor->cursor = {new_row, new_col};
+  }
   lock_1.unlock();
   std::unique_lock lock_2(editor->knot_mtx);
-  editor->root = insert(editor->root, pos, data, len);
+  editor->root = insert(editor->root, byte_pos, data, len);
   if (memchr(data, '\n', len))
     editor->folded.resize(editor->root->line_count + 2);
   lock_2.unlock();
@@ -498,9 +631,9 @@ void edit_insert(Editor *editor, uint32_t pos, char *data, uint32_t len) {
   }
   if (editor->tree) {
     TSInputEdit edit = {
-        .start_byte = pos,
-        .old_end_byte = pos,
-        .new_end_byte = pos + len,
+        .start_byte = byte_pos,
+        .old_end_byte = byte_pos,
+        .new_end_byte = byte_pos + len,
         .start_point = start_point,
         .old_end_point = start_point,
         .new_end_point = {start_point.row + rows,
@@ -509,12 +642,26 @@ void edit_insert(Editor *editor, uint32_t pos, char *data, uint32_t len) {
     editor->edit_queue.push(edit);
   }
   std::unique_lock lock_3(editor->spans.mtx);
-  apply_edit(editor->spans.spans, pos, len);
+  apply_edit(editor->spans.spans, byte_pos, len);
   if (editor->spans.mid_parse)
-    editor->spans.edits.push({pos, len});
+    editor->spans.edits.push({byte_pos, len});
 }
 
 void render_editor(Editor *editor) {
+  uint32_t sel_start = 0, sel_end = 0;
+  if (editor->selection_active) {
+    uint32_t sel1 = line_to_byte(editor->root, editor->cursor.row, nullptr) +
+                    editor->cursor.col;
+    uint32_t sel2 = line_to_byte(editor->root, editor->selection.row, nullptr) +
+                    editor->selection.col;
+    if (sel1 <= sel2) {
+      sel_start = sel1;
+      sel_end = sel2;
+    } else {
+      sel_start = sel2;
+      sel_end = sel1;
+    }
+  }
   Coord cursor = {UINT32_MAX, UINT32_MAX};
   uint32_t line_index = editor->scroll.row;
   SpanCursor span_cursor(editor->spans);
@@ -571,6 +718,9 @@ void render_editor(Editor *editor) {
         uint32_t fg = hl ? hl->fg : 0xFFFFFF;
         uint32_t bg = hl ? hl->bg : 0;
         uint8_t fl = hl ? hl->flags : 0;
+        if (editor->selection_active && absolute_byte_pos >= sel_start &&
+            absolute_byte_pos < sel_end)
+          bg = 0x555555;
         uint32_t cluster_len = grapheme_next_character_break_utf8(
             line + current_byte_offset + local_render_offset, line_left);
         std::string cluster(line + current_byte_offset + local_render_offset,
@@ -592,6 +742,14 @@ void render_editor(Editor *editor) {
         cursor.row = editor->position.row + rendered_rows;
         cursor.col = editor->position.col + col;
       }
+      if (editor->selection_active &&
+          global_byte_offset + line_len + 1 >= sel_start &&
+          global_byte_offset + line_len + 1 <= sel_end &&
+          col < editor->size.col) {
+        update(editor->position.row + rendered_rows, editor->position.col + col,
+               " ", 0, 0x555555, 0);
+        col++;
+      }
       while (col < editor->size.col) {
         update(editor->position.row + rendered_rows, editor->position.col + col,
                " ", 0xFFFFFF, 0, 0);
@@ -607,6 +765,13 @@ void render_editor(Editor *editor) {
         cursor.col = editor->position.col;
       }
       uint32_t col = 0;
+      if (editor->selection_active &&
+          global_byte_offset + line_len + 1 >= sel_start &&
+          global_byte_offset + line_len + 1 <= sel_end) {
+        update(editor->position.row + rendered_rows, editor->position.col + col,
+               " ", 0, 0x555555, 0);
+        col++;
+      }
       while (col < editor->size.col) {
         update(editor->position.row + rendered_rows, editor->position.col + col,
                " ", 0xFFFFFF, 0, 0);

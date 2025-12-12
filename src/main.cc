@@ -49,32 +49,21 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
        event.c == ':' || event.c == '\'' || event.c == '"' || event.c == ',' ||
        event.c == '.' || event.c == '<' || event.c == '>' || event.c == '/' ||
        event.c == '?' || event.c == '`' || event.c == '~')) {
-    edit_insert(editor,
-                line_to_byte(editor->root, editor->cursor.row, nullptr) +
-                    editor->cursor.col,
-                &event.c, 1);
+    edit_insert(editor, editor->cursor, &event.c, 1);
     cursor_right(editor, 1);
   }
   if (event.key_type == KEY_CHAR && event.c == '\t') {
-    edit_insert(editor,
-                line_to_byte(editor->root, editor->cursor.row, nullptr) +
-                    editor->cursor.col,
-                (char *)"\t", 1);
+    edit_insert(editor, editor->cursor, (char *)"\t", 1);
     cursor_right(editor, 2);
   }
   if (event.key_type == KEY_CHAR && (event.c == '\n' || event.c == '\r')) {
-    edit_insert(editor,
-                line_to_byte(editor->root, editor->cursor.row, nullptr) +
-                    editor->cursor.col,
-                (char *)"\n", 1);
+    edit_insert(editor, editor->cursor, (char *)"\n", 1);
     cursor_right(editor, 1);
   }
-  if (event.key_type == KEY_CHAR && event.c == 0x7F) {
-    edit_erase(editor,
-               line_to_byte(editor->root, editor->cursor.row, nullptr) +
-                   editor->cursor.col,
-               -1);
-  }
+  if (event.key_type == KEY_CHAR && event.c == 0x7F)
+    edit_erase(editor, editor->cursor, -1);
+  if (event.key_type == KEY_SPECIAL && event.special_key == KEY_DELETE)
+    edit_erase(editor, editor->cursor, 1);
   ensure_scroll(editor);
 }
 
