@@ -126,6 +126,8 @@ static inline bool ts_predicate(TSQuery *query, const TSQueryMatch &match,
       ts_query_predicates_for_pattern(query, match.pattern_index, &step_count);
   if (!steps || step_count != 4)
     return true;
+  if (source->char_count >= (1024 * 64))
+    return false;
   std::string command;
   std::string regex_txt;
   uint32_t subject_id = 0;

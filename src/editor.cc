@@ -28,7 +28,7 @@ Editor *new_editor(const char *filename, Coord position, Coord size) {
   editor->root = load(str, len, optimal_chunk_size(len));
   free(str);
   editor->folded.resize(editor->root->line_count + 2);
-  if (len < (1024 * 128)) {
+  if (len <= (1024 * 128)) {
     editor->parser = ts_parser_new();
     Language language = language_for_file(filename);
     editor->language = language.fn();
