@@ -28,7 +28,7 @@ Editor *new_editor(const char *filename, Coord position, Coord size) {
   editor->root = load(str, len, optimal_chunk_size(len));
   free(str);
   editor->folded.resize(editor->root->line_count + 2);
-  if (len < (1024 * 64)) {
+  if (len < (1024 * 128)) {
     editor->parser = ts_parser_new();
     Language language = language_for_file(filename);
     editor->language = language.fn();
@@ -536,11 +536,33 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     uint32_t start = line_to_byte(editor->root, point.row, nullptr) + point.col;
     if (cursor_original > start && cursor_original <= byte_pos) {
       editor->cursor = point;
+      LineIterator *it = begin_l_iter(editor->root, point.row);
+      if (!it)
+        return;
+      uint32_t line_len;
+      char *line = next_line(it, &line_len);
+      free(it);
+      if (!line)
+        return;
+      editor->cursor_preffered =
+          get_visual_col_from_bytes(line, line_len, point.col);
+      free(line);
     } else if (cursor_original > byte_pos) {
       uint32_t cursor_new = cursor_original - (byte_pos - start);
       uint32_t new_col;
       uint32_t new_row = byte_to_line(editor->root, cursor_new, &new_col);
       editor->cursor = {new_row, new_col};
+      LineIterator *it = begin_l_iter(editor->root, new_row);
+      if (!it)
+        return;
+      uint32_t line_len;
+      char *line = next_line(it, &line_len);
+      free(it);
+      if (!line)
+        return;
+      editor->cursor_preffered =
+          get_visual_col_from_bytes(line, line_len, new_col);
+      free(line);
     }
     lock_1.unlock();
     std::unique_lock lock_2(editor->knot_mtx);
@@ -572,11 +594,33 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     uint32_t end = line_to_byte(editor->root, point.row, nullptr) + point.col;
     if (cursor_original > byte_pos && cursor_original <= end) {
       editor->cursor = pos;
+      LineIterator *it = begin_l_iter(editor->root, pos.row);
+      if (!it)
+        return;
+      uint32_t line_len;
+      char *line = next_line(it, &line_len);
+      free(it);
+      if (!line)
+        return;
+      editor->cursor_preffered =
+          get_visual_col_from_bytes(line, line_len, pos.col);
+      free(line);
     } else if (cursor_original > end) {
       uint32_t cursor_new = cursor_original - (end - byte_pos);
       uint32_t new_col;
       uint32_t new_row = byte_to_line(editor->root, cursor_new, &new_col);
       editor->cursor = {new_row, new_col};
+      LineIterator *it = begin_l_iter(editor->root, new_row);
+      if (!it)
+        return;
+      uint32_t line_len;
+      char *line = next_line(it, &line_len);
+      free(it);
+      if (!line)
+        return;
+      editor->cursor_preffered =
+          get_visual_col_from_bytes(line, line_len, new_col);
+      free(line);
     }
     lock_1.unlock();
     std::unique_lock lock_2(editor->knot_mtx);
