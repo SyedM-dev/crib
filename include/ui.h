@@ -46,10 +46,6 @@
 #define CNTRL_ALT 3
 #define SHIFT 4
 
-const char VS16_BYTE_A = '\xEF';
-const char VS16_BYTE_B = '\xB8';
-const char VS16_BYTE_C = '\x8F';
-
 enum CellFlags : uint8_t {
   CF_NONE = 0,
   CF_ITALIC = 1 << 0,
@@ -86,9 +82,6 @@ extern std::vector<ScreenCell> old_screen;
 extern std::mutex screen_mutex;
 extern std::atomic<bool> running;
 
-void get_terminal_size();
-void enable_raw_mode();
-void disable_raw_mode();
 Coord start_screen();
 void end_screen();
 void update(uint32_t row, uint32_t col, const char *utf8, uint32_t fg,
@@ -99,7 +92,5 @@ Coord get_size();
 
 int read_input(char *buf, size_t buflen);
 KeyEvent read_key();
-
-int display_width(const char *str);
 
 #endif

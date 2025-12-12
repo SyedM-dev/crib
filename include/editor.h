@@ -107,15 +107,13 @@ Editor *new_editor(const char *filename, Coord position, Coord size);
 void free_editor(Editor *editor);
 void render_editor(Editor *editor);
 void fold(Editor *editor, uint32_t start_line, uint32_t end_line);
-void scroll_up(Editor *editor, uint32_t lines);
-void scroll_down(Editor *editor, uint32_t lines);
 void cursor_up(Editor *editor, uint32_t number);
 void cursor_down(Editor *editor, uint32_t number);
 void cursor_left(Editor *editor, uint32_t number);
 void cursor_right(Editor *editor, uint32_t number);
 void ensure_scroll(Editor *editor);
 void apply_edit(std::vector<Span> &spans, uint32_t x, int64_t y);
-void edit_erase(Editor *editor, uint32_t pos, uint32_t len);
+void edit_erase(Editor *editor, uint32_t pos, int64_t len);
 void edit_insert(Editor *editor, uint32_t pos, char *data, uint32_t len);
 
 #endif

@@ -36,9 +36,11 @@ struct Coord {
   uint32_t col;
 };
 
-uint32_t visual_width(const char *s);
-uint32_t get_visual_col_from_bytes(const char *line, uint32_t byte_limit);
-uint32_t get_bytes_from_visual_col(const char *line,
+// std::vector<uint32_t> visual_width(const char *s, uint32_t max_width);
+int display_width(const char *str, size_t len);
+uint32_t get_visual_col_from_bytes(const char *line, uint32_t len,
+                                   uint32_t byte_limit);
+uint32_t get_bytes_from_visual_col(const char *line, uint32_t len,
                                    uint32_t target_visual_col);
 void log(const char *fmt, ...);
 std::string get_exe_dir();

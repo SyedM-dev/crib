@@ -470,7 +470,6 @@ LineIterator *begin_l_iter(Knot *root, uint32_t start_line) {
   if (!it)
     return nullptr;
   it->top = 0;
-  it->line = start_line;
   it->node = nullptr;
   if (start_line == 0) {
     it->offset = 0;
@@ -485,7 +484,6 @@ LineIterator *begin_l_iter(Knot *root, uint32_t start_line) {
   }
   Knot *curr = root;
   uint32_t relative_line = --start_line;
-  it->line = start_line;
   while (curr) {
     it->stack[it->top++] = curr;
     if (!curr->left && !curr->right) {
@@ -518,7 +516,7 @@ LineIterator *begin_l_iter(Knot *root, uint32_t start_line) {
       }
     }
   }
-  free(next_line(it));
+  free(next_line(it, nullptr));
   return it;
 }
 
@@ -547,7 +545,7 @@ static inline void iter_advance_leaf(LineIterator *it) {
   it->node = nullptr;
 }
 
-char *next_line(LineIterator *it) {
+char *next_line(LineIterator *it, uint32_t *out_len) {
   if (!it || !it->node)
     return nullptr;
   size_t capacity = 128;
@@ -586,13 +584,15 @@ char *next_line(LineIterator *it) {
     it->offset += chunk_len;
     if (found_newline) {
       buffer[len] = '\0';
-      it->line++;
+      if (out_len)
+        *out_len = len;
       return buffer;
     }
   }
   if (len > 0) {
     buffer[len] = '\0';
-    it->line++;
+    if (out_len)
+      *out_len = len;
     return buffer;
   }
   free(buffer);

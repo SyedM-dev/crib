@@ -1,8 +1,4 @@
 // includes
-extern "C" {
-#include "../libs/libgrapheme/grapheme.h"
-#include "../libs/unicode_width/unicode_width.h"
-}
 #include "../include/ui.h"
 
 uint32_t rows, cols;
@@ -12,39 +8,13 @@ std::vector<ScreenCell> old_screen;
 std::mutex screen_mutex;
 termios orig_termios;
 
-int display_width(const char *str) {
-  if (!str || !*str)
-    return 0;
-  if (str[0] == '\t')
-    return 4;
-  unicode_width_state_t state;
-  unicode_width_init(&state);
-  int width = 0;
-  for (size_t j = 0; j < strlen(str); j++) {
-    unsigned char c = str[j];
-    if (c < 128) {
-      int char_width = unicode_width_process(&state, c);
-      if (char_width > 0)
-        width += char_width;
-    } else {
-      uint_least32_t cp;
-      size_t bytes = grapheme_decode_utf8(str + j, strlen(str) - j, &cp);
-      if (bytes > 1) {
-        int char_width = unicode_width_process(&state, cp);
-        if (char_width > 0)
-          width += char_width;
-        j += bytes - 1;
-      }
-    }
+void disable_raw_mode() {
+  std::string os = "\x1b[?1049l\x1b[2 q\x1b[?1002l\x1b[?25h";
+  write(STDOUT_FILENO, os.c_str(), os.size());
+  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1) {
+    perror("tcsetattr");
+    exit(EXIT_FAILURE);
   }
-  return width;
-}
-
-void get_terminal_size() {
-  struct winsize w;
-  ioctl(0, TIOCGWINSZ, &w);
-  rows = w.ws_row;
-  cols = w.ws_col;
 }
 
 void enable_raw_mode() {
@@ -68,18 +38,12 @@ void enable_raw_mode() {
   write(STDOUT_FILENO, os.c_str(), os.size());
 }
 
-void disable_raw_mode() {
-  std::string os = "\x1b[?1049l\x1b[2 q\x1b[?1002l\x1b[?25h";
-  write(STDOUT_FILENO, os.c_str(), os.size());
-  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1) {
-    perror("tcsetattr");
-    exit(EXIT_FAILURE);
-  }
-}
-
 Coord start_screen() {
   enable_raw_mode();
-  get_terminal_size();
+  struct winsize w;
+  ioctl(0, TIOCGWINSZ, &w);
+  rows = w.ws_row;
+  cols = w.ws_col;
   screen.assign(rows * cols, {});     // allocate & zero-init
   old_screen.assign(rows * cols, {}); // allocate & zero-init
   return {rows, cols};
@@ -101,15 +65,6 @@ void update(uint32_t row, uint32_t col, const char *utf8, uint32_t fg,
   screen[idx].fg = fg;
   screen[idx].bg = bg;
   screen[idx].flags = flags;
-}
-
-bool ends_with(const std::string &string_to_check) {
-  size_t len = string_to_check.size();
-  if (len < 3)
-    return false;
-  return (string_to_check[len - 3] == VS16_BYTE_A) &&
-         (string_to_check[len - 2] == VS16_BYTE_B) &&
-         (string_to_check[len - 1] == VS16_BYTE_C);
 }
 
 void render() {
@@ -195,25 +150,12 @@ void render() {
         current_underline = underline;
       }
       if (!new_cell.utf8.empty()) {
-        if (new_cell.utf8[0] == '\t') {
+        if (new_cell.utf8[0] == '\t')
           out.append("    ");
-        } else {
-          // HACK: This is a hack to work around the fact that emojis should be
-          //      double width but handling them as so requires a lot of
-          //      calculations for word wrapping so eventually have to do that
-          //      and render them as the 2 wide they should be.
-          if (new_cell.utf8.size() > 1) {
-            if (new_cell.utf8.size() >= 3 && ends_with(new_cell.utf8)) {
-              out.append(new_cell.utf8.substr(0, new_cell.utf8.size() - 3));
-              out.append("\xEF\xB8\x8E");
-            } else {
-              out.append(new_cell.utf8);
-              out.append("\xEF\xB8\x8E");
-            }
-          } else {
-            out.append(new_cell.utf8);
-          }
-        }
+        else if (new_cell.utf8[0] == '\x1b')
+          out.append("");
+        else
+          out.append(new_cell.utf8);
       } else {
         out.append(1, ' ');
       }

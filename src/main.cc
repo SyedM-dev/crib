@@ -59,7 +59,7 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
     edit_insert(editor,
                 line_to_byte(editor->root, editor->cursor.row, nullptr) +
                     editor->cursor.col,
-                (char *)"  ", 2);
+                (char *)"\t", 1);
     cursor_right(editor, 2);
   }
   if (event.key_type == KEY_CHAR && (event.c == '\n' || event.c == '\r')) {
@@ -73,8 +73,7 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
     edit_erase(editor,
                line_to_byte(editor->root, editor->cursor.row, nullptr) +
                    editor->cursor.col,
-               1);
-    cursor_left(editor, 1);
+               -1);
   }
   ensure_scroll(editor);
 }
@@ -83,7 +82,8 @@ int main(int argc, char *argv[]) {
   Coord screen = start_screen();
   const char *filename = (argc > 1) ? argv[1] : "";
 
-  Editor *editor = new_editor(filename, {0, 0}, {screen.row, screen.col});
+  Editor *editor =
+      new_editor(filename, {10, 10}, {screen.row - 20, screen.col - 20});
   if (!editor) {
     end_screen();
     fprintf(stderr, "Failed to load editor\n");

@@ -26,7 +26,6 @@ typedef struct LineIterator {
   Knot *node;
   uint8_t top;
   uint32_t offset;
-  uint32_t line;
   Knot *stack[64];
 } LineIterator;
 
@@ -116,7 +115,7 @@ LineIterator *begin_l_iter(Knot *root, uint32_t start_line);
 // After getting the necessary lines free the iterator (no need to go upto the
 // end) returns null if there are no more lines All return strings `must` be
 // freed by the caller
-char *next_line(LineIterator *it);
+char *next_line(LineIterator *it, uint32_t *out_len);
 
 // Used to start an iterator over leaf data
 // root is the root of the rope

@@ -1,5 +1,6 @@
 extern "C" {
 #include "../libs/libgrapheme/grapheme.h"
+#include "../libs/unicode_width/unicode_width.h"
 }
 #include "../include/utils.h"
 #include <algorithm>
@@ -15,6 +16,34 @@ extern "C" {
 #include <unistd.h>
 #include <unordered_map>
 
+int display_width(const char *str, size_t len) {
+  if (!str || !*str)
+    return 0;
+  if (str[0] == '\t')
+    return 4;
+  unicode_width_state_t state;
+  unicode_width_init(&state);
+  int width = 0;
+  for (size_t j = 0; j < len; j++) {
+    unsigned char c = str[j];
+    if (c < 128) {
+      int char_width = unicode_width_process(&state, c);
+      if (char_width > 0)
+        width += char_width;
+    } else {
+      uint_least32_t cp;
+      size_t bytes = grapheme_decode_utf8(str + j, strlen(str) - j, &cp);
+      if (bytes > 1) {
+        int char_width = unicode_width_process(&state, cp);
+        if (char_width > 0)
+          width += char_width;
+        j += bytes - 1;
+      }
+    }
+  }
+  return width;
+}
+
 std::string get_exe_dir() {
   char exe_path[PATH_MAX];
   ssize_t count = readlink("/proc/self/exe", exe_path, PATH_MAX);
@@ -25,27 +54,12 @@ std::string get_exe_dir() {
   return path.substr(0, path.find_last_of('/'));
 }
 
-uint32_t visual_width(const char *s) {
-  if (!s)
-    return 0;
-  uint32_t count = 0;
-  const char *p = s;
-  while (*p) {
-    uint32_t next = grapheme_next_character_break_utf8(p, UINT32_MAX);
-    if (!next)
-      next = 1;
-    p += next;
-    count++;
-  }
-  return count;
-}
-
-uint32_t get_visual_col_from_bytes(const char *line, uint32_t byte_limit) {
+uint32_t get_visual_col_from_bytes(const char *line, uint32_t len,
+                                   uint32_t byte_limit) {
   if (!line)
     return 0;
   uint32_t visual_col = 0;
   uint32_t current_byte = 0;
-  uint32_t len = strlen(line);
   if (len > 0 && line[len - 1] == '\n')
     len--;
   while (current_byte < byte_limit && current_byte < len) {
@@ -53,26 +67,33 @@ uint32_t get_visual_col_from_bytes(const char *line, uint32_t byte_limit) {
                                                       len - current_byte);
     if (current_byte + inc > byte_limit)
       break;
+    int w = display_width(line + current_byte, inc);
+    if (w < 0)
+      w = 0;
+    visual_col += (uint32_t)w;
     current_byte += inc;
-    visual_col++;
   }
   return visual_col;
 }
 
-uint32_t get_bytes_from_visual_col(const char *line,
+uint32_t get_bytes_from_visual_col(const char *line, uint32_t len,
                                    uint32_t target_visual_col) {
   if (!line)
     return 0;
-  uint32_t visual_col = 0;
   uint32_t current_byte = 0;
-  uint32_t len = strlen(line);
+  uint32_t visual_col = 0;
   if (len > 0 && line[len - 1] == '\n')
     len--;
-  while (visual_col < target_visual_col && current_byte < len) {
+  while (current_byte < len && visual_col < target_visual_col) {
     uint32_t inc = grapheme_next_character_break_utf8(line + current_byte,
                                                       len - current_byte);
+    int w = display_width(line + current_byte, inc);
+    if (w < 0)
+      w = 0;
+    if (visual_col + (uint32_t)w > target_visual_col)
+      return current_byte;
+    visual_col += (uint32_t)w;
     current_byte += inc;
-    visual_col++;
   }
   return current_byte;
 }

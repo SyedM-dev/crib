@@ -94,7 +94,7 @@
   "ensure"
 ] @keyword.exception
 
-;; #aad84c #000000 0 0 0 1
+;; #aad84c #000000 0 0 0 3
 "defined?" @function
 
 ;; #aad84c #000000 0 0 0 3
