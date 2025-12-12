@@ -6,10 +6,10 @@ A TUI IDE.
 
 # TODO
 
-- [ ] Make function to get selected text. (selection itself is done)
 - [ ] Add modes for editing - insert, select, normal, etc.
 - [ ] Add line numbers.
 - [ ] Add bg highlight for current line.
+- [ ] Make function to get selected text. (selection itself is done)
 - [ ] Add support for copy/cut/paste.
 - [ ] Add support for ctrl + arrow key for moving words.
 - [ ] Add support for ctrl + backspace / delete for deleting words.

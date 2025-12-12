@@ -1,3 +1,4 @@
+#include "../include/main.h"
 #include "../include/editor.h"
 #include "../include/ts.h"
 #include "../include/ui.h"
@@ -9,10 +10,11 @@
 std::atomic<bool> running{true};
 Queue<KeyEvent> event_queue;
 
+char m = NORMAL;
+
 void background_worker(Editor *editor) {
   while (running) {
     ts_collect_spans(editor);
-
     std::this_thread::sleep_for(std::chrono::milliseconds(16));
   }
 }
@@ -25,6 +27,7 @@ void input_listener() {
     if (event.key_type == KEY_CHAR && event.c == CTRL('q'))
       running = false;
     event_queue.push(event);
+    std::this_thread::sleep_for(std::chrono::microseconds(100));
   }
 }
 

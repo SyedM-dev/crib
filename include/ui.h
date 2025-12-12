@@ -54,7 +54,7 @@ enum CellFlags : uint8_t {
 };
 
 struct ScreenCell {
-  std::string utf8 = std::string(""); // empty => no content
+  std::string utf8 = std::string("");
   uint32_t fg = 0;
   uint32_t bg = 0;
   uint8_t flags = CF_NONE;
@@ -77,10 +77,9 @@ struct KeyEvent {
 };
 
 extern uint32_t rows, cols;
-extern std::vector<ScreenCell> screen; // size rows*cols
+extern std::vector<ScreenCell> screen;
 extern std::vector<ScreenCell> old_screen;
 extern std::mutex screen_mutex;
-extern std::atomic<bool> running;
 
 Coord start_screen();
 void end_screen();
