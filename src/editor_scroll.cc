@@ -4,9 +4,13 @@ extern "C" {
 }
 #include "../include/editor.h"
 #include "../include/utils.h"
+#include <cmath>
 
 void scroll_up(Editor *editor, uint32_t number) {
   number++;
+  uint32_t numlen =
+      2 + static_cast<int>(std::log10(editor->root->line_count + 1));
+  uint32_t render_width = editor->size.col - numlen;
   Coord *scroll_queue = (Coord *)malloc(sizeof(Coord) * number);
   uint32_t q_head = 0;
   uint32_t q_size = 0;
@@ -44,7 +48,7 @@ void scroll_up(Editor *editor, uint32_t number) {
       uint32_t inc =
           grapheme_next_character_break_utf8(line + offset, line_len - offset);
       int width = display_width(line + offset, inc);
-      if (col + width > editor->size.col) {
+      if (col + width > render_width) {
         if (q_size < number) {
           scroll_queue[(q_head + q_size) % number] = {i, offset};
           q_size++;
@@ -74,6 +78,9 @@ void scroll_up(Editor *editor, uint32_t number) {
 void scroll_down(Editor *editor, uint32_t number) {
   if (!editor || number == 0)
     return;
+  uint32_t numlen =
+      2 + static_cast<int>(std::log10(editor->root->line_count + 1));
+  uint32_t render_width = editor->size.col - numlen;
   uint32_t line_index = editor->scroll.row;
   LineIterator *it = begin_l_iter(editor->root, line_index);
   if (!it)
@@ -145,12 +152,12 @@ void scroll_down(Editor *editor, uint32_t number) {
       uint32_t col = 0;
       uint32_t local_render_offset = 0;
       uint32_t left = line_len - current_byte_offset;
-      while (left > 0 && col < editor->size.col) {
+      while (left > 0 && col < render_width) {
         uint32_t cluster_len = grapheme_next_character_break_utf8(
             line + current_byte_offset + local_render_offset, left);
         int width = display_width(
             line + current_byte_offset + local_render_offset, cluster_len);
-        if (col + width > editor->size.col)
+        if (col + width > render_width)
           break;
         local_render_offset += cluster_len;
         left -= cluster_len;
@@ -183,6 +190,9 @@ void ensure_cursor(Editor *editor) {
     editor->cursor = editor->scroll;
     return;
   }
+  uint32_t numlen =
+      2 + static_cast<int>(std::log10(editor->root->line_count + 1));
+  uint32_t render_width = editor->size.col - numlen;
   uint32_t visual_rows = 0;
   uint32_t line_index = editor->scroll.row;
   bool first_visual_line = true;
@@ -229,11 +239,11 @@ void ensure_cursor(Editor *editor) {
       uint32_t col = 0;
       uint32_t advance = 0;
       uint32_t left = line_len - offset;
-      while (left > 0 && col < editor->size.col) {
+      while (left > 0 && col < render_width) {
         uint32_t g =
             grapheme_next_character_break_utf8(line + offset + advance, left);
         int w = display_width(line + offset + advance, g);
-        if (col + w > editor->size.col)
+        if (col + w > render_width)
           break;
         advance += g;
         left -= g;
@@ -262,6 +272,9 @@ void ensure_cursor(Editor *editor) {
 
 void ensure_scroll(Editor *editor) {
   std::shared_lock knot_lock(editor->knot_mtx);
+  uint32_t numlen =
+      2 + static_cast<int>(std::log10(editor->root->line_count + 1));
+  uint32_t render_width = editor->size.col - numlen;
   if (editor->cursor.row < editor->scroll.row ||
       (editor->cursor.row == editor->scroll.row &&
        editor->cursor.col < editor->scroll.col)) {
@@ -284,7 +297,7 @@ void ensure_scroll(Editor *editor) {
       uint32_t inc =
           grapheme_next_character_break_utf8(line + offset, len - offset);
       int width = display_width(line + offset, inc);
-      if (cols + width > editor->size.col) {
+      if (cols + width > render_width) {
         rows++;
         cols = 0;
         if (editor->cursor.col > old_offset && editor->cursor.col <= offset) {
@@ -363,12 +376,12 @@ void ensure_scroll(Editor *editor) {
         uint32_t col = 0;
         uint32_t local_render_offset = 0;
         uint32_t line_left = line_len - current_byte_offset;
-        while (line_left > 0 && col < editor->size.col) {
+        while (line_left > 0 && col < render_width) {
           uint32_t cluster_len = grapheme_next_character_break_utf8(
               line + current_byte_offset + local_render_offset, line_left);
           int width = display_width(
               line + current_byte_offset + local_render_offset, cluster_len);
-          if (col + width > editor->size.col)
+          if (col + width > render_width)
             break;
           local_render_offset += cluster_len;
           line_left -= cluster_len;

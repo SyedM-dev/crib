@@ -60,8 +60,8 @@ int main(int argc, char *argv[]) {
   Coord screen = start_screen();
   const char *filename = (argc > 1) ? argv[1] : "";
 
-  Editor *editor =
-      new_editor(filename, {10, 10}, {screen.row - 20, screen.col - 20});
+  Editor *editor = new_editor(filename, {0, 0}, screen);
+
   if (!editor) {
     end_screen();
     fprintf(stderr, "Failed to load editor\n");

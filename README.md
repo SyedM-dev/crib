@@ -6,8 +6,6 @@ A TUI IDE.
 
 # TODO
 
-- [ ] Add line numbers.
-- [ ] Add bg highlight for current line.
 - [ ] Make function to get selected text. (selection itself is done)
 - [ ] Add support for copy/cut/paste.
 - [ ] Add support for ctrl + arrow key for moving words.

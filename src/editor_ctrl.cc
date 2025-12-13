@@ -4,6 +4,7 @@ extern "C" {
 #include "../include/editor.h"
 #include "../include/main.h"
 #include "../include/utils.h"
+#include <cmath>
 
 void handle_editor_event(Editor *editor, KeyEvent event) {
   if (event.key_type == KEY_SPECIAL) {
@@ -168,8 +169,12 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
 }
 
 Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
-  if (mode != INSERT)
-    x--;
+  if (mode == INSERT)
+    x++;
+  uint32_t numlen =
+      2 + static_cast<int>(std::log10(editor->root->line_count + 1));
+  uint32_t render_width = editor->size.col - numlen;
+  x = MAX(x, numlen) - numlen;
   uint32_t target_visual_row = y;
   uint32_t visual_row = 0;
   uint32_t line_index = editor->scroll.row;
@@ -209,16 +214,16 @@ Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
       uint32_t advance = 0;
       uint32_t left = line_len - offset;
       uint32_t last_good_offset = offset;
-      while (left > 0 && col < editor->size.col) {
+      while (left > 0 && col < render_width) {
         uint32_t g =
             grapheme_next_character_break_utf8(line + offset + advance, left);
         int w = display_width(line + offset + advance, g);
-        if (col + w > editor->size.col)
+        if (col + w > render_width)
           break;
         if (visual_row == target_visual_row && x < col + w) {
           free(line);
           free(it);
-          return {line_index, offset + advance + g};
+          return {line_index, offset + advance};
         }
         advance += g;
         last_good_offset = offset + advance;
