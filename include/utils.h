@@ -61,5 +61,6 @@ char *detect_file_type(const char *filename);
 Language language_for_file(const char *filename);
 void copy_to_clipboard(const char *text, size_t len);
 char *get_from_clipboard(uint32_t *out_len);
+uint32_t count_clusters(const char *line, size_t len, size_t from, size_t to);
 
 #endif

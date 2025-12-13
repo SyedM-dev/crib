@@ -21,19 +21,15 @@ void enable_raw_mode() {
   if (tcgetattr(STDIN_FILENO, &orig_termios) == -1)
     exit(EXIT_FAILURE);
   atexit(disable_raw_mode);
-
   struct termios raw = orig_termios;
   raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
   raw.c_oflag &= ~(OPOST);
   raw.c_cflag |= (CS8);
   raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-  raw.c_lflag |= ISIG;
   raw.c_cc[VMIN] = 0;
   raw.c_cc[VTIME] = 0;
-
   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1)
     exit(EXIT_FAILURE);
-
   std::string os = "\x1b[?1049h\x1b[2 q\x1b[?1002h\x1b[?25l";
   write(STDOUT_FILENO, os.c_str(), os.size());
 }
@@ -44,8 +40,8 @@ Coord start_screen() {
   ioctl(0, TIOCGWINSZ, &w);
   rows = w.ws_row;
   cols = w.ws_col;
-  screen.assign(rows * cols, {});     // allocate & zero-init
-  old_screen.assign(rows * cols, {}); // allocate & zero-init
+  screen.assign(rows * cols, {});
+  old_screen.assign(rows * cols, {});
   return {rows, cols};
 }
 

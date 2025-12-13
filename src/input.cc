@@ -156,8 +156,8 @@ KeyEvent read_key() {
       pos = 2;
       ret.special_modifier = 0;
     } else {
-      pos = 4;
-      switch (buf[3]) {
+      pos = 5;
+      switch (buf[4]) {
       case '2':
         ret.special_modifier = SHIFT;
         break;

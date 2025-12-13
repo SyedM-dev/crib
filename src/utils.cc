@@ -148,6 +148,20 @@ uint32_t get_bytes_from_visual_col(const char *line, uint32_t len,
   return current_byte;
 }
 
+uint32_t count_clusters(const char *line, size_t len, size_t from, size_t to) {
+  uint32_t count = 0;
+  size_t pos = from;
+  while (pos < to && pos < len) {
+    size_t next =
+        pos + grapheme_next_character_break_utf8(line + pos, len - pos);
+    if (next > to)
+      break;
+    pos = next;
+    count++;
+  }
+  return count;
+}
+
 void log(const char *fmt, ...) {
   FILE *fp = fopen("/tmp/log.txt", "a");
   if (!fp)

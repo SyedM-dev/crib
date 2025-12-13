@@ -11,6 +11,10 @@
 #include <shared_mutex>
 #include <unordered_map>
 
+#define CHAR 0
+#define WORD 1
+#define LINE 2
+
 struct Highlight {
   uint32_t fg;
   uint32_t bg;
@@ -89,6 +93,7 @@ struct Editor {
   uint32_t cursor_preffered;
   Coord selection;
   bool selection_active;
+  int selection_type;
   Coord position;
   Coord size;
   Coord scroll;
@@ -123,5 +128,8 @@ void edit_erase(Editor *editor, Coord pos, int64_t len);
 void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len);
 Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y);
 char *get_selection(Editor *editor, uint32_t *out_len);
+void word_boundaries(Editor *editor, Coord coord, uint32_t *prev_col,
+                     uint32_t *next_col, uint32_t *prev_clusters,
+                     uint32_t *next_clusters);
 
 #endif

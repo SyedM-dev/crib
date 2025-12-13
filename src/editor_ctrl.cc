@@ -1,4 +1,3 @@
-#include <cstdint>
 extern "C" {
 #include "../libs/libgrapheme/grapheme.h"
 }
@@ -10,23 +9,8 @@ extern "C" {
 void handle_editor_event(Editor *editor, KeyEvent event) {
   static std::chrono::steady_clock::time_point last_click_time =
       std::chrono::steady_clock::now();
+  static uint32_t click_count = 0;
   static Coord last_click_pos = {UINT32_MAX, UINT32_MAX};
-  if (event.key_type == KEY_SPECIAL) {
-    switch (event.special_key) {
-    case KEY_DOWN:
-      cursor_down(editor, 1);
-      break;
-    case KEY_UP:
-      cursor_up(editor, 1);
-      break;
-    case KEY_LEFT:
-      cursor_left(editor, 1);
-      break;
-    case KEY_RIGHT:
-      cursor_right(editor, 1);
-      break;
-    }
-  }
   if (event.key_type == KEY_MOUSE) {
     auto now = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -53,31 +37,92 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
       break;
     case PRESS:
       if (event.mouse_button == LEFT_BTN) {
-        if (duration < 250 &&
-            last_click_pos == (Coord){event.mouse_x, event.mouse_y}) {
-          mode = SELECT;
-          editor->selection_active = true;
-        } else {
-          Coord p = editor_hit_test(editor, event.mouse_x, event.mouse_y);
+        Coord cur_pos = {event.mouse_x, event.mouse_y};
+        if (duration < 250 && last_click_pos == cur_pos)
+          click_count++;
+        else
+          click_count = 1;
+        last_click_time = now;
+        last_click_pos = cur_pos;
+        Coord p = editor_hit_test(editor, event.mouse_x, event.mouse_y);
+        editor->cursor_preffered = UINT32_MAX;
+        if (click_count == 1) {
           editor->cursor = p;
-          editor->cursor_preffered = UINT32_MAX;
           editor->selection = p;
           if (mode == SELECT) {
             mode = NORMAL;
             editor->selection_active = false;
           }
-          last_click_pos = (Coord){event.mouse_x, event.mouse_y};
-          last_click_time = now;
+        } else if (click_count == 2) {
+          uint32_t prev_col, next_col;
+          word_boundaries(editor, editor->cursor, &prev_col, &next_col, nullptr,
+                          nullptr);
+          if (editor->cursor < editor->selection)
+            editor->cursor = {editor->cursor.row, prev_col};
+          else
+            editor->cursor = {editor->cursor.row, next_col};
+          editor->cursor_preffered = UINT32_MAX;
+          editor->selection_type = WORD;
+          mode = SELECT;
+          editor->selection_active = true;
+        } else if (click_count >= 3) {
+          if (editor->cursor < editor->selection) {
+            editor->cursor = {p.row, 0};
+          } else {
+            uint32_t line_len;
+            LineIterator *it = begin_l_iter(editor->root, p.row);
+            char *line = next_line(it, &line_len);
+            free(it);
+            if (!line)
+              return;
+            if (line_len > 0 && line[line_len - 1] == '\n')
+              line_len--;
+            editor->cursor = {p.row, line_len};
+          }
+          editor->cursor_preffered = UINT32_MAX;
+          editor->selection_type = LINE;
+          mode = SELECT;
+          editor->selection_active = true;
+          click_count = 3;
         }
       }
       break;
     case DRAG:
       if (event.mouse_button == LEFT_BTN) {
         Coord p = editor_hit_test(editor, event.mouse_x, event.mouse_y);
-        editor->cursor = p;
         editor->cursor_preffered = UINT32_MAX;
         mode = SELECT;
-        editor->selection_active = true;
+        if (!editor->selection_active) {
+          editor->selection_active = true;
+          editor->selection_type = CHAR;
+        }
+        uint32_t prev_col, next_col, line_len;
+        switch (editor->selection_type) {
+        case CHAR:
+          editor->cursor = p;
+          break;
+        case WORD:
+          word_boundaries(editor, p, &prev_col, &next_col, nullptr, nullptr);
+          if (editor->cursor < editor->selection)
+            editor->cursor = {p.row, prev_col};
+          else
+            editor->cursor = {p.row, next_col};
+          break;
+        case LINE:
+          if (editor->cursor < editor->selection) {
+            editor->cursor = {p.row, 0};
+          } else {
+            LineIterator *it = begin_l_iter(editor->root, p.row);
+            char *line = next_line(it, &line_len);
+            free(it);
+            if (!line)
+              return;
+            if (line_len > 0 && line[line_len - 1] == '\n')
+              line_len--;
+            editor->cursor = {p.row, line_len};
+          }
+          break;
+        }
       }
       break;
     case RELEASE:
@@ -87,6 +132,57 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
           mode = NORMAL;
           editor->selection_active = false;
         }
+      break;
+    }
+  }
+  if (event.key_type == KEY_SPECIAL) {
+    switch (event.special_modifier) {
+    case 0:
+      switch (event.special_key) {
+      case KEY_DOWN:
+        cursor_down(editor, 1);
+        break;
+      case KEY_UP:
+        cursor_up(editor, 1);
+        break;
+      case KEY_LEFT:
+        cursor_left(editor, 1);
+        break;
+      case KEY_RIGHT:
+        cursor_right(editor, 1);
+        break;
+      }
+      break;
+    case CNTRL:
+      uint32_t prev_col, next_col;
+      word_boundaries(editor, editor->cursor, &prev_col, &next_col, nullptr,
+                      nullptr);
+      switch (event.special_key) {
+      case KEY_DOWN:
+        cursor_down(editor, 1);
+        break;
+      case KEY_UP:
+        cursor_up(editor, 1);
+        break;
+      case KEY_LEFT:
+        editor->cursor_preffered = UINT32_MAX;
+        if (prev_col == editor->cursor.col)
+          cursor_left(editor, 1);
+        else
+          editor->cursor = {editor->cursor.row, prev_col};
+        break;
+      case KEY_RIGHT:
+        editor->cursor_preffered = UINT32_MAX;
+        if (next_col == editor->cursor.col)
+          cursor_right(editor, 1);
+        else
+          editor->cursor = {editor->cursor.row, next_col};
+        break;
+      }
+      break;
+    case ALT:
+      // TODO: For up/down in insert/normal move line and in select move lines
+      //       overlapping selection up/down. right/left are normal
       break;
     }
   }
@@ -133,6 +229,16 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
         scroll_up(editor, 1);
         ensure_cursor(editor);
         break;
+      case 'p':
+        uint32_t len;
+        char *text = get_from_clipboard(&len);
+        if (text) {
+          edit_insert(editor, editor->cursor, text, len);
+          uint32_t grapheme_len = count_clusters(text, len, 0, len);
+          cursor_right(editor, grapheme_len);
+          free(text);
+        }
+        break;
       }
     }
     break;
@@ -147,6 +253,14 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
           cursor_right(editor, 1);
         } else if (event.c[0] == 0x7F) {
           edit_erase(editor, editor->cursor, -1);
+        } else if (event.c[0] == CTRL('W')) {
+          uint32_t prev_col_byte, prev_col_cluster;
+          word_boundaries(editor, editor->cursor, &prev_col_byte, nullptr,
+                          &prev_col_cluster, nullptr);
+          if (prev_col_byte == editor->cursor.col)
+            edit_erase(editor, editor->cursor, -1);
+          else
+            edit_erase(editor, editor->cursor, -(int64_t)prev_col_cluster);
         } else if (isprint((unsigned char)(event.c[0]))) {
           edit_insert(editor, editor->cursor, event.c, 1);
           cursor_right(editor, 1);
@@ -160,7 +274,20 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
       }
     } else if (event.key_type == KEY_SPECIAL &&
                event.special_key == KEY_DELETE) {
-      edit_erase(editor, editor->cursor, 1);
+      switch (event.special_modifier) {
+      case 0:
+        edit_erase(editor, editor->cursor, 1);
+        break;
+      case CNTRL:
+        uint32_t next_col_byte, next_col_cluster;
+        word_boundaries(editor, editor->cursor, nullptr, &next_col_byte,
+                        nullptr, &next_col_cluster);
+        if (next_col_byte == editor->cursor.col)
+          edit_erase(editor, editor->cursor, 1);
+        else
+          edit_erase(editor, editor->cursor, next_col_cluster);
+        break;
+      }
     }
     break;
   case SELECT:
@@ -227,6 +354,61 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
   ensure_scroll(editor);
   if (event.key_type == KEY_CHAR && event.c)
     free(event.c);
+}
+
+uint32_t word_jump_right(const char *line, size_t len, uint32_t pos) {
+  if (pos >= len)
+    return len;
+  size_t next = grapheme_next_word_break_utf8(line + pos, len - pos);
+  return static_cast<uint32_t>(pos + next);
+}
+
+uint32_t word_jump_left(const char *line, size_t len, uint32_t col) {
+  if (col == 0)
+    return 0;
+  size_t pos = 0;
+  size_t last = 0;
+  size_t cursor = col;
+  while (pos < len) {
+    size_t next = pos + grapheme_next_word_break_utf8(line + pos, len - pos);
+    if (next >= cursor)
+      break;
+    last = next;
+    pos = next;
+  }
+  return static_cast<uint32_t>(last);
+}
+
+void word_boundaries(Editor *editor, Coord coord, uint32_t *prev_col,
+                     uint32_t *next_col, uint32_t *prev_clusters,
+                     uint32_t *next_clusters) {
+  if (!editor)
+    return;
+  std::shared_lock lock(editor->knot_mtx);
+  LineIterator *it = begin_l_iter(editor->root, coord.row);
+  if (!it)
+    return;
+  uint32_t line_len;
+  char *line = next_line(it, &line_len);
+  free(it);
+  if (!line)
+    return;
+  if (line_len && line[line_len - 1] == '\n')
+    line_len--;
+  size_t col = coord.col;
+  if (col > line_len)
+    col = line_len;
+  size_t left = word_jump_left(line, line_len, col);
+  size_t right = word_jump_right(line, line_len, col);
+  if (prev_col)
+    *prev_col = static_cast<uint32_t>(left);
+  if (next_col)
+    *next_col = static_cast<uint32_t>(right);
+  if (prev_clusters)
+    *prev_clusters = count_clusters(line, line_len, left, col);
+  if (next_clusters)
+    *next_clusters = count_clusters(line, line_len, col, right);
+  free(line);
 }
 
 Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
@@ -627,11 +809,46 @@ char *get_selection(Editor *editor, uint32_t *out_len) {
   std::shared_lock lock(editor->knot_mtx);
   Coord start, end;
   if (editor->cursor >= editor->selection) {
-    start = editor->selection;
-    end = move_right(editor, editor->cursor, 1);
+    uint32_t prev_col, next_col;
+    switch (editor->selection_type) {
+    case CHAR:
+      start = editor->selection;
+      end = move_right(editor, editor->cursor, 1);
+      break;
+    case WORD:
+      word_boundaries(editor, editor->selection, &prev_col, &next_col, nullptr,
+                      nullptr);
+      start = {editor->selection.row, prev_col};
+      end = editor->cursor;
+      break;
+    case LINE:
+      start = {editor->selection.row, 0};
+      end = editor->cursor;
+      break;
+    }
   } else {
     start = editor->cursor;
-    end = move_right(editor, editor->selection, 1);
+    uint32_t prev_col, next_col, line_len;
+    switch (editor->selection_type) {
+    case CHAR:
+      end = move_right(editor, editor->selection, 1);
+      break;
+    case WORD:
+      word_boundaries(editor, editor->selection, &prev_col, &next_col, nullptr,
+                      nullptr);
+      end = {editor->selection.row, next_col};
+      break;
+    case LINE:
+      LineIterator *it = begin_l_iter(editor->root, editor->selection.row);
+      char *line = next_line(it, &line_len);
+      free(it);
+      if (!line)
+        return nullptr;
+      if (line_len > 0 && line[line_len - 1] == '\n')
+        line_len--;
+      end = {editor->selection.row, line_len};
+      break;
+    }
   }
   uint32_t start_byte =
       line_to_byte(editor->root, start.row, nullptr) + start.col;

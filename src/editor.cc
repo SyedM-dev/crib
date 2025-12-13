@@ -74,14 +74,50 @@ void render_editor(Editor *editor) {
       2 + static_cast<int>(std::log10(editor->root->line_count + 1));
   uint32_t render_width = editor->size.col - numlen;
   uint32_t render_x = editor->position.col + numlen;
+  std::shared_lock knot_lock(editor->knot_mtx);
   if (editor->selection_active) {
     Coord start, end;
     if (editor->cursor >= editor->selection) {
-      start = editor->selection;
-      end = move_right(editor, editor->cursor, 1);
+      uint32_t prev_col, next_col;
+      switch (editor->selection_type) {
+      case CHAR:
+        start = editor->selection;
+        end = move_right(editor, editor->cursor, 1);
+        break;
+      case WORD:
+        word_boundaries(editor, editor->selection, &prev_col, &next_col,
+                        nullptr, nullptr);
+        start = {editor->selection.row, prev_col};
+        end = editor->cursor;
+        break;
+      case LINE:
+        start = {editor->selection.row, 0};
+        end = editor->cursor;
+        break;
+      }
     } else {
       start = editor->cursor;
-      end = move_right(editor, editor->selection, 1);
+      uint32_t prev_col, next_col, line_len;
+      switch (editor->selection_type) {
+      case CHAR:
+        end = move_right(editor, editor->selection, 1);
+        break;
+      case WORD:
+        word_boundaries(editor, editor->selection, &prev_col, &next_col,
+                        nullptr, nullptr);
+        end = {editor->selection.row, next_col};
+        break;
+      case LINE:
+        LineIterator *it = begin_l_iter(editor->root, editor->selection.row);
+        char *line = next_line(it, &line_len);
+        free(it);
+        if (!line)
+          return;
+        if (line_len > 0 && line[line_len - 1] == '\n')
+          line_len--;
+        end = {editor->selection.row, line_len};
+        break;
+      }
     }
     sel_start = line_to_byte(editor->root, start.row, nullptr) + start.col;
     sel_end = line_to_byte(editor->root, end.row, nullptr) + end.col;
@@ -89,7 +125,6 @@ void render_editor(Editor *editor) {
   Coord cursor = {UINT32_MAX, UINT32_MAX};
   uint32_t line_index = editor->scroll.row;
   SpanCursor span_cursor(editor->spans);
-  std::shared_lock knot_lock(editor->knot_mtx);
   LineIterator *it = begin_l_iter(editor->root, line_index);
   if (!it)
     return;
