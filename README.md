@@ -6,7 +6,6 @@ A TUI IDE.
 
 # TODO
 
-- [ ] Add modes for editing - insert, select, normal, etc.
 - [ ] Add line numbers.
 - [ ] Add bg highlight for current line.
 - [ ] Make function to get selected text. (selection itself is done)

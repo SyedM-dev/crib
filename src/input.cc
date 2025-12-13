@@ -37,8 +37,8 @@ void enqueue_bytes(const char *bytes, int len) {
 }
 
 int read_input(char *&buf) {
-  size_t cap = 32;
-  buf = (char *)malloc(cap);
+  size_t cap = 16;
+  buf = (char *)calloc(cap, sizeof(char));
   size_t len = 0;
   char header;
   if (!get_next_byte(&header)) {
@@ -199,6 +199,9 @@ KeyEvent read_key() {
     ret.key_type = KEY_CHAR;
     ret.c = buf;
     ret.len = n;
+    return ret;
   }
+  if (n > 0)
+    free(buf);
   return ret;
 }
