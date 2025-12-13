@@ -24,8 +24,11 @@ void input_listener() {
     KeyEvent event = read_key();
     if (event.key_type == KEY_NONE)
       continue;
-    if (event.key_type == KEY_CHAR && *event.c == CTRL('q'))
+    if (event.key_type == KEY_CHAR && event.len == 1 && *event.c == CTRL('q')) {
+      free(event.c);
       running = false;
+      return;
+    }
     event_queue.push(event);
     std::this_thread::sleep_for(std::chrono::microseconds(100));
   }
@@ -71,6 +74,22 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
         break;
       case ' ':
         cursor_right(editor, 1);
+        break;
+      case '\r':
+      case '\n':
+        cursor_down(editor, 1);
+        break;
+      case '\\':
+      case '|':
+        cursor_up(editor, 1);
+        break;
+      case CTRL('d'):
+        scroll_down(editor, 1);
+        ensure_cursor(editor);
+        break;
+      case CTRL('u'):
+        scroll_up(editor, 1);
+        ensure_cursor(editor);
         break;
       }
     }

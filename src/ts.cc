@@ -1,7 +1,6 @@
 #include "../include/ts.h"
 #include "../include/editor.h"
 #include "../include/knot.h"
-#include "../include/main.h"
 #include <algorithm>
 #include <cstdint>
 #include <fstream>
@@ -11,9 +10,8 @@
 std::unordered_map<std::string, pcre2_code *> regex_cache;
 
 void clear_regex_cache() {
-  for (auto &kv : regex_cache) {
+  for (auto &kv : regex_cache)
     pcre2_code_free(kv.second);
-  }
   regex_cache.clear();
 }
 
@@ -168,10 +166,6 @@ static inline bool ts_predicate(TSQuery *query, const TSQueryMatch &match,
 
 const char *read_ts(void *payload, uint32_t byte_index, TSPoint,
                     uint32_t *bytes_read) {
-  if (!running) {
-    *bytes_read = 0;
-    return "";
-  }
   Editor *editor = (Editor *)payload;
   if (byte_index >= editor->root->char_count) {
     *bytes_read = 0;
@@ -201,8 +195,6 @@ void ts_collect_spans(Editor *editor) {
   if (editor->tree)
     copy = ts_tree_copy(editor->tree);
   knot_mtx.unlock();
-  if (!running)
-    return;
   std::vector<TSInputEdit> edits;
   TSInputEdit edit;
   if (copy)
@@ -234,13 +226,9 @@ void ts_collect_spans(Editor *editor) {
   new_spans.reserve(4096);
   TSQueryMatch match;
   while (ts_query_cursor_next_match(cursor, &match)) {
-    if (!running)
-      break;
     if (!ts_predicate(editor->query, match, editor->root))
       continue;
     for (uint32_t i = 0; i < match.capture_count; i++) {
-      if (!running)
-        break;
       TSQueryCapture cap = match.captures[i];
       uint32_t start = ts_node_start_byte(cap.node);
       uint32_t end = ts_node_end_byte(cap.node);
@@ -251,8 +239,6 @@ void ts_collect_spans(Editor *editor) {
   }
   ts_query_cursor_delete(cursor);
   ts_tree_delete(copy);
-  if (!running)
-    return;
   std::sort(new_spans.begin(), new_spans.end());
   std::pair<uint32_t, int64_t> span_edit;
   while (editor->spans.edits.pop(span_edit))

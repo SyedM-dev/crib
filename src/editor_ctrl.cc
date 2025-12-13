@@ -462,3 +462,26 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
   if (editor->spans.mid_parse)
     editor->spans.edits.push({byte_pos, len});
 }
+
+void apply_edit(std::vector<Span> &spans, uint32_t x, int64_t y) {
+  Span key{.start = x, .end = 0, .hl = nullptr};
+  auto it = std::lower_bound(
+      spans.begin(), spans.end(), key,
+      [](const Span &a, const Span &b) { return a.start < b.start; });
+  size_t idx = std::distance(spans.begin(), it);
+  while (idx > 0 && spans.at(idx - 1).end > x)
+    --idx;
+  for (size_t i = idx; i < spans.size();) {
+    Span &s = spans.at(i);
+    if (s.start < x && s.end > x) {
+      s.end += y;
+    } else if (s.start > x) {
+      s.start += y;
+      s.end += y;
+    }
+    if (s.end <= s.start)
+      spans.erase(spans.begin() + i);
+    else
+      ++i;
+  }
+}
