@@ -26,3 +26,4 @@ A TUI IDE.
 - [ ] Add `.scm` files for all the supported languages. (2/14) Done.
 - [ ] Add support for LSP & autocomplete / snippets.
 - [ ] Add codeium/copilot support.
+- [ ] Add git stuff.

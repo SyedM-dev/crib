@@ -10,7 +10,7 @@
 std::atomic<bool> running{true};
 Queue<KeyEvent> event_queue;
 
-char m = NORMAL;
+uint8_t mode = INSERT;
 
 void background_worker(Editor *editor) {
   while (running) {
@@ -24,7 +24,7 @@ void input_listener() {
     KeyEvent event = read_key();
     if (event.key_type == KEY_NONE)
       continue;
-    if (event.key_type == KEY_CHAR && event.c == CTRL('q'))
+    if (event.key_type == KEY_CHAR && *event.c == CTRL('q'))
       running = false;
     event_queue.push(event);
     std::this_thread::sleep_for(std::chrono::microseconds(100));
@@ -32,41 +32,49 @@ void input_listener() {
 }
 
 void handle_editor_event(Editor *editor, KeyEvent event) {
-  if (event.key_type == KEY_SPECIAL && event.special_key == KEY_DOWN)
-    cursor_down(editor, 1);
-  if (event.key_type == KEY_SPECIAL && event.special_key == KEY_UP)
-    cursor_up(editor, 1);
-  if (event.key_type == KEY_SPECIAL && event.special_key == KEY_LEFT)
-    cursor_left(editor, 1);
-  if (event.key_type == KEY_SPECIAL && event.special_key == KEY_RIGHT)
-    cursor_right(editor, 1);
-  if (event.key_type == KEY_CHAR &&
-      ((event.c >= 'a' && event.c <= 'z') ||
-       (event.c >= 'A' && event.c <= 'Z') ||
-       (event.c >= '0' && event.c <= '9') || event.c == ' ' || event.c == '!' ||
-       event.c == '@' || event.c == '#' || event.c == '$' || event.c == '%' ||
-       event.c == '^' || event.c == '&' || event.c == '*' || event.c == '(' ||
-       event.c == ')' || event.c == '-' || event.c == '_' || event.c == '=' ||
-       event.c == '+' || event.c == '[' || event.c == ']' || event.c == '{' ||
-       event.c == '}' || event.c == '\\' || event.c == '|' || event.c == ';' ||
-       event.c == ':' || event.c == '\'' || event.c == '"' || event.c == ',' ||
-       event.c == '.' || event.c == '<' || event.c == '>' || event.c == '/' ||
-       event.c == '?' || event.c == '`' || event.c == '~')) {
-    edit_insert(editor, editor->cursor, &event.c, 1);
-    cursor_right(editor, 1);
+  if (event.key_type == KEY_SPECIAL) {
+    switch (event.special_key) {
+    case KEY_DOWN:
+      cursor_down(editor, 1);
+      break;
+    case KEY_UP:
+      cursor_up(editor, 1);
+      break;
+    case KEY_LEFT:
+      cursor_left(editor, 1);
+      break;
+    case KEY_RIGHT:
+      cursor_right(editor, 1);
+      break;
+    }
   }
-  if (event.key_type == KEY_CHAR && event.c == '\t') {
-    edit_insert(editor, editor->cursor, (char *)"\t", 1);
-    cursor_right(editor, 2);
+  switch (mode) {
+  case NORMAL:
+    break;
+  case INSERT:
+    if (event.key_type == KEY_CHAR) {
+      if (event.len == 1) {
+        if (event.c[0] == '\t') {
+          edit_insert(editor, editor->cursor, (char *)"  ", 1);
+          cursor_right(editor, 2);
+        } else if (event.c[0] == '\n' || event.c[0] == '\r') {
+          edit_insert(editor, editor->cursor, (char *)"\n", 1);
+          cursor_right(editor, 1);
+        } else if (event.c[0] == 0x7F) {
+          edit_erase(editor, editor->cursor, -1);
+        } else if (isprint((unsigned char)(event.c[0]))) {
+          edit_insert(editor, editor->cursor, event.c, 1);
+          cursor_right(editor, 1);
+        }
+      } else if (event.len > 1) {
+        edit_insert(editor, editor->cursor, event.c, event.len);
+        cursor_right(editor, 1);
+      }
+    }
+    if (event.key_type == KEY_SPECIAL && event.special_key == KEY_DELETE)
+      edit_erase(editor, editor->cursor, 1);
+    break;
   }
-  if (event.key_type == KEY_CHAR && (event.c == '\n' || event.c == '\r')) {
-    edit_insert(editor, editor->cursor, (char *)"\n", 1);
-    cursor_right(editor, 1);
-  }
-  if (event.key_type == KEY_CHAR && event.c == 0x7F)
-    edit_erase(editor, editor->cursor, -1);
-  if (event.key_type == KEY_SPECIAL && event.special_key == KEY_DELETE)
-    edit_erase(editor, editor->cursor, 1);
   ensure_scroll(editor);
 }
 

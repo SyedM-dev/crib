@@ -63,7 +63,8 @@ struct ScreenCell {
 struct KeyEvent {
   uint8_t key_type;
 
-  char c;
+  char *c;
+  uint32_t len;
 
   uint8_t special_key;
   uint8_t special_modifier;
@@ -89,7 +90,6 @@ void set_cursor(int row, int col, int show_cursor_param);
 void render();
 Coord get_size();
 
-int read_input(char *buf, size_t buflen);
 KeyEvent read_key();
 
 #endif

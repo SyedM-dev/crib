@@ -1,22 +1,113 @@
+extern "C" {
+#include "../libs/libgrapheme/grapheme.h"
+}
 #include "../include/ui.h"
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <unistd.h>
 
-int read_input(char *buf, size_t buflen) {
-  size_t i = 0;
-  int n;
-  n = read(STDIN_FILENO, &buf[i], 1);
-  if (n <= 0)
-    return -1;
-  i++;
-  if (buf[0] == '\x1b') {
-    while (i < buflen - 1) {
-      n = read(STDIN_FILENO, &buf[i], 1);
-      if (n <= 0)
+static Queue<char> input_queue;
+
+int get_utf8_seq_len(uint8_t byte) {
+  if ((byte & 0x80) == 0x00)
+    return 1;
+  if ((byte & 0xE0) == 0xC0)
+    return 2;
+  if ((byte & 0xF0) == 0xE0)
+    return 3;
+  if ((byte & 0xF8) == 0xF0)
+    return 4;
+  return 1;
+}
+
+int get_next_byte(char *out) {
+  if (!input_queue.empty()) {
+    input_queue.pop(*out);
+    return 1;
+  }
+  int n = read(STDIN_FILENO, out, 1);
+  return (n > 0) ? 1 : 0;
+}
+
+void enqueue_bytes(const char *bytes, int len) {
+  for (int i = 0; i < len; i++)
+    input_queue.push(bytes[i]);
+}
+
+int read_input(char *&buf) {
+  size_t cap = 32;
+  buf = (char *)malloc(cap);
+  size_t len = 0;
+  char header;
+  if (!get_next_byte(&header)) {
+    free(buf);
+    return 0;
+  }
+  if (header == '\x1b') {
+    buf[len++] = header;
+    while (len < 6) {
+      char next_c;
+      if (!get_next_byte(&next_c))
         break;
-      i++;
+      buf[len++] = next_c;
+    }
+    return len;
+  }
+  int seq_len = get_utf8_seq_len((uint8_t)header);
+  buf[len++] = header;
+  if (seq_len == 1)
+    return len;
+  for (int i = 1; i < seq_len; i++) {
+    char next_c;
+    if (!get_next_byte(&next_c)) {
+      enqueue_bytes(buf, len);
+      free(buf);
+      return 0;
+    }
+    buf[len++] = next_c;
+  }
+  uint_least32_t current_cp, prev_cp;
+  grapheme_decode_utf8(buf, len, &prev_cp);
+  uint_least16_t state = 0;
+  while (true) {
+    char next_header;
+    if (!get_next_byte(&next_header))
+      break;
+    int next_seq_len = get_utf8_seq_len((uint8_t)next_header);
+    char temp_seq[5];
+    temp_seq[0] = next_header;
+    int temp_len = 1;
+    bool complete_seq = true;
+    for (int i = 1; i < next_seq_len; i++) {
+      char c;
+      if (!get_next_byte(&c)) {
+        complete_seq = false;
+        break;
+      }
+      temp_seq[temp_len++] = c;
+    }
+    if (!complete_seq) {
+      enqueue_bytes(temp_seq, temp_len);
+      break;
+    }
+    grapheme_decode_utf8(temp_seq, temp_len, &current_cp);
+    if (grapheme_is_character_break(prev_cp, current_cp, &state)) {
+      enqueue_bytes(temp_seq, temp_len);
+      break;
+    } else {
+      if (len + temp_len + 1 >= cap) {
+        cap *= 2;
+        buf = (char *)realloc(buf, cap);
+      }
+      memcpy(buf + len, temp_seq, temp_len);
+      len += temp_len;
+      prev_cp = current_cp;
     }
   }
-  buf[i] = '\0';
-  return i;
+  buf[len] = '\0';
+  return len;
 }
 
 void capture_mouse(char *buf, KeyEvent *ret) {
@@ -48,68 +139,66 @@ void capture_mouse(char *buf, KeyEvent *ret) {
 
 KeyEvent read_key() {
   KeyEvent ret;
-  char buf[7];
-  int n = read_input(buf, sizeof(buf));
+  char *buf;
+  int n = read_input(buf);
   if (n <= 0) {
     ret.key_type = KEY_NONE;
-    ret.c = '\0';
     return ret;
   }
-  if (n == 1) {
-    ret.key_type = KEY_CHAR;
-    ret.c = buf[0];
-  } else if (buf[0] == '\x1b' && buf[1] == '[' && buf[2] == 'M') {
+  if (buf[0] == '\x1b' && buf[1] == '[' && buf[2] == 'M') {
     ret.key_type = KEY_MOUSE;
     capture_mouse(buf, &ret);
-  } else {
+  } else if (buf[0] == '\x1b' && buf[1] == '[') {
     ret.key_type = KEY_SPECIAL;
-    if (buf[0] == '\x1b' && buf[1] == '[') {
-      int using_modifiers = buf[3] == ';';
-      int pos;
-      if (!using_modifiers) {
-        pos = 2;
-        ret.special_modifier = 0;
-      } else {
-        pos = 4;
-        switch (buf[3]) {
-        case '2':
-          ret.special_modifier = SHIFT;
-          break;
-        case '3':
-          ret.special_modifier = ALT;
-          break;
-        case '5':
-          ret.special_modifier = CNTRL;
-          break;
-        case '7':
-          ret.special_modifier = CNTRL_ALT;
-          break;
-        default:
-          ret.special_modifier = 0;
-          break;
-        }
-      }
-      switch (buf[pos]) {
-      case 'A':
-        ret.special_key = KEY_UP;
-        break;
-      case 'B':
-        ret.special_key = KEY_DOWN;
-        break;
-      case 'C':
-        ret.special_key = KEY_RIGHT;
-        break;
-      case 'D':
-        ret.special_key = KEY_LEFT;
+    int using_modifiers = buf[3] == ';';
+    int pos;
+    if (!using_modifiers) {
+      pos = 2;
+      ret.special_modifier = 0;
+    } else {
+      pos = 4;
+      switch (buf[3]) {
+      case '2':
+        ret.special_modifier = SHIFT;
         break;
       case '3':
-        ret.special_key = KEY_DELETE;
+        ret.special_modifier = ALT;
+        break;
+      case '5':
+        ret.special_modifier = CNTRL;
+        break;
+      case '7':
+        ret.special_modifier = CNTRL_ALT;
         break;
       default:
-        ret.special_key = 99;
+        ret.special_modifier = 0;
         break;
       }
     }
+    switch (buf[pos]) {
+    case 'A':
+      ret.special_key = KEY_UP;
+      break;
+    case 'B':
+      ret.special_key = KEY_DOWN;
+      break;
+    case 'C':
+      ret.special_key = KEY_RIGHT;
+      break;
+    case 'D':
+      ret.special_key = KEY_LEFT;
+      break;
+    case '3':
+      ret.special_key = KEY_DELETE;
+      break;
+    default:
+      ret.special_key = 99;
+      break;
+    }
+  } else if (n > 0) {
+    ret.key_type = KEY_CHAR;
+    ret.c = buf;
+    ret.len = n;
   }
   return ret;
 }

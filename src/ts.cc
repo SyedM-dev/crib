@@ -1,6 +1,7 @@
 #include "../include/ts.h"
 #include "../include/editor.h"
 #include "../include/knot.h"
+#include "../include/main.h"
 #include <algorithm>
 #include <cstdint>
 #include <fstream>
