@@ -327,7 +327,7 @@ void render_editor(Editor *editor) {
         cursor.col = editor->position.col + col;
       }
       if (editor->selection_active &&
-          global_byte_offset + line_len + 1 >= sel_start &&
+          global_byte_offset + line_len + 1 > sel_start &&
           global_byte_offset + line_len + 1 <= sel_end &&
           col < editor->size.col) {
         update(editor->position.row + rendered_rows, editor->position.col + col,
@@ -350,7 +350,7 @@ void render_editor(Editor *editor) {
       }
       uint32_t col = 0;
       if (editor->selection_active &&
-          global_byte_offset + line_len + 1 >= sel_start &&
+          global_byte_offset + line_len + 1 > sel_start &&
           global_byte_offset + line_len + 1 <= sel_end) {
         update(editor->position.row + rendered_rows, editor->position.col + col,
                " ", 0, 0x555555, 0);

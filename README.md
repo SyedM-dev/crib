@@ -6,6 +6,10 @@ A TUI IDE.
 
 # TODO
 
+- [ ] Fix problem highlighting selection when line is empty.
+- [ ] Add ui api for setting cursor types.
+- [ ] Use that api to set cursor for selection/insertion/normal etc properly.
+    - Sorta unrelated but check kutuwm + kitty problem not keeping cursor mode properly.
 - [ ] Add line numbers.
 - [ ] Add bg highlight for current line.
 - [ ] Make function to get selected text. (selection itself is done)
