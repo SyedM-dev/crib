@@ -46,6 +46,11 @@
 #define CNTRL_ALT 3
 #define SHIFT 4
 
+#define DEFAULT 0
+#define BLOCK 2
+#define UNDERLINE 4
+#define CURSOR 6
+
 enum CellFlags : uint8_t {
   CF_NONE = 0,
   CF_ITALIC = 1 << 0,
@@ -86,7 +91,7 @@ Coord start_screen();
 void end_screen();
 void update(uint32_t row, uint32_t col, const char *utf8, uint32_t fg,
             uint32_t bg, uint8_t flags);
-void set_cursor(int row, int col, int show_cursor_param);
+void set_cursor(int row, int col, int type, bool show_cursor_param);
 void render();
 Coord get_size();
 

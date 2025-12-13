@@ -2,6 +2,7 @@ extern "C" {
 #include "../libs/libgrapheme/grapheme.h"
 }
 #include "../include/editor.h"
+#include "../include/main.h"
 #include "../include/ts.h"
 #include "../include/utils.h"
 
@@ -197,8 +198,21 @@ void render_editor(Editor *editor) {
     line_index++;
     free(line);
   }
-  if (cursor.row != UINT32_MAX && cursor.col != UINT32_MAX)
-    set_cursor(cursor.row, cursor.col, 1);
+  if (cursor.row != UINT32_MAX && cursor.col != UINT32_MAX) {
+    int type = 0;
+    switch (mode) {
+    case NORMAL:
+      type = BLOCK;
+      break;
+    case INSERT:
+      type = CURSOR;
+      break;
+    case SELECT:
+      type = UNDERLINE;
+      break;
+    }
+    set_cursor(cursor.row, cursor.col, type, true);
+  }
   while (rendered_rows < editor->size.row) {
     for (uint32_t col = 0; col < editor->size.col; col++)
       update(editor->position.row + rendered_rows, editor->position.col + col,

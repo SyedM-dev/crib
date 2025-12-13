@@ -42,6 +42,10 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
         editor->cursor = p;
         editor->cursor_preffered = UINT32_MAX;
         editor->selection = p;
+        if (mode == SELECT) {
+          mode = NORMAL;
+          editor->selection_active = false;
+        }
       }
       break;
     case DRAG:
@@ -49,14 +53,17 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
         Coord p = editor_hit_test(editor, event.mouse_x, event.mouse_y);
         editor->cursor = p;
         editor->cursor_preffered = UINT32_MAX;
+        mode = SELECT;
         editor->selection_active = true;
       }
       break;
     case RELEASE:
       if (event.mouse_button == LEFT_BTN)
         if (editor->cursor.row == editor->selection.row &&
-            editor->cursor.col == editor->selection.col)
+            editor->cursor.col == editor->selection.col) {
+          mode = NORMAL;
           editor->selection_active = false;
+        }
       break;
     }
   }
@@ -65,6 +72,9 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
     if (event.key_type == KEY_CHAR && event.len == 1) {
       switch (event.c[0]) {
       case 'a':
+        mode = INSERT;
+        cursor_right(editor, 1);
+        break;
       case 'i':
         mode = INSERT;
         break;
@@ -119,14 +129,16 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
           cursor_right(editor, 1);
         } else if (event.c[0] == 0x1B) {
           mode = NORMAL;
+          cursor_left(editor, 1);
         }
       } else if (event.len > 1) {
         edit_insert(editor, editor->cursor, event.c, event.len);
         cursor_right(editor, 1);
       }
-    }
-    if (event.key_type == KEY_SPECIAL && event.special_key == KEY_DELETE)
+    } else if (event.key_type == KEY_SPECIAL &&
+               event.special_key == KEY_DELETE) {
       edit_erase(editor, editor->cursor, 1);
+    }
     break;
   case SELECT:
     if (event.key_type == KEY_CHAR && event.len == 1) {
@@ -156,6 +168,8 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
 }
 
 Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
+  if (mode != INSERT)
+    x--;
   uint32_t target_visual_row = y;
   uint32_t visual_row = 0;
   uint32_t line_index = editor->scroll.row;

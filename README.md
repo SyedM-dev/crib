@@ -6,13 +6,6 @@ A TUI IDE.
 
 # TODO
 
-- [ ] Add struct as union of structs that can take input. or similar
-    - then send input to them.
-    - Also background thread will run worker function for whatever struct is selected.
-    - And maybe even a list of active editors etc?
-- [ ] Add ui api for setting cursor types.
-- [ ] Use that api to set cursor for selection/insertion/normal etc properly.
-    - Sorta unrelated but check kutuwm + kitty problem not keeping cursor mode properly.
 - [ ] Add line numbers.
 - [ ] Add bg highlight for current line.
 - [ ] Make function to get selected text. (selection itself is done)

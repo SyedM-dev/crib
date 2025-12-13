@@ -2,7 +2,7 @@
 #include "../include/ui.h"
 
 uint32_t rows, cols;
-int show_cursor = 0;
+bool show_cursor = 0;
 std::vector<ScreenCell> screen;
 std::vector<ScreenCell> old_screen;
 std::mutex screen_mutex;
@@ -187,9 +187,10 @@ void render() {
   }
 }
 
-void set_cursor(int row, int col, int show_cursor_param) {
+void set_cursor(int row, int col, int type, bool show_cursor_param) {
   char buf[32];
-  int n = snprintf(buf, sizeof(buf), "\x1b[%d;%dH\x1b[5 q", row + 1, col + 1);
+  int n = snprintf(buf, sizeof(buf), "\x1b[%d;%dH\x1b[%d q", row + 1, col + 1,
+                   type);
   show_cursor = show_cursor_param;
   write(STDOUT_FILENO, buf, n);
 }
