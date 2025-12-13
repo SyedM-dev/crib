@@ -7,6 +7,7 @@ extern "C" {
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <limits.h>
@@ -15,6 +16,55 @@ extern "C" {
 #include <string>
 #include <unistd.h>
 #include <unordered_map>
+
+char *get_from_clipboard(uint32_t *out_len) {
+  FILE *pipe = popen("xclip -selection clipboard -o", "r");
+  if (!pipe) {
+    *out_len = 0;
+    return nullptr;
+  }
+  size_t capacity = 4096;
+  size_t length = 0;
+  char *buffer = (char *)malloc(capacity);
+  if (!buffer) {
+    pclose(pipe);
+    *out_len = 0;
+    return nullptr;
+  }
+  size_t n;
+  while ((n = fread(buffer + length, 1, capacity - length, pipe)) > 0) {
+    length += n;
+    if (length == capacity) {
+      capacity *= 2;
+      char *tmp = (char *)realloc(buffer, capacity);
+      if (!tmp) {
+        free(buffer);
+        pclose(pipe);
+        *out_len = 0;
+        return nullptr;
+      }
+      buffer = tmp;
+    }
+  }
+  pclose(pipe);
+  char *result = (char *)realloc(buffer, length + 1);
+  if (result) {
+    result[length] = '\0';
+    buffer = result;
+  } else {
+    buffer[length] = '\0';
+  }
+  *out_len = length;
+  return buffer;
+}
+
+void copy_to_clipboard(const char *text, size_t len) {
+  FILE *pipe = popen("xclip -selection clipboard", "w");
+  if (!pipe)
+    return;
+  fwrite(text, sizeof(char), len, pipe);
+  pclose(pipe);
+}
 
 int display_width(const char *str, size_t len) {
   if (!str || !*str)

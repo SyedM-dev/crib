@@ -75,12 +75,16 @@ void render_editor(Editor *editor) {
   uint32_t render_width = editor->size.col - numlen;
   uint32_t render_x = editor->position.col + numlen;
   if (editor->selection_active) {
-    uint32_t sel1 = line_to_byte(editor->root, editor->cursor.row, nullptr) +
-                    editor->cursor.col;
-    uint32_t sel2 = line_to_byte(editor->root, editor->selection.row, nullptr) +
-                    editor->selection.col;
-    sel_start = MIN(sel1, sel2);
-    sel_end = MAX(sel1, sel2);
+    Coord start, end;
+    if (editor->cursor >= editor->selection) {
+      start = editor->selection;
+      end = move_right(editor, editor->cursor, 1);
+    } else {
+      start = editor->cursor;
+      end = move_right(editor, editor->selection, 1);
+    }
+    sel_start = line_to_byte(editor->root, start.row, nullptr) + start.col;
+    sel_end = line_to_byte(editor->root, end.row, nullptr) + end.col;
   }
   Coord cursor = {UINT32_MAX, UINT32_MAX};
   uint32_t line_index = editor->scroll.row;

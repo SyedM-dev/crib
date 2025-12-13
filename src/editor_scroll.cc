@@ -184,9 +184,7 @@ void scroll_down(Editor *editor, uint32_t number) {
 
 void ensure_cursor(Editor *editor) {
   std::shared_lock knot_lock(editor->knot_mtx);
-  if (editor->cursor.row < editor->scroll.row ||
-      (editor->cursor.row == editor->scroll.row &&
-       editor->cursor.col < editor->scroll.col)) {
+  if (editor->cursor < editor->scroll) {
     editor->cursor = editor->scroll;
     return;
   }
@@ -275,9 +273,7 @@ void ensure_scroll(Editor *editor) {
   uint32_t numlen =
       2 + static_cast<int>(std::log10(editor->root->line_count + 1));
   uint32_t render_width = editor->size.col - numlen;
-  if (editor->cursor.row < editor->scroll.row ||
-      (editor->cursor.row == editor->scroll.row &&
-       editor->cursor.col < editor->scroll.col)) {
+  if (editor->cursor < editor->scroll) {
     LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
     if (!it)
       return;

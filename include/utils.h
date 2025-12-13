@@ -34,9 +34,21 @@ template <typename T> struct Queue {
 struct Coord {
   uint32_t row;
   uint32_t col;
+
+  bool operator<(const Coord &other) const {
+    return row < other.row || (row == other.row && col < other.col);
+  }
+  bool operator<=(const Coord &other) const {
+    return *this < other || *this == other;
+  }
+  bool operator==(const Coord &other) const {
+    return row == other.row && col == other.col;
+  }
+  bool operator!=(const Coord &other) const { return !(*this == other); }
+  bool operator>(const Coord &other) const { return other < *this; }
+  bool operator>=(const Coord &other) const { return !(*this < other); }
 };
 
-// std::vector<uint32_t> visual_width(const char *s, uint32_t max_width);
 int display_width(const char *str, size_t len);
 uint32_t get_visual_col_from_bytes(const char *line, uint32_t len,
                                    uint32_t byte_limit);
@@ -47,5 +59,7 @@ std::string get_exe_dir();
 char *load_file(const char *path, uint32_t *out_len);
 char *detect_file_type(const char *filename);
 Language language_for_file(const char *filename);
+void copy_to_clipboard(const char *text, size_t len);
+char *get_from_clipboard(uint32_t *out_len);
 
 #endif

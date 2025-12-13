@@ -109,6 +109,8 @@ void render_editor(Editor *editor);
 void fold(Editor *editor, uint32_t start_line, uint32_t end_line);
 void cursor_up(Editor *editor, uint32_t number);
 void cursor_down(Editor *editor, uint32_t number);
+Coord move_left(Editor *editor, Coord cursor, uint32_t number);
+Coord move_right(Editor *editor, Coord cursor, uint32_t number);
 void cursor_left(Editor *editor, uint32_t number);
 void cursor_right(Editor *editor, uint32_t number);
 void scroll_up(Editor *editor, uint32_t number);
@@ -120,5 +122,6 @@ void apply_edit(std::vector<Span> &spans, uint32_t x, int64_t y);
 void edit_erase(Editor *editor, Coord pos, int64_t len);
 void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len);
 Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y);
+char *get_selection(Editor *editor, uint32_t *out_len);
 
 #endif

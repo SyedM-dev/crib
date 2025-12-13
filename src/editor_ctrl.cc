@@ -1,3 +1,4 @@
+#include <cstdint>
 extern "C" {
 #include "../libs/libgrapheme/grapheme.h"
 }
@@ -7,6 +8,9 @@ extern "C" {
 #include <cmath>
 
 void handle_editor_event(Editor *editor, KeyEvent event) {
+  static std::chrono::steady_clock::time_point last_click_time =
+      std::chrono::steady_clock::now();
+  static Coord last_click_pos = {UINT32_MAX, UINT32_MAX};
   if (event.key_type == KEY_SPECIAL) {
     switch (event.special_key) {
     case KEY_DOWN:
@@ -24,6 +28,10 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
     }
   }
   if (event.key_type == KEY_MOUSE) {
+    auto now = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        now - last_click_time)
+                        .count();
     switch (event.mouse_state) {
     case SCROLL:
       switch (event.mouse_direction) {
@@ -35,17 +43,31 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
         scroll_down(editor, 10);
         ensure_cursor(editor);
         break;
+      case SCROLL_LEFT:
+        cursor_left(editor, 10);
+        break;
+      case SCROLL_RIGHT:
+        cursor_right(editor, 10);
+        break;
       }
       break;
     case PRESS:
       if (event.mouse_button == LEFT_BTN) {
-        Coord p = editor_hit_test(editor, event.mouse_x, event.mouse_y);
-        editor->cursor = p;
-        editor->cursor_preffered = UINT32_MAX;
-        editor->selection = p;
-        if (mode == SELECT) {
-          mode = NORMAL;
-          editor->selection_active = false;
+        if (duration < 250 &&
+            last_click_pos == (Coord){event.mouse_x, event.mouse_y}) {
+          mode = SELECT;
+          editor->selection_active = true;
+        } else {
+          Coord p = editor_hit_test(editor, event.mouse_x, event.mouse_y);
+          editor->cursor = p;
+          editor->cursor_preffered = UINT32_MAX;
+          editor->selection = p;
+          if (mode == SELECT) {
+            mode = NORMAL;
+            editor->selection_active = false;
+          }
+          last_click_pos = (Coord){event.mouse_x, event.mouse_y};
+          last_click_time = now;
         }
       }
       break;
@@ -143,10 +165,49 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
     break;
   case SELECT:
     if (event.key_type == KEY_CHAR && event.len == 1) {
+      uint32_t len;
+      char *text;
       switch (event.c[0]) {
       case 0x1B:
       case 's':
       case 'v':
+        editor->selection_active = false;
+        mode = NORMAL;
+        break;
+      case 'y':
+        text = get_selection(editor, &len);
+        copy_to_clipboard(text, len);
+        free(text);
+        editor->selection_active = false;
+        mode = NORMAL;
+        break;
+      case 'x':
+        text = get_selection(editor, &len);
+        copy_to_clipboard(text, len);
+        edit_erase(editor, MIN(editor->cursor, editor->selection), len);
+        free(text);
+        editor->selection_active = false;
+        mode = NORMAL;
+        break;
+      case 'p':
+        text = get_from_clipboard(&len);
+        if (text) {
+          Coord start, end;
+          if (editor->cursor >= editor->selection) {
+            start = editor->selection;
+            end = move_right(editor, editor->cursor, 1);
+          } else {
+            start = editor->cursor;
+            end = move_right(editor, editor->selection, 1);
+          }
+          uint32_t start_byte =
+              line_to_byte(editor->root, start.row, nullptr) + start.col;
+          uint32_t end_byte =
+              line_to_byte(editor->root, end.row, nullptr) + end.col;
+          edit_erase(editor, start, end_byte - start_byte);
+          edit_insert(editor, editor->cursor, text, len);
+          free(text);
+        }
         editor->selection_active = false;
         mode = NORMAL;
         break;
@@ -560,6 +621,25 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
   apply_edit(editor->spans.spans, byte_pos, len);
   if (editor->spans.mid_parse)
     editor->spans.edits.push({byte_pos, len});
+}
+
+char *get_selection(Editor *editor, uint32_t *out_len) {
+  std::shared_lock lock(editor->knot_mtx);
+  Coord start, end;
+  if (editor->cursor >= editor->selection) {
+    start = editor->selection;
+    end = move_right(editor, editor->cursor, 1);
+  } else {
+    start = editor->cursor;
+    end = move_right(editor, editor->selection, 1);
+  }
+  uint32_t start_byte =
+      line_to_byte(editor->root, start.row, nullptr) + start.col;
+  uint32_t end_byte = line_to_byte(editor->root, end.row, nullptr) + end.col;
+  char *text = read(editor->root, start_byte, end_byte - start_byte);
+  if (out_len)
+    *out_len = end_byte - start_byte;
+  return text;
 }
 
 void apply_edit(std::vector<Span> &spans, uint32_t x, int64_t y) {

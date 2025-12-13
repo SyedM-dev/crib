@@ -6,8 +6,6 @@ A TUI IDE.
 
 # TODO
 
-- [ ] Make function to get selected text. (selection itself is done)
-- [ ] Add support for copy/cut/paste.
 - [ ] Add support for ctrl + arrow key for moving words.
 - [ ] Add support for ctrl + backspace / delete for deleting words.
 - [ ] Add underline highlight for current word and all occurences.
