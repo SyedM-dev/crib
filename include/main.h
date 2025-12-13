@@ -10,5 +10,6 @@
 #define RUNNER 3
 
 extern std::atomic<bool> running;
+extern uint8_t mode;
 
 #endif

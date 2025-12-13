@@ -4,17 +4,20 @@
 #include "../include/ui.h"
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <sys/ioctl.h>
 #include <thread>
 
 std::atomic<bool> running{true};
 Queue<KeyEvent> event_queue;
+std::vector<Editor *> editors;
 
+uint8_t current_editor = 0;
 uint8_t mode = NORMAL;
 
-void background_worker(Editor *editor) {
+void background_worker() {
   while (running) {
-    ts_collect_spans(editor);
+    ts_collect_spans(editors[current_editor]);
     std::this_thread::sleep_for(std::chrono::milliseconds(16));
   }
 }
@@ -34,138 +37,61 @@ void input_listener() {
   }
 }
 
-void handle_editor_event(Editor *editor, KeyEvent event) {
-  if (event.key_type == KEY_SPECIAL) {
-    switch (event.special_key) {
-    case KEY_DOWN:
-      cursor_down(editor, 1);
-      break;
-    case KEY_UP:
-      cursor_up(editor, 1);
-      break;
-    case KEY_LEFT:
-      cursor_left(editor, 1);
-      break;
-    case KEY_RIGHT:
-      cursor_right(editor, 1);
-      break;
-    }
+Editor *editor_at(uint8_t x, uint8_t y) {
+  for (Editor *ed : editors) {
+    Coord pos = ed->position;
+    Coord size = ed->size;
+    if (x >= pos.col && x < pos.col + size.col && y >= pos.row &&
+        y < pos.row + size.row)
+      return ed;
   }
-  switch (mode) {
-  case NORMAL:
-    if (event.key_type == KEY_CHAR && event.len == 1) {
-      switch (event.c[0]) {
-      case 'a':
-      case 'i':
-        mode = INSERT;
-        break;
-      case 's':
-      case 'v':
-        mode = SELECT;
-        editor->selection_active = true;
-        editor->selection = editor->cursor;
-        break;
-      case ';':
-      case ':':
-        mode = RUNNER;
-        break;
-      case 0x7F:
-        cursor_left(editor, 1);
-        break;
-      case ' ':
-        cursor_right(editor, 1);
-        break;
-      case '\r':
-      case '\n':
-        cursor_down(editor, 1);
-        break;
-      case '\\':
-      case '|':
-        cursor_up(editor, 1);
-        break;
-      case CTRL('d'):
-        scroll_down(editor, 1);
-        ensure_cursor(editor);
-        break;
-      case CTRL('u'):
-        scroll_up(editor, 1);
-        ensure_cursor(editor);
-        break;
-      }
-    }
-    break;
-  case INSERT:
-    if (event.key_type == KEY_CHAR) {
-      if (event.len == 1) {
-        if (event.c[0] == '\t') {
-          edit_insert(editor, editor->cursor, (char *)"  ", 1);
-          cursor_right(editor, 2);
-        } else if (event.c[0] == '\n' || event.c[0] == '\r') {
-          edit_insert(editor, editor->cursor, (char *)"\n", 1);
-          cursor_right(editor, 1);
-        } else if (event.c[0] == 0x7F) {
-          edit_erase(editor, editor->cursor, -1);
-        } else if (isprint((unsigned char)(event.c[0]))) {
-          edit_insert(editor, editor->cursor, event.c, 1);
-          cursor_right(editor, 1);
-        } else if (event.c[0] == 0x1B) {
-          mode = NORMAL;
-        }
-      } else if (event.len > 1) {
-        edit_insert(editor, editor->cursor, event.c, event.len);
-        cursor_right(editor, 1);
-      }
-    }
-    if (event.key_type == KEY_SPECIAL && event.special_key == KEY_DELETE)
-      edit_erase(editor, editor->cursor, 1);
-    break;
-  case SELECT:
-    if (event.key_type == KEY_CHAR && event.len == 1) {
-      switch (event.c[0]) {
-      case 0x1B:
-      case 's':
-      case 'v':
-        editor->selection_active = false;
-        mode = NORMAL;
-        break;
-      }
-    }
-    break;
-  case RUNNER:
-    if (event.key_type == KEY_CHAR && event.len == 1) {
-      switch (event.c[0]) {
-      case 0x1B:
-        mode = NORMAL;
-        break;
-      }
-    }
-    break;
+  return nullptr;
+}
+
+uint8_t index_of(Editor *ed) {
+  for (uint8_t i = 0; i < editors.size(); i++) {
+    if (editors[i] == ed)
+      return i;
   }
-  ensure_scroll(editor);
-  if (event.key_type == KEY_CHAR && event.c)
-    free(event.c);
+  return 0;
 }
 
 int main(int argc, char *argv[]) {
   Coord screen = start_screen();
   const char *filename = (argc > 1) ? argv[1] : "";
 
-  Editor *editor = new_editor(filename, {0, 0}, screen);
+  Editor *editor =
+      new_editor(filename, {10, 10}, {screen.row - 20, screen.col - 20});
   if (!editor) {
     end_screen();
     fprintf(stderr, "Failed to load editor\n");
     return 1;
   }
 
+  editors.push_back(editor);
+  current_editor = editors.size() - 1;
+
   std::thread input_thread(input_listener);
-  std::thread work_thread(background_worker, editor);
+  std::thread work_thread(background_worker);
 
   while (running) {
     KeyEvent event;
-    while (event_queue.pop(event))
-      handle_editor_event(editor, event);
+    while (event_queue.pop(event)) {
+      if (event.key_type == KEY_MOUSE) {
+        Editor *target = editor_at(event.mouse_x, event.mouse_y);
+        if (!target)
+          continue;
+        if (event.mouse_state == PRESS)
+          current_editor = index_of(target);
+        event.mouse_x -= target->position.col;
+        event.mouse_y -= target->position.row;
+        handle_editor_event(target, event);
+      } else {
+        handle_editor_event(editors[current_editor], event);
+      }
+    }
 
-    render_editor(editor);
+    render_editor(editors[current_editor]);
     render();
 
     std::this_thread::sleep_for(std::chrono::milliseconds(8));

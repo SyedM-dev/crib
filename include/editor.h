@@ -115,8 +115,10 @@ void scroll_up(Editor *editor, uint32_t number);
 void scroll_down(Editor *editor, uint32_t number);
 void ensure_cursor(Editor *editor);
 void ensure_scroll(Editor *editor);
+void handle_editor_event(Editor *editor, KeyEvent event);
 void apply_edit(std::vector<Span> &spans, uint32_t x, int64_t y);
 void edit_erase(Editor *editor, Coord pos, int64_t len);
 void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len);
+Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y);
 
 #endif

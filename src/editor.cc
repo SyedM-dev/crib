@@ -73,13 +73,8 @@ void render_editor(Editor *editor) {
                     editor->cursor.col;
     uint32_t sel2 = line_to_byte(editor->root, editor->selection.row, nullptr) +
                     editor->selection.col;
-    if (sel1 <= sel2) {
-      sel_start = sel1;
-      sel_end = sel2;
-    } else {
-      sel_start = sel2;
-      sel_end = sel1;
-    }
+    sel_start = MIN(sel1, sel2);
+    sel_end = MAX(sel1, sel2);
   }
   Coord cursor = {UINT32_MAX, UINT32_MAX};
   uint32_t line_index = editor->scroll.row;

@@ -6,8 +6,6 @@ A TUI IDE.
 
 # TODO
 
-- [ ] Fix problem highlighting selection when line is empty.
-- [ ] Add mouse support.
 - [ ] Add struct as union of structs that can take input. or similar
     - then send input to them.
     - Also background thread will run worker function for whatever struct is selected.
