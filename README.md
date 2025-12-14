@@ -6,7 +6,6 @@ A TUI IDE.
 
 # TODO
 
-- [ ] Add alt+arrows to move line/block up/down.
 - [ ] Add `hooks` in files that can be set/unset/jumped to.
 - [ ] Add folding support at tree-sitter level (basic folding is done).
 - [ ] Add feature where doing enter uses tree-sitter to add newline with indentation.
@@ -25,3 +24,4 @@ A TUI IDE.
 - [ ] Add codeium/copilot support.
 - [ ] Normalize / validate unicode on file open.
 - [ ] Add git stuff.
+- [ ] Fix bug where alt+up at eof adds extra line.

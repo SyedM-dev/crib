@@ -165,10 +165,10 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
                       nullptr);
       switch (event.special_key) {
       case KEY_DOWN:
-        cursor_down(editor, 1);
+        cursor_down(editor, 5);
         break;
       case KEY_UP:
-        cursor_up(editor, 1);
+        cursor_up(editor, 5);
         break;
       case KEY_LEFT:
         editor->cursor_preffered = UINT32_MAX;
@@ -187,8 +187,20 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
       }
       break;
     case ALT:
-      // TODO: For up/down in insert/normal move line and in select move lines
-      //       overlapping selection up/down. right/left are normal
+      switch (event.special_key) {
+      case KEY_DOWN:
+        move_line_down(editor);
+        break;
+      case KEY_UP:
+        move_line_up(editor);
+        break;
+      case KEY_LEFT:
+        cursor_left(editor, 8);
+        break;
+      case KEY_RIGHT:
+        cursor_right(editor, 8);
+        break;
+      }
       break;
     }
   }
@@ -775,6 +787,93 @@ void cursor_left(Editor *editor, uint32_t number) {
     return;
   editor->cursor = move_left(editor, editor->cursor, number);
   editor->cursor_preffered = UINT32_MAX;
+}
+
+void move_line_up(Editor *editor) {
+  if (!editor || !editor->root || editor->cursor.row == 0)
+    return;
+  if (mode == NORMAL || mode == INSERT) {
+    uint32_t line_len, line_cluster_len;
+    std::shared_lock lock(editor->knot_mtx);
+    LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
+    char *line = next_line(it, &line_len);
+    free(it);
+    if (!line) {
+      lock.unlock();
+      return;
+    }
+    line_cluster_len = count_clusters(line, line_len, 0, line_len);
+    lock.unlock();
+    Coord cursor = editor->cursor;
+    edit_erase(editor, {cursor.row, 0}, line_cluster_len);
+    edit_insert(editor, {cursor.row - 1, 0}, line, line_len);
+    free(line);
+    editor->cursor = {cursor.row - 1, cursor.col};
+  } else if (mode == SELECT) {
+    uint32_t start_row = MIN(editor->cursor.row, editor->selection.row);
+    uint32_t end_row = MAX(editor->cursor.row, editor->selection.row);
+    uint32_t start_byte = line_to_byte(editor->root, start_row, nullptr);
+    uint32_t end_byte = line_to_byte(editor->root, end_row + 1, nullptr);
+    char *selected_text = read(editor->root, start_byte, end_byte - start_byte);
+    if (!selected_text)
+      return;
+    uint32_t selected_len = count_clusters(selected_text, end_byte - start_byte,
+                                           0, end_byte - start_byte);
+    Coord cursor = editor->cursor;
+    Coord selection = editor->selection;
+    edit_erase(editor, {start_row, 0}, selected_len);
+    edit_insert(editor, {start_row - 1, 0}, selected_text,
+                end_byte - start_byte);
+    free(selected_text);
+    editor->cursor = {cursor.row - 1, cursor.col};
+    editor->selection = {selection.row - 1, selection.col};
+  }
+}
+
+void move_line_down(Editor *editor) {
+  if (!editor || !editor->root)
+    return;
+  if (mode == NORMAL || mode == INSERT) {
+    if (editor->cursor.row >= editor->root->line_count - 1)
+      return;
+    uint32_t line_len, line_cluster_len;
+    std::shared_lock lock(editor->knot_mtx);
+    LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
+    char *line = next_line(it, &line_len);
+    free(it);
+    if (!line) {
+      lock.unlock();
+      return;
+    }
+    line_cluster_len = count_clusters(line, line_len, 0, line_len);
+    lock.unlock();
+    Coord cursor = editor->cursor;
+    edit_erase(editor, {cursor.row, 0}, line_cluster_len);
+    edit_insert(editor, {cursor.row + 1, 0}, line, line_len);
+    free(line);
+    editor->cursor = {cursor.row + 1, cursor.col};
+  } else if (mode == SELECT) {
+    if (editor->cursor.row >= editor->root->line_count - 1 ||
+        editor->selection.row >= editor->root->line_count - 1)
+      return;
+    uint32_t start_row = MIN(editor->cursor.row, editor->selection.row);
+    uint32_t end_row = MAX(editor->cursor.row, editor->selection.row);
+    uint32_t start_byte = line_to_byte(editor->root, start_row, nullptr);
+    uint32_t end_byte = line_to_byte(editor->root, end_row + 1, nullptr);
+    char *selected_text = read(editor->root, start_byte, end_byte - start_byte);
+    if (!selected_text)
+      return;
+    uint32_t selected_len = count_clusters(selected_text, end_byte - start_byte,
+                                           0, end_byte - start_byte);
+    Coord cursor = editor->cursor;
+    Coord selection = editor->selection;
+    edit_erase(editor, {start_row, 0}, selected_len);
+    edit_insert(editor, {start_row + 1, 0}, selected_text,
+                end_byte - start_byte);
+    free(selected_text);
+    editor->cursor = {cursor.row + 1, cursor.col};
+    editor->selection = {selection.row + 1, selection.col};
+  }
 }
 
 void edit_erase(Editor *editor, Coord pos, int64_t len) {

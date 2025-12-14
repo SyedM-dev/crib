@@ -130,6 +130,8 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len);
 Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y);
 char *get_selection(Editor *editor, uint32_t *out_len);
 void editor_worker(Editor *editor);
+void move_line_down(Editor *editor);
+void move_line_up(Editor *editor);
 void word_boundaries(Editor *editor, Coord coord, uint32_t *prev_col,
                      uint32_t *next_col, uint32_t *prev_clusters,
                      uint32_t *next_clusters);
