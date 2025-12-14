@@ -1,10 +1,14 @@
+#include <cstdint>
 extern "C" {
 #include "../libs/libgrapheme/grapheme.h"
 }
 #include "../include/editor.h"
 #include "../include/main.h"
+#include "../include/ts.h"
 #include "../include/utils.h"
 #include <cmath>
+
+static Highlight HL_UNDERLINE = {0, 0, 1 << 2, 100};
 
 void handle_editor_event(Editor *editor, KeyEvent event) {
   static std::chrono::steady_clock::time_point last_click_time =
@@ -77,6 +81,7 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
               return;
             if (line_len > 0 && line[line_len - 1] == '\n')
               line_len--;
+            free(line);
             editor->cursor = {p.row, line_len};
           }
           editor->cursor_preffered = UINT32_MAX;
@@ -119,6 +124,7 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
               return;
             if (line_len > 0 && line[line_len - 1] == '\n')
               line_len--;
+            free(line);
             editor->cursor = {p.row, line_len};
           }
           break;
@@ -354,6 +360,101 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
   ensure_scroll(editor);
   if (event.key_type == KEY_CHAR && event.c)
     free(event.c);
+}
+
+void editor_worker(Editor *editor) {
+  if (!editor || !editor->root)
+    return;
+  if (editor->parser && editor->query)
+    ts_collect_spans(editor);
+  uint32_t prev_col, next_col;
+  word_boundaries_exclusive(editor, editor->cursor, &prev_col, &next_col);
+  if (next_col - prev_col > 0 && next_col - prev_col < 256 - 4) {
+    std::shared_lock lock(editor->knot_mtx);
+    uint32_t offset = line_to_byte(editor->root, editor->cursor.row, nullptr);
+    char *word = read(editor->root, offset + prev_col, next_col - prev_col);
+    if (word) {
+      char buf[256];
+      snprintf(buf, sizeof(buf), "\\b%s\\b", word);
+      std::vector<std::pair<size_t, size_t>> results =
+          search_rope(editor->root, buf);
+      std::unique_lock lock(editor->def_spans.mtx);
+      editor->def_spans.spans.clear();
+      for (const auto &match : results) {
+        Span s;
+        s.start = match.first;
+        s.end = match.first + match.second;
+        s.hl = &HL_UNDERLINE;
+        editor->def_spans.spans.push_back(s);
+      }
+      std::sort(editor->def_spans.spans.begin(), editor->def_spans.spans.end());
+      lock.unlock();
+      free(word);
+    }
+  } else {
+    std::unique_lock lock(editor->def_spans.mtx);
+    editor->def_spans.spans.clear();
+    lock.unlock();
+  }
+}
+
+uint32_t scan_left(const char *line, uint32_t len, uint32_t off) {
+  if (off > len)
+    off = len;
+  uint32_t i = off;
+  while (i > 0) {
+    unsigned char c = (unsigned char)line[i - 1];
+    if ((c & 0x80) != 0)
+      break;
+    if (!((c == '_') || (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') ||
+          (c >= 'a' && c <= 'z')))
+      break;
+    --i;
+  }
+  return i;
+}
+
+uint32_t scan_right(const char *line, uint32_t len, uint32_t off) {
+  if (off > len)
+    off = len;
+  uint32_t i = off;
+  while (i < len) {
+    unsigned char c = (unsigned char)line[i];
+    if ((c & 0x80) != 0)
+      break;
+    if (!((c == '_') || (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') ||
+          (c >= 'a' && c <= 'z')))
+      break;
+    ++i;
+  }
+  return i;
+}
+
+void word_boundaries_exclusive(Editor *editor, Coord coord, uint32_t *prev_col,
+                               uint32_t *next_col) {
+  if (!editor)
+    return;
+  std::shared_lock lock(editor->knot_mtx);
+  LineIterator *it = begin_l_iter(editor->root, coord.row);
+  if (!it)
+    return;
+  uint32_t line_len;
+  char *line = next_line(it, &line_len);
+  free(it);
+  if (!line)
+    return;
+  if (line_len && line[line_len - 1] == '\n')
+    line_len--;
+  uint32_t col = coord.col;
+  if (col > line_len)
+    col = line_len;
+  uint32_t left = scan_left(line, line_len, col);
+  uint32_t right = scan_right(line, line_len, col);
+  if (prev_col)
+    *prev_col = left;
+  if (next_col)
+    *next_col = right;
+  free(line);
 }
 
 uint32_t word_jump_right(const char *line, size_t len, uint32_t pos) {
@@ -717,6 +818,8 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     apply_edit(editor->spans.spans, start, start - byte_pos);
     if (editor->spans.mid_parse)
       editor->spans.edits.push({start, start - byte_pos});
+    std::unique_lock lock_4(editor->def_spans.mtx);
+    apply_edit(editor->def_spans.spans, byte_pos, start - byte_pos);
   } else {
     std::shared_lock lock_1(editor->knot_mtx);
     uint32_t cursor_original =
@@ -755,6 +858,8 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     apply_edit(editor->spans.spans, byte_pos, byte_pos - end);
     if (editor->spans.mid_parse)
       editor->spans.edits.push({byte_pos, byte_pos - end});
+    std::unique_lock lock_4(editor->def_spans.mtx);
+    apply_edit(editor->def_spans.spans, byte_pos, byte_pos - end);
   }
 }
 
@@ -803,6 +908,8 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
   apply_edit(editor->spans.spans, byte_pos, len);
   if (editor->spans.mid_parse)
     editor->spans.edits.push({byte_pos, len});
+  std::unique_lock lock_4(editor->def_spans.mtx);
+  apply_edit(editor->def_spans.spans, byte_pos, len);
 }
 
 char *get_selection(Editor *editor, uint32_t *out_len) {
@@ -865,11 +972,11 @@ void apply_edit(std::vector<Span> &spans, uint32_t x, int64_t y) {
       spans.begin(), spans.end(), key,
       [](const Span &a, const Span &b) { return a.start < b.start; });
   size_t idx = std::distance(spans.begin(), it);
-  while (idx > 0 && spans.at(idx - 1).end > x)
+  while (idx > 0 && spans.at(idx - 1).end >= x)
     --idx;
   for (size_t i = idx; i < spans.size();) {
     Span &s = spans.at(i);
-    if (s.start < x && s.end > x) {
+    if (s.start < x && s.end >= x) {
       s.end += y;
     } else if (s.start > x) {
       s.start += y;

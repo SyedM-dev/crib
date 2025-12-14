@@ -115,6 +115,7 @@ void render_editor(Editor *editor) {
           return;
         if (line_len > 0 && line[line_len - 1] == '\n')
           line_len--;
+        free(line);
         end = {editor->selection.row, line_len};
         break;
       }
@@ -125,12 +126,14 @@ void render_editor(Editor *editor) {
   Coord cursor = {UINT32_MAX, UINT32_MAX};
   uint32_t line_index = editor->scroll.row;
   SpanCursor span_cursor(editor->spans);
+  SpanCursor def_span_cursor(editor->def_spans);
   LineIterator *it = begin_l_iter(editor->root, line_index);
   if (!it)
     return;
   uint32_t rendered_rows = 0;
   uint32_t global_byte_offset = line_to_byte(editor->root, line_index, nullptr);
   span_cursor.sync(global_byte_offset);
+  def_span_cursor.sync(global_byte_offset);
   while (rendered_rows < editor->size.row) {
     if (editor->folded[line_index]) {
       if (editor->folded[line_index] == 2) {
@@ -188,9 +191,17 @@ void render_editor(Editor *editor) {
         uint32_t absolute_byte_pos =
             global_byte_offset + current_byte_offset + local_render_offset;
         Highlight *hl = span_cursor.get_highlight(absolute_byte_pos);
+        Highlight *def_hl = def_span_cursor.get_highlight(absolute_byte_pos);
         uint32_t fg = hl ? hl->fg : 0xFFFFFF;
         uint32_t bg = hl ? hl->bg : 0;
         uint8_t fl = hl ? hl->flags : 0;
+        if (def_hl) {
+          if (def_hl->fg != 0)
+            fg = def_hl->fg;
+          if (def_hl->bg != 0)
+            bg = def_hl->bg;
+          fl |= def_hl->flags;
+        }
         if (editor->selection_active && absolute_byte_pos >= sel_start &&
             absolute_byte_pos < sel_end)
           bg = 0x555555;
@@ -278,10 +289,10 @@ void render_editor(Editor *editor) {
     }
     set_cursor(cursor.row, cursor.col, type, true);
   }
-  while (rendered_rows < render_width) {
-    for (uint32_t col = 0; col < render_width; col++)
-      update(editor->position.row + rendered_rows, render_x + col, " ",
-             0xFFFFFF, 0, 0);
+  while (rendered_rows < editor->size.row) {
+    for (uint32_t col = 0; col < editor->size.col; col++)
+      update(editor->position.row + rendered_rows, editor->position.col + col,
+             " ", 0xFFFFFF, 0, 0);
     rendered_rows++;
   }
   free(it);

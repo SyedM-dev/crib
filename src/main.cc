@@ -3,10 +3,11 @@
 #include "../include/ts.h"
 #include "../include/ui.h"
 #include <atomic>
-#include <chrono>
 #include <cstdint>
 #include <sys/ioctl.h>
 #include <thread>
+
+using namespace std::chrono_literals;
 
 std::atomic<bool> running{true};
 Queue<KeyEvent> event_queue;
@@ -16,24 +17,22 @@ uint8_t current_editor = 0;
 uint8_t mode = NORMAL;
 
 void background_worker() {
-  while (running) {
-    ts_collect_spans(editors[current_editor]);
-    std::this_thread::sleep_for(std::chrono::milliseconds(16));
-  }
+  while (running)
+    throttle(16ms, editor_worker, editors[current_editor]);
 }
 
 void input_listener() {
   while (running) {
-    KeyEvent event = read_key();
+    KeyEvent event = throttle(1ms, read_key);
     if (event.key_type == KEY_NONE)
       continue;
-    if (event.key_type == KEY_CHAR && event.len == 1 && *event.c == CTRL('q')) {
+    if (event.key_type == KEY_CHAR && event.len == 1 &&
+        event.c[0] == CTRL('q')) {
       free(event.c);
       running = false;
       return;
     }
     event_queue.push(event);
-    std::this_thread::sleep_for(std::chrono::microseconds(100));
   }
 }
 
@@ -49,10 +48,9 @@ Editor *editor_at(uint8_t x, uint8_t y) {
 }
 
 uint8_t index_of(Editor *ed) {
-  for (uint8_t i = 0; i < editors.size(); i++) {
+  for (uint8_t i = 0; i < editors.size(); i++)
     if (editors[i] == ed)
       return i;
-  }
   return 0;
 }
 
@@ -85,16 +83,13 @@ int main(int argc, char *argv[]) {
           current_editor = index_of(target);
         event.mouse_x -= target->position.col;
         event.mouse_y -= target->position.row;
-        handle_editor_event(target, event);
+        throttle(4ms, handle_editor_event, target, event);
       } else {
-        handle_editor_event(editors[current_editor], event);
+        throttle(4ms, handle_editor_event, editors[current_editor], event);
       }
     }
-
-    render_editor(editors[current_editor]);
-    render();
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(8));
+    throttle(4ms, render_editor, editors[current_editor]);
+    throttle(4ms, render);
   }
 
   if (input_thread.joinable())

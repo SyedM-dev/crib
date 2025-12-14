@@ -171,12 +171,8 @@ void scroll_down(Editor *editor, uint32_t number) {
     line_index++;
   }
   if (q_size > 0) {
-    uint32_t idx;
-    if (q_size < max_visual_lines)
-      idx = (q_head + q_size - 1) % max_visual_lines;
-    else
-      idx = q_head;
-    editor->scroll = scroll_queue[idx];
+    uint32_t advance = (q_size > number) ? number : (q_size - 1);
+    editor->scroll = scroll_queue[(q_head + advance) % max_visual_lines];
   }
   free(it);
   free(scroll_queue);
@@ -249,7 +245,7 @@ void ensure_cursor(Editor *editor) {
       }
       if (line_index == editor->cursor.row) {
         if (editor->cursor.col >= offset &&
-            editor->cursor.col < offset + advance) {
+            editor->cursor.col <= offset + advance) {
           free(line);
           free(it);
           return;

@@ -2,9 +2,12 @@
 #define UTILS_H
 
 #include "./ts_def.h"
+#include <chrono>
+#include <functional>
 #include <mutex>
 #include <queue>
 #include <string>
+#include <thread>
 
 #define PCRE2_CODE_UNIT_WIDTH 8
 #define PCRE_WORKSPACE_SIZE 512
@@ -62,5 +65,24 @@ Language language_for_file(const char *filename);
 void copy_to_clipboard(const char *text, size_t len);
 char *get_from_clipboard(uint32_t *out_len);
 uint32_t count_clusters(const char *line, size_t len, size_t from, size_t to);
+
+template <typename Func, typename... Args>
+auto throttle(std::chrono::milliseconds min_duration, Func &&func,
+              Args &&...args) {
+  auto start = std::chrono::steady_clock::now();
+  if constexpr (std::is_void_v<std::invoke_result_t<Func, Args...>>) {
+    std::invoke(std::forward<Func>(func), std::forward<Args>(args)...);
+  } else {
+    auto result =
+        std::invoke(std::forward<Func>(func), std::forward<Args>(args)...);
+    auto elapsed = std::chrono::steady_clock::now() - start;
+    if (elapsed < min_duration)
+      std::this_thread::sleep_for(min_duration - elapsed);
+    return result;
+  }
+  auto elapsed = std::chrono::steady_clock::now() - start;
+  if (elapsed < min_duration)
+    std::this_thread::sleep_for(min_duration - elapsed);
+}
 
 #endif

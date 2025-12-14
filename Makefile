@@ -11,12 +11,12 @@ CXX_RELEASE := $(CCACHE) clang++
 
 CFLAGS_DEBUG := -std=c++20 -Wall -Wextra -O0 -fno-inline -gsplit-dwarf -g -fsanitize=address -fno-omit-frame-pointer
 CFLAGS_RELEASE := -std=c++20 -O3 -march=native -flto=thin \
-	-fno-exceptions -fno-rtti -fstrict-aliasing -ffast-math -funroll-loops \
+	-fno-exceptions -fno-rtti -fstrict-aliasing \
+	-ffast-math -funroll-loops \
+	-fvisibility=hidden \
 	-fomit-frame-pointer -DNDEBUG -s \
-	-mllvm -inline-threshold=10000 \
 	-mllvm -vectorize-loops \
-	-mllvm -force-vector-width=8 \
-	-mllvm -unroll-threshold=500000
+	-fno-unwind-tables -fno-asynchronous-unwind-tables
 
 UNICODE_SRC := $(wildcard libs/unicode_width/*.c)
 
