@@ -215,6 +215,21 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
       case 'i':
         mode = INSERT;
         break;
+      case 'n':
+        mode = JUMPER;
+        editor->jumper_set = true;
+        break;
+      case 'm':
+        mode = JUMPER;
+        editor->jumper_set = false;
+        break;
+      case 'N':
+        for (uint8_t i = 0; i < 94; i++)
+          if (editor->hooks[i] == editor->cursor.row + 1) {
+            editor->hooks[i] = 0;
+            break;
+          }
+        break;
       case 's':
       case 'v':
         mode = SELECT;
@@ -358,6 +373,26 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
         break;
       }
     }
+    break;
+  case JUMPER:
+    if (event.key_type == KEY_CHAR && event.len == 1 &&
+        (event.c[0] > '!' && event.c[0] < '~')) {
+      if (editor->jumper_set) {
+        for (uint8_t i = 0; i < 94; i++)
+          if (editor->hooks[i] == editor->cursor.row + 1) {
+            editor->hooks[i] = 0;
+            break;
+          }
+        editor->hooks[event.c[0] - '!'] = editor->cursor.row + 1;
+      } else {
+        uint32_t line = editor->hooks[event.c[0] - '!'];
+        if (line > 0) {
+          editor->cursor = {line - 1, 0};
+          editor->cursor_preffered = UINT32_MAX;
+        }
+      }
+    }
+    mode = NORMAL;
     break;
   case RUNNER:
     if (event.key_type == KEY_CHAR && event.len == 1) {
@@ -528,7 +563,7 @@ Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
   if (mode == INSERT)
     x++;
   uint32_t numlen =
-      2 + static_cast<int>(std::log10(editor->root->line_count + 1));
+      EXTRA_META + static_cast<int>(std::log10(editor->root->line_count + 1));
   uint32_t render_width = editor->size.col - numlen;
   x = MAX(x, numlen) - numlen;
   uint32_t target_visual_row = y;

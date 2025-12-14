@@ -9,7 +9,7 @@ extern "C" {
 void scroll_up(Editor *editor, uint32_t number) {
   number++;
   uint32_t numlen =
-      2 + static_cast<int>(std::log10(editor->root->line_count + 1));
+      EXTRA_META + static_cast<int>(std::log10(editor->root->line_count + 1));
   uint32_t render_width = editor->size.col - numlen;
   Coord *scroll_queue = (Coord *)malloc(sizeof(Coord) * number);
   uint32_t q_head = 0;
@@ -79,7 +79,7 @@ void scroll_down(Editor *editor, uint32_t number) {
   if (!editor || number == 0)
     return;
   uint32_t numlen =
-      2 + static_cast<int>(std::log10(editor->root->line_count + 1));
+      EXTRA_META + static_cast<int>(std::log10(editor->root->line_count + 1));
   uint32_t render_width = editor->size.col - numlen;
   uint32_t line_index = editor->scroll.row;
   LineIterator *it = begin_l_iter(editor->root, line_index);
@@ -185,7 +185,7 @@ void ensure_cursor(Editor *editor) {
     return;
   }
   uint32_t numlen =
-      2 + static_cast<int>(std::log10(editor->root->line_count + 1));
+      EXTRA_META + static_cast<int>(std::log10(editor->root->line_count + 1));
   uint32_t render_width = editor->size.col - numlen;
   uint32_t visual_rows = 0;
   uint32_t line_index = editor->scroll.row;
@@ -267,7 +267,7 @@ void ensure_cursor(Editor *editor) {
 void ensure_scroll(Editor *editor) {
   std::shared_lock knot_lock(editor->knot_mtx);
   uint32_t numlen =
-      2 + static_cast<int>(std::log10(editor->root->line_count + 1));
+      EXTRA_META + static_cast<int>(std::log10(editor->root->line_count + 1));
   uint32_t render_width = editor->size.col - numlen;
   if (editor->cursor < editor->scroll) {
     LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);

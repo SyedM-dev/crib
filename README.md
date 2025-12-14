@@ -6,7 +6,6 @@ A TUI IDE.
 
 # TODO
 
-- [ ] Add `hooks` in files that can be set/unset/jumped to.
 - [ ] Add folding support at tree-sitter level (basic folding is done).
 - [ ] Add feature where doing enter uses tree-sitter to add newline with indentation.
     - it should also put stuff like `}` on the next line.

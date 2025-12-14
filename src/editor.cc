@@ -20,12 +20,7 @@ Editor *new_editor(const char *filename, Coord position, Coord size) {
   editor->filename = filename;
   editor->position = position;
   editor->size = size;
-  editor->tree = nullptr;
-  editor->cursor = {0, 0};
   editor->cursor_preffered = UINT32_MAX;
-  editor->selection_active = false;
-  editor->selection = {0, 0};
-  editor->scroll = {0, 0};
   editor->root = load(str, len, optimal_chunk_size(len));
   free(str);
   editor->folded.resize(editor->root->line_count + 2);
@@ -71,9 +66,14 @@ void update_render_fold_marker(uint32_t row, uint32_t cols) {
 void render_editor(Editor *editor) {
   uint32_t sel_start = 0, sel_end = 0;
   uint32_t numlen =
-      2 + static_cast<int>(std::log10(editor->root->line_count + 1));
+      EXTRA_META + static_cast<int>(std::log10(editor->root->line_count + 1));
   uint32_t render_width = editor->size.col - numlen;
   uint32_t render_x = editor->position.col + numlen;
+  std::vector<std::pair<uint32_t, char>> v;
+  for (size_t i = 0; i < 94; ++i)
+    if (editor->hooks[i] != 0)
+      v.push_back({editor->hooks[i], '!' + i});
+  std::sort(v.begin(), v.end());
   std::shared_lock knot_lock(editor->knot_mtx);
   if (editor->selection_active) {
     Coord start, end;
@@ -167,8 +167,16 @@ void render_editor(Editor *editor) {
     while (current_byte_offset < line_len && rendered_rows < editor->size.row) {
       uint32_t color = editor->cursor.row == line_index ? 0x222222 : 0;
       if (current_byte_offset == 0 || rendered_rows == 0) {
-        char buf[16];
-        int len = snprintf(buf, sizeof(buf), "%*u", numlen - 1, line_index + 1);
+        char buf[EXTRA_META + 16];
+        char hook = ' ';
+        for (auto &p : v) {
+          if (p.first == line_index + 1) {
+            hook = p.second;
+            break;
+          }
+        }
+        int len = snprintf(buf, sizeof(buf), "%c%*u", hook, numlen - 2,
+                           line_index + 1);
         uint32_t num_color =
             editor->cursor.row == line_index ? 0xFFFFFF : 0x555555;
         for (int i = 0; i < len; i++)
@@ -244,8 +252,16 @@ void render_editor(Editor *editor) {
     if (line_len == 0 ||
         (current_byte_offset >= line_len && rendered_rows == 0)) {
       uint32_t color = editor->cursor.row == line_index ? 0x222222 : 0;
-      char buf[16];
-      int len = snprintf(buf, sizeof(buf), "%*u", numlen - 1, line_index + 1);
+      char buf[EXTRA_META + 16];
+      char hook = ' ';
+      for (auto &p : v) {
+        if (p.first == line_index + 1) {
+          hook = p.second;
+          break;
+        }
+      }
+      int len =
+          snprintf(buf, sizeof(buf), "%c%*u", hook, numlen - 2, line_index + 1);
       uint32_t num_color =
           editor->cursor.row == line_index ? 0xFFFFFF : 0x555555;
       for (int i = 0; i < len; i++)
@@ -283,6 +299,7 @@ void render_editor(Editor *editor) {
     case INSERT:
       type = CURSOR;
       break;
+    case JUMPER:
     case SELECT:
       type = UNDERLINE;
       break;

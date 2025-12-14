@@ -15,6 +15,8 @@
 #define WORD 1
 #define LINE 2
 
+#define EXTRA_META 3
+
 struct Highlight {
   uint32_t fg;
   uint32_t bg;
@@ -107,8 +109,11 @@ struct Editor {
   Spans spans;
   Spans def_spans;
   std::map<uint32_t, bool> folded_node;
+  uint32_t hooks[94];
+  bool jumper_set;
 };
 
+void apply_edit(std::vector<Span> &spans, uint32_t x, int64_t y);
 Editor *new_editor(const char *filename, Coord position, Coord size);
 void free_editor(Editor *editor);
 void render_editor(Editor *editor);
@@ -124,7 +129,6 @@ void scroll_down(Editor *editor, uint32_t number);
 void ensure_cursor(Editor *editor);
 void ensure_scroll(Editor *editor);
 void handle_editor_event(Editor *editor, KeyEvent event);
-void apply_edit(std::vector<Span> &spans, uint32_t x, int64_t y);
 void edit_erase(Editor *editor, Coord pos, int64_t len);
 void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len);
 Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y);
