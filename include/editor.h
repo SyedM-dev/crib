@@ -18,6 +18,8 @@
 
 #define EXTRA_META 4
 
+#define INDENT_WIDTH 2
+
 struct Highlight {
   uint32_t fg;
   uint32_t bg;
@@ -208,5 +210,8 @@ bool remove_fold(Editor *editor, uint32_t line);
 void apply_line_insertion(Editor *editor, uint32_t line, uint32_t rows);
 void apply_line_deletion(Editor *editor, uint32_t removal_start,
                          uint32_t removal_end);
+uint32_t leading_indent(const char *line, uint32_t len);
+uint32_t get_indent(Editor *editor, Coord cursor);
+bool closing_after_cursor(const char *line, uint32_t len, uint32_t col);
 
 #endif

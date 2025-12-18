@@ -302,8 +302,33 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
           edit_insert(editor, editor->cursor, (char *)"  ", 2);
           cursor_right(editor, 2);
         } else if (event.c[0] == '\n' || event.c[0] == '\r') {
-          edit_insert(editor, editor->cursor, (char *)"\n", 1);
-          cursor_right(editor, 1);
+          uint32_t line_len = 0;
+          LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
+          char *line = next_line(it, &line_len);
+          free(it);
+          bool closing = false;
+          if (line && line_len > 0 && line[line_len - 1] == '\n')
+            line_len--;
+          uint32_t indent = get_indent(editor, editor->cursor);
+          if (line) {
+            if (indent == 0)
+              indent = leading_indent(line, line_len);
+            closing = closing_after_cursor(line, line_len, editor->cursor.col);
+            free(line);
+          }
+          uint32_t closing_indent =
+              indent >= INDENT_WIDTH ? indent - INDENT_WIDTH : 0;
+          std::string insert_text("\n");
+          insert_text.append(indent, ' ');
+          Coord new_cursor = {editor->cursor.row + 1, indent};
+          if (closing) {
+            insert_text.push_back('\n');
+            insert_text.append(closing_indent, ' ');
+          }
+          edit_insert(editor, editor->cursor, insert_text.data(),
+                      insert_text.size());
+          editor->cursor = new_cursor;
+          editor->cursor_preffered = UINT32_MAX;
         } else if (event.c[0] == CTRL('W')) {
           uint32_t prev_col_byte, prev_col_cluster;
           word_boundaries(editor, editor->cursor, &prev_col_byte, nullptr,
