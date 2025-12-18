@@ -23,7 +23,6 @@ Editor *new_editor(const char *filename, Coord position, Coord size) {
   editor->cursor_preffered = UINT32_MAX;
   editor->root = load(str, len, optimal_chunk_size(len));
   free(str);
-  editor->folded.resize(editor->root->line_count + 2);
   if (len <= (1024 * 128)) {
     editor->parser = ts_parser_new();
     Language language = language_for_file(filename);
@@ -118,14 +117,15 @@ void render_editor(Editor *editor) {
   span_cursor.sync(global_byte_offset);
   def_span_cursor.sync(global_byte_offset);
   while (rendered_rows < editor->size.row) {
-    if (editor->folded[line_index].first) {
-      if (editor->folded[line_index].first == 2) {
-        update(editor->position.row + rendered_rows, editor->position.col,
-               "", 0xAAAAAA, 0, 0);
+      const Fold *fold = fold_for_line(editor->folds, line_index);
+      if (fold) {
+        update(editor->position.row + rendered_rows, editor->position.col, "",
+               0xAAAAAA, 0, 0);
         char buf[16];
-        int len = snprintf(buf, sizeof(buf), "%*u", numlen - 3, line_index + 1);
+        int len = snprintf(buf, sizeof(buf), "%*u", numlen - 3,
+                           fold->start + 1);
         uint32_t num_color =
-            editor->cursor.row == line_index ? 0xFFFFFF : 0x555555;
+            editor->cursor.row == fold->start ? 0xFFFFFF : 0x555555;
         for (int i = 0; i < len; i++)
           update(editor->position.row + rendered_rows,
                  editor->position.col + i + 2, (char[2]){buf[i], 0}, num_color,
@@ -138,23 +138,22 @@ void render_editor(Editor *editor) {
         for (; i < render_width; i++)
           update(rendered_rows, i + render_x, " ", 0xc6c6c6, 0, 0);
         rendered_rows++;
+
+        uint32_t skip_until = fold->end;
+        while (line_index <= skip_until) {
+          uint32_t line_len;
+          char *line = next_line(it, &line_len);
+          if (!line)
+            break;
+          global_byte_offset += line_len;
+          if (line_len > 0 && line[line_len - 1] == '\n')
+            global_byte_offset--;
+          global_byte_offset++;
+          free(line);
+          line_index++;
+        }
+        continue;
       }
-      do {
-        uint32_t line_len;
-        char *line = next_line(it, &line_len);
-        if (!line)
-          break;
-        global_byte_offset += line_len;
-        if (line_len > 0 && line[line_len - 1] == '\n')
-          global_byte_offset--;
-        global_byte_offset++;
-        free(line);
-        line_index++;
-      } while (line_index < editor->size.row &&
-               editor->folded[line_index].first == 1);
-      continue;
-    }
-    uint32_t line_len;
     char *line = next_line(it, &line_len);
     if (!line)
       break;

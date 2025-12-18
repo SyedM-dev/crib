@@ -10,6 +10,7 @@
 #include <map>
 #include <shared_mutex>
 #include <unordered_map>
+#include <vector>
 
 #define CHAR 0
 #define WORD 1
@@ -37,6 +38,14 @@ struct Spans {
   Queue<std::pair<uint32_t, int64_t>> edits;
   bool mid_parse = false;
   std::shared_mutex mtx;
+};
+
+struct Fold {
+  uint32_t start;
+  uint32_t end;
+
+  bool contains(uint32_t line) const { return line >= start && line <= end; }
+  bool operator<(const Fold &other) const { return start < other.start; }
 };
 
 struct SpanCursor {
@@ -105,12 +114,66 @@ struct Editor {
   const TSLanguage *language;
   Queue<TSInputEdit> edit_queue;
   std::vector<Highlight> query_map;
-  std::vector<std::pair<int8_t, uint32_t>> folded;
+  std::vector<Fold> folds;
   Spans spans;
   Spans def_spans;
   uint32_t hooks[94];
   bool jumper_set;
 };
+
+inline const Fold *fold_for_line(const std::vector<Fold> &folds,
+                                 uint32_t line) {
+  auto it = std::lower_bound(
+      folds.begin(), folds.end(), line,
+      [](const Fold &fold, uint32_t value) { return fold.start < value; });
+  if (it != folds.end() && it->start == line)
+    return &(*it);
+  if (it != folds.begin()) {
+    --it;
+    if (it->contains(line))
+      return &(*it);
+  }
+  return nullptr;
+}
+
+inline Fold *fold_for_line(std::vector<Fold> &folds, uint32_t line) {
+  const auto *fold = fold_for_line(static_cast<const std::vector<Fold> &>(folds),
+                                   line);
+  return const_cast<Fold *>(fold);
+}
+
+inline bool line_is_fold_start(const std::vector<Fold> &folds,
+                               uint32_t line) {
+  const Fold *fold = fold_for_line(folds, line);
+  return fold && fold->start == line;
+}
+
+inline bool line_is_folded(const std::vector<Fold> &folds, uint32_t line) {
+  return fold_for_line(folds, line) != nullptr;
+}
+
+inline uint32_t next_unfolded_row(const Editor *editor, uint32_t row) {
+  uint32_t limit = editor && editor->root ? editor->root->line_count : 0;
+  while (row < limit) {
+    const Fold *fold = fold_for_line(editor->folds, row);
+    if (!fold)
+      return row;
+    row = fold->end + 1;
+  }
+  return limit;
+}
+
+inline uint32_t prev_unfolded_row(const Editor *editor, uint32_t row) {
+  while (row > 0) {
+    const Fold *fold = fold_for_line(editor->folds, row);
+    if (!fold)
+      return row;
+    if (fold->start == 0)
+      return 0;
+    row = fold->start - 1;
+  }
+  return 0;
+}
 
 void apply_edit(std::vector<Span> &spans, uint32_t x, int64_t y);
 Editor *new_editor(const char *filename, Coord position, Coord size);

@@ -66,16 +66,37 @@ void scroll_up(Editor *editor, int32_t number) {
       free(it);
       return;
     }
-    if (editor->folded[line_index].first) {
-      if (editor->folded[line_index].first == 2) {
-        if (--number == 0) {
-          editor->scroll = {line_index, 0};
-          free(line);
+    const Fold *fold = fold_for_line(editor->folds, line_index);
+    if (fold) {
+      while (line && line_index > fold->start) {
+        free(line);
+        line = prev_line(it, &len);
+        line_index--;
+        if (!line) {
+          editor->scroll = {0, 0};
           free(it);
           return;
         }
       }
+      if (--number == 0) {
+        editor->scroll = {fold->start, 0};
+        free(line);
+        free(it);
+        return;
+      }
       free(line);
+      if (fold->start == 0) {
+        editor->scroll = {0, 0};
+        free(it);
+        return;
+      }
+      line_index = fold->start - 1;
+      line = prev_line(it, &len);
+      if (!line) {
+        editor->scroll = {0, 0};
+        free(it);
+        return;
+      }
       continue;
     }
     if (len > 0 && line[len - 1] == '\n')
@@ -127,23 +148,23 @@ void scroll_down(Editor *editor, uint32_t number) {
   uint32_t visual_seen = 0;
   bool first_visual_line = true;
   while (true) {
-    if (editor->folded[line_index].first) {
-      if (editor->folded[line_index].first == 2) {
-        Coord fold_coord = {line_index, 0};
-        if (q_size < max_visual_lines) {
-          scroll_queue[(q_head + q_size) % max_visual_lines] = fold_coord;
-          q_size++;
-        } else {
-          scroll_queue[q_head] = fold_coord;
-          q_head = (q_head + 1) % max_visual_lines;
-        }
-        visual_seen++;
-        if (visual_seen >= number + max_visual_lines) {
-          editor->scroll = scroll_queue[q_head];
-          break;
-        }
+    const Fold *fold = fold_for_line(editor->folds, line_index);
+    if (fold) {
+      Coord fold_coord = {fold->start, 0};
+      if (q_size < max_visual_lines) {
+        scroll_queue[(q_head + q_size) % max_visual_lines] = fold_coord;
+        q_size++;
+      } else {
+        scroll_queue[q_head] = fold_coord;
+        q_head = (q_head + 1) % max_visual_lines;
       }
-      do {
+      visual_seen++;
+      if (visual_seen >= number + max_visual_lines) {
+        editor->scroll = scroll_queue[q_head];
+        break;
+      }
+      uint32_t skip_until = fold->end;
+      while (line_index <= skip_until) {
         char *line = next_line(it, nullptr);
         if (!line) {
           free(scroll_queue);
@@ -152,7 +173,7 @@ void scroll_down(Editor *editor, uint32_t number) {
         }
         free(line);
         line_index++;
-      } while (editor->folded[line_index].first == 1);
+      }
       continue;
     }
     uint32_t line_len;
@@ -216,10 +237,7 @@ void scroll_down(Editor *editor, uint32_t number) {
 void ensure_cursor(Editor *editor) {
   std::shared_lock knot_lock(editor->knot_mtx);
   if (editor->cursor < editor->scroll) {
-    uint32_t line_idx = editor->scroll.row;
-    while (line_idx < editor->root->line_count &&
-           editor->folded[line_idx].first)
-      line_idx++;
+    uint32_t line_idx = next_unfolded_row(editor, editor->scroll.row);
     editor->cursor.row = line_idx;
     editor->cursor.col =
         line_idx == editor->scroll.row ? editor->scroll.col : 0;
@@ -239,19 +257,19 @@ void ensure_cursor(Editor *editor) {
   while (true) {
     if (visual_rows >= editor->size.row)
       break;
-    if (editor->folded[line_index].first) {
-      if (editor->folded[line_index].first == 2) {
-        Coord c = {line_index, 0};
-        last_visible = c;
-        visual_rows++;
-      }
-      do {
+    const Fold *fold = fold_for_line(editor->folds, line_index);
+    if (fold) {
+      Coord c = {fold->start, 0};
+      last_visible = c;
+      visual_rows++;
+      uint32_t skip_until = fold->end;
+      while (line_index <= skip_until) {
         char *line = next_line(it, nullptr);
         if (!line)
           break;
         free(line);
         line_index++;
-      } while (editor->folded[line_index].first == 1);
+      }
       continue;
     }
     uint32_t line_len;
@@ -299,8 +317,11 @@ void ensure_cursor(Editor *editor) {
     line_index++;
   }
   uint32_t last_real_row = last_visible.row;
-  while (last_visible.row > 0 && editor->folded[last_visible.row].first)
-    last_visible.row--;
+  const Fold *last_fold = fold_for_line(editor->folds, last_visible.row);
+  if (last_fold) {
+    last_visible.row = last_fold->start == 0 ? 0 : last_fold->start - 1;
+    last_visible.col = 0;
+  }
   editor->cursor.row = last_visible.row;
   editor->cursor.col = last_visible.row == last_real_row ? last_visible.col : 0;
   editor->cursor_preffered = UINT32_MAX;
@@ -362,29 +383,29 @@ void ensure_scroll(Editor *editor) {
     uint32_t q_size = 0;
     bool first_visual_line = true;
     while (true) {
-      if (editor->folded[line_index].first) {
-        if (editor->folded[line_index].first == 2) {
-          Coord fold_coord = {line_index, 0};
-          if (q_size < max_visual_lines) {
-            scroll_queue[(q_head + q_size) % max_visual_lines] = fold_coord;
-            q_size++;
-          } else {
-            scroll_queue[q_head] = fold_coord;
-            q_head = (q_head + 1) % max_visual_lines;
-          }
-          if (line_index == editor->cursor.row) {
-            editor->scroll = scroll_queue[q_head];
-            break;
-          }
+      const Fold *fold = fold_for_line(editor->folds, line_index);
+      if (fold) {
+        Coord fold_coord = {fold->start, 0};
+        if (q_size < max_visual_lines) {
+          scroll_queue[(q_head + q_size) % max_visual_lines] = fold_coord;
+          q_size++;
+        } else {
+          scroll_queue[q_head] = fold_coord;
+          q_head = (q_head + 1) % max_visual_lines;
         }
-        do {
+        if (fold->start <= editor->cursor.row &&
+            editor->cursor.row <= fold->end) {
+          editor->scroll = scroll_queue[q_head];
+          break;
+        }
+        uint32_t skip_until = fold->end;
+        while (line_index <= skip_until) {
           char *line = next_line(it, nullptr);
           if (!line)
             break;
           free(line);
           line_index++;
-        } while (line_index < editor->size.row &&
-                 editor->folded[line_index].first == 1);
+        }
         continue;
       }
       uint32_t line_len;
