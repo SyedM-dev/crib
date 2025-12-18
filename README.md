@@ -6,7 +6,7 @@ A TUI IDE.
 
 # TODO
 
-- [ ] Add feature where doing enter uses tree-sitter to add newline with indentation.
+ - [x] Add feature where doing enter uses tree-sitter to add newline with indentation.
     - it should also put stuff like `}` on the next line.
 - [ ] Add the highlight of block edges when cursor is on a bracket (or in).
 - [ ] Add this thing where selection double click on a bracket selects whole block.

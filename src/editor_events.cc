@@ -2,6 +2,48 @@
 #include "../include/main.h"
 #include "../include/ts.h"
 
+static constexpr uint32_t INDENT_WIDTH = 2;
+
+static uint32_t leading_indent(const char *line, uint32_t len) {
+  uint32_t indent = 0;
+  for (uint32_t i = 0; i < len; i++) {
+    if (line[i] == ' ')
+      indent++;
+    else if (line[i] == '\t')
+      indent += INDENT_WIDTH;
+    else
+      break;
+  }
+  return indent;
+}
+
+static uint32_t tree_based_indent(Editor *editor, Coord cursor) {
+  if (!editor || !editor->tree)
+    return 0;
+  uint32_t line_start = line_to_byte(editor->root, cursor.row, nullptr);
+  uint32_t byte_offset = line_start + cursor.col;
+  TSNode root = ts_tree_root_node(editor->tree);
+  TSNode node = ts_node_descendant_for_byte_range(root, byte_offset, byte_offset);
+  while (!ts_node_is_null(node)) {
+    TSPoint start = ts_node_start_point(node);
+    TSPoint end = ts_node_end_point(node);
+    if (start.row < cursor.row && end.row >= cursor.row) {
+      return start.column + INDENT_WIDTH;
+    }
+    node = ts_node_parent(node);
+  }
+  return 0;
+}
+
+static bool closing_after_cursor(const char *line, uint32_t len, uint32_t col) {
+  uint32_t i = col;
+  while (i < len && (line[i] == ' ' || line[i] == '\t'))
+    i++;
+  if (i >= len)
+    return false;
+  return line[i] == '}' || line[i] == ']' || line[i] == ')';
+}
+
 void handle_editor_event(Editor *editor, KeyEvent event) {
   static std::chrono::steady_clock::time_point last_click_time =
       std::chrono::steady_clock::now();
@@ -302,8 +344,33 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
           edit_insert(editor, editor->cursor, (char *)"  ", 2);
           cursor_right(editor, 2);
         } else if (event.c[0] == '\n' || event.c[0] == '\r') {
-          edit_insert(editor, editor->cursor, (char *)"\n", 1);
-          cursor_right(editor, 1);
+          uint32_t line_len = 0;
+          LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
+          char *line = next_line(it, &line_len);
+          free(it);
+          bool closing = false;
+          if (line && line_len > 0 && line[line_len - 1] == '\n')
+            line_len--;
+          uint32_t indent = tree_based_indent(editor, editor->cursor);
+          if (line) {
+            if (indent == 0)
+              indent = leading_indent(line, line_len);
+            closing = closing_after_cursor(line, line_len, editor->cursor.col);
+            free(line);
+          }
+          uint32_t closing_indent =
+              indent >= INDENT_WIDTH ? indent - INDENT_WIDTH : 0;
+          std::string insert_text("\n");
+          insert_text.append(indent, ' ');
+          Coord new_cursor = {editor->cursor.row + 1, indent};
+          if (closing) {
+            insert_text.push_back('\n');
+            insert_text.append(closing_indent, ' ');
+          }
+          edit_insert(editor, editor->cursor, insert_text.data(),
+                      insert_text.size());
+          editor->cursor = new_cursor;
+          editor->cursor_preffered = UINT32_MAX;
         } else if (event.c[0] == CTRL('W')) {
           uint32_t prev_col_byte, prev_col_cluster;
           word_boundaries(editor, editor->cursor, &prev_col_byte, nullptr,
