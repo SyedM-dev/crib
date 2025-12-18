@@ -6,12 +6,6 @@ A TUI IDE.
 
 # TODO
 
-- [ ] FIX: bug where `move_line_up/down` dont honor folding.
-    - idk .. wyyy but it is soo hard. somehow handle \n seperately without interfering with folding.
-
-- [ ] Do this thing where folds are properly shifted on newline addition / deletion.
-- [ ] Add support for brackets/quotes to auto-close. (also for backspace)
-    - it also doesnt actually add a closer if it exists and is matched.
 - [ ] Add feature where doing enter uses tree-sitter to add newline with indentation.
     - it should also put stuff like `}` on the next line.
 - [ ] Add the highlight of block edges when cursor is on a bracket (or in).
@@ -29,3 +23,4 @@ A TUI IDE.
 - [ ] Add git stuff.
 - [ ] Fix bug where alt+up at eof adds extra line.
 - [ ] Think about how i would keep fold states sensical if i added code prettying.
+- [ ] Redo folding system and its relation to move_line_* functions.

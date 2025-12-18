@@ -117,6 +117,12 @@ LineIterator *begin_l_iter(Knot *root, uint32_t start_line);
 // freed by the caller
 char *next_line(LineIterator *it, uint32_t *out_len);
 
+// Returns the previous line as a null terminated string
+// `it` is the iterator returned from begin_l_iter
+// it can be used to iterate backwards
+// and can be used along with next_line
+// doing prev_line then next_line or vice versa will return the same line
+// `out_len` is set to the length of the returned string
 char *prev_line(LineIterator *it, uint32_t *out_len);
 
 // Used to start an iterator over leaf data

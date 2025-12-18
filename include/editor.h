@@ -137,13 +137,12 @@ inline const Fold *fold_for_line(const std::vector<Fold> &folds,
 }
 
 inline Fold *fold_for_line(std::vector<Fold> &folds, uint32_t line) {
-  const auto *fold = fold_for_line(static_cast<const std::vector<Fold> &>(folds),
-                                   line);
+  const auto *fold =
+      fold_for_line(static_cast<const std::vector<Fold> &>(folds), line);
   return const_cast<Fold *>(fold);
 }
 
-inline bool line_is_fold_start(const std::vector<Fold> &folds,
-                               uint32_t line) {
+inline bool line_is_fold_start(const std::vector<Fold> &folds, uint32_t line) {
   const Fold *fold = fold_for_line(folds, line);
   return fold && fold->start == line;
 }
@@ -203,5 +202,11 @@ void word_boundaries(Editor *editor, Coord coord, uint32_t *prev_col,
                      uint32_t *next_clusters);
 void word_boundaries_exclusive(Editor *editor, Coord coord, uint32_t *prev_col,
                                uint32_t *next_col);
+std::vector<Fold>::iterator find_fold_iter(Editor *editor, uint32_t line);
+bool add_fold(Editor *editor, uint32_t start, uint32_t end);
+bool remove_fold(Editor *editor, uint32_t line);
+void apply_line_insertion(Editor *editor, uint32_t line, uint32_t rows);
+void apply_line_deletion(Editor *editor, uint32_t removal_start,
+                         uint32_t removal_end);
 
 #endif
