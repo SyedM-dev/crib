@@ -1,4 +1,3 @@
-#include <cstdint>
 extern "C" {
 #include "../libs/libgrapheme/grapheme.h"
 }
@@ -6,72 +5,108 @@ extern "C" {
 #include "../include/utils.h"
 #include <cmath>
 
-void scroll_up(Editor *editor, uint32_t number) {
-  number++;
+void scroll_up(Editor *editor, int32_t number) {
+  if (!editor || number == 0)
+    return;
   uint32_t numlen =
       EXTRA_META + static_cast<int>(std::log10(editor->root->line_count + 1));
   uint32_t render_width = editor->size.col - numlen;
-  Coord *scroll_queue = (Coord *)malloc(sizeof(Coord) * number);
-  uint32_t q_head = 0;
-  uint32_t q_size = 0;
-  int line_index = editor->scroll.row - number;
-  line_index = line_index < 0 ? 0 : line_index;
+  uint32_t line_index = editor->scroll.row;
   LineIterator *it = begin_l_iter(editor->root, line_index);
-  if (!it) {
-    free(scroll_queue);
+  if (!it)
+    return;
+  uint32_t len;
+  char *line = next_line(it, &len);
+  if (!line) {
+    free(it);
     return;
   }
-  for (uint32_t i = line_index; i <= editor->scroll.row; i++) {
-    uint32_t line_len;
-    char *line = next_line(it, &line_len);
-    if (!line)
-      break;
-    if (line[line_len - 1] == '\n')
-      --line_len;
-    uint32_t offset = 0;
-    uint32_t col = 0;
-    if (q_size < number) {
-      scroll_queue[(q_head + q_size) % number] = {i, 0};
-      q_size++;
-    } else {
-      scroll_queue[q_head] = {i, 0};
-      q_head = (q_head + 1) % number;
+  if (len > 0 && line[len - 1] == '\n')
+    len--;
+  uint32_t current_byte_offset = 0;
+  uint32_t col = 0;
+  std::vector<uint32_t> segment_starts;
+  segment_starts.reserve(16);
+  if (current_byte_offset < editor->scroll.col)
+    segment_starts.push_back(0);
+  while (current_byte_offset < editor->scroll.col &&
+         current_byte_offset < len) {
+    uint32_t cluster_len = grapheme_next_character_break_utf8(
+        line + current_byte_offset, len - current_byte_offset);
+    int width = display_width(line + current_byte_offset, cluster_len);
+    if (col + width > render_width) {
+      segment_starts.push_back(current_byte_offset);
+      col = 0;
     }
-    if (i == editor->scroll.row && 0 == editor->scroll.col) {
-      editor->scroll = scroll_queue[q_head];
+    current_byte_offset += cluster_len;
+    col += width;
+  }
+  for (auto it_seg = segment_starts.rbegin(); it_seg != segment_starts.rend();
+       ++it_seg) {
+    if (--number == 0) {
+      editor->scroll = {line_index, *it_seg};
       free(line);
       free(it);
-      free(scroll_queue);
       return;
     }
-    while (offset < line_len) {
-      uint32_t inc =
-          grapheme_next_character_break_utf8(line + offset, line_len - offset);
-      int width = display_width(line + offset, inc);
-      if (col + width > render_width) {
-        if (q_size < number) {
-          scroll_queue[(q_head + q_size) % number] = {i, offset};
-          q_size++;
-        } else {
-          scroll_queue[q_head] = {i, offset};
-          q_head = (q_head + 1) % number;
-        }
-        if (i == editor->scroll.row && offset >= editor->scroll.col) {
-          editor->scroll = scroll_queue[q_head];
+  }
+  free(line);
+  line = prev_line(it, &len);
+  if (!line) {
+    editor->scroll = {0, 0};
+    free(it);
+    return;
+  }
+  free(line);
+  do {
+    line_index--;
+    line = prev_line(it, &len);
+    if (!line) {
+      editor->scroll = {0, 0};
+      free(it);
+      return;
+    }
+    if (editor->folded[line_index].first) {
+      if (editor->folded[line_index].first == 2) {
+        if (--number == 0) {
+          editor->scroll = {line_index, 0};
           free(line);
           free(it);
-          free(scroll_queue);
           return;
         }
+      }
+      free(line);
+      continue;
+    }
+    if (len > 0 && line[len - 1] == '\n')
+      len--;
+    current_byte_offset = 0;
+    col = 0;
+    std::vector<uint32_t> segment_starts;
+    segment_starts.reserve(16);
+    segment_starts.push_back(0);
+    while (current_byte_offset < len) {
+      uint32_t cluster_len = grapheme_next_character_break_utf8(
+          line + current_byte_offset, len - current_byte_offset);
+      int width = display_width(line + current_byte_offset, cluster_len);
+      if (col + width > render_width) {
+        segment_starts.push_back(current_byte_offset);
         col = 0;
       }
+      current_byte_offset += cluster_len;
       col += width;
-      offset += inc;
+    }
+    for (auto it_seg = segment_starts.rbegin(); it_seg != segment_starts.rend();
+         ++it_seg) {
+      if (--number == 0) {
+        editor->scroll = {line_index, *it_seg};
+        free(line);
+        free(it);
+        return;
+      }
     }
     free(line);
-  }
-  editor->scroll = {0, 0};
-  free(scroll_queue);
+  } while (number > 0);
   free(it);
 }
 
@@ -92,8 +127,8 @@ void scroll_down(Editor *editor, uint32_t number) {
   uint32_t visual_seen = 0;
   bool first_visual_line = true;
   while (true) {
-    if (editor->folded[line_index]) {
-      if (editor->folded[line_index] == 2) {
+    if (editor->folded[line_index].first) {
+      if (editor->folded[line_index].first == 2) {
         Coord fold_coord = {line_index, 0};
         if (q_size < max_visual_lines) {
           scroll_queue[(q_head + q_size) % max_visual_lines] = fold_coord;
@@ -117,7 +152,7 @@ void scroll_down(Editor *editor, uint32_t number) {
         }
         free(line);
         line_index++;
-      } while (editor->folded[line_index] == 1);
+      } while (editor->folded[line_index].first == 1);
       continue;
     }
     uint32_t line_len;
@@ -181,7 +216,14 @@ void scroll_down(Editor *editor, uint32_t number) {
 void ensure_cursor(Editor *editor) {
   std::shared_lock knot_lock(editor->knot_mtx);
   if (editor->cursor < editor->scroll) {
-    editor->cursor = editor->scroll;
+    uint32_t line_idx = editor->scroll.row;
+    while (line_idx < editor->root->line_count &&
+           editor->folded[line_idx].first)
+      line_idx++;
+    editor->cursor.row = line_idx;
+    editor->cursor.col =
+        line_idx == editor->scroll.row ? editor->scroll.col : 0;
+    editor->cursor_preffered = UINT32_MAX;
     return;
   }
   uint32_t numlen =
@@ -197,15 +239,11 @@ void ensure_cursor(Editor *editor) {
   while (true) {
     if (visual_rows >= editor->size.row)
       break;
-    if (editor->folded[line_index]) {
-      if (editor->folded[line_index] == 2) {
+    if (editor->folded[line_index].first) {
+      if (editor->folded[line_index].first == 2) {
         Coord c = {line_index, 0};
         last_visible = c;
         visual_rows++;
-        if (line_index == editor->cursor.row) {
-          free(it);
-          return;
-        }
       }
       do {
         char *line = next_line(it, nullptr);
@@ -213,7 +251,7 @@ void ensure_cursor(Editor *editor) {
           break;
         free(line);
         line_index++;
-      } while (editor->folded[line_index] == 1);
+      } while (editor->folded[line_index].first == 1);
       continue;
     }
     uint32_t line_len;
@@ -260,7 +298,12 @@ void ensure_cursor(Editor *editor) {
     free(line);
     line_index++;
   }
-  editor->cursor = last_visible;
+  uint32_t last_real_row = last_visible.row;
+  while (last_visible.row > 0 && editor->folded[last_visible.row].first)
+    last_visible.row--;
+  editor->cursor.row = last_visible.row;
+  editor->cursor.col = last_visible.row == last_real_row ? last_visible.col : 0;
+  editor->cursor_preffered = UINT32_MAX;
   free(it);
 }
 
@@ -319,8 +362,8 @@ void ensure_scroll(Editor *editor) {
     uint32_t q_size = 0;
     bool first_visual_line = true;
     while (true) {
-      if (editor->folded[line_index]) {
-        if (editor->folded[line_index] == 2) {
+      if (editor->folded[line_index].first) {
+        if (editor->folded[line_index].first == 2) {
           Coord fold_coord = {line_index, 0};
           if (q_size < max_visual_lines) {
             scroll_queue[(q_head + q_size) % max_visual_lines] = fold_coord;
@@ -341,7 +384,7 @@ void ensure_scroll(Editor *editor) {
           free(line);
           line_index++;
         } while (line_index < editor->size.row &&
-                 editor->folded[line_index] == 1);
+                 editor->folded[line_index].first == 1);
         continue;
       }
       uint32_t line_len;

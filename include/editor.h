@@ -15,7 +15,7 @@
 #define WORD 1
 #define LINE 2
 
-#define EXTRA_META 3
+#define EXTRA_META 4
 
 struct Highlight {
   uint32_t fg;
@@ -105,10 +105,9 @@ struct Editor {
   const TSLanguage *language;
   Queue<TSInputEdit> edit_queue;
   std::vector<Highlight> query_map;
-  std::vector<int8_t> folded;
+  std::vector<std::pair<int8_t, uint32_t>> folded;
   Spans spans;
   Spans def_spans;
-  std::map<uint32_t, bool> folded_node;
   uint32_t hooks[94];
   bool jumper_set;
 };
@@ -124,7 +123,7 @@ Coord move_left(Editor *editor, Coord cursor, uint32_t number);
 Coord move_right(Editor *editor, Coord cursor, uint32_t number);
 void cursor_left(Editor *editor, uint32_t number);
 void cursor_right(Editor *editor, uint32_t number);
-void scroll_up(Editor *editor, uint32_t number);
+void scroll_up(Editor *editor, int32_t number);
 void scroll_down(Editor *editor, uint32_t number);
 void ensure_cursor(Editor *editor);
 void ensure_scroll(Editor *editor);

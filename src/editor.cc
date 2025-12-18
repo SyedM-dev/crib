@@ -45,24 +45,6 @@ void free_editor(Editor *editor) {
   delete editor;
 }
 
-void fold(Editor *editor, uint32_t start_line, uint32_t end_line) {
-  if (!editor)
-    return;
-  for (uint32_t i = start_line; i <= end_line && i < editor->size.row; i++)
-    editor->folded[i] = 1;
-  editor->folded[start_line] = 2;
-}
-
-void update_render_fold_marker(uint32_t row, uint32_t cols) {
-  const char *marker = "... folded ...";
-  uint32_t len = strlen(marker);
-  uint32_t i = 0;
-  for (; i < len && i < cols; i++)
-    update(row, i, (char[2]){marker[i], 0}, 0xc6c6c6, 0, 0);
-  for (; i < cols; i++)
-    update(row, i, " ", 0xc6c6c6, 0, 0);
-}
-
 void render_editor(Editor *editor) {
   uint32_t sel_start = 0, sel_end = 0;
   uint32_t numlen =
@@ -74,6 +56,7 @@ void render_editor(Editor *editor) {
     if (editor->hooks[i] != 0)
       v.push_back({editor->hooks[i], '!' + i});
   std::sort(v.begin(), v.end());
+  auto hook_it = v.begin();
   std::shared_lock knot_lock(editor->knot_mtx);
   if (editor->selection_active) {
     Coord start, end;
@@ -135,9 +118,25 @@ void render_editor(Editor *editor) {
   span_cursor.sync(global_byte_offset);
   def_span_cursor.sync(global_byte_offset);
   while (rendered_rows < editor->size.row) {
-    if (editor->folded[line_index]) {
-      if (editor->folded[line_index] == 2) {
-        update_render_fold_marker(rendered_rows, render_width);
+    if (editor->folded[line_index].first) {
+      if (editor->folded[line_index].first == 2) {
+        update(editor->position.row + rendered_rows, editor->position.col,
+               "", 0xAAAAAA, 0, 0);
+        char buf[16];
+        int len = snprintf(buf, sizeof(buf), "%*u", numlen - 3, line_index + 1);
+        uint32_t num_color =
+            editor->cursor.row == line_index ? 0xFFFFFF : 0x555555;
+        for (int i = 0; i < len; i++)
+          update(editor->position.row + rendered_rows,
+                 editor->position.col + i + 2, (char[2]){buf[i], 0}, num_color,
+                 0, 0);
+        const char marker[15] = "... folded ...";
+        uint32_t i = 0;
+        for (; i < 14 && i < render_width; i++)
+          update(rendered_rows, i + render_x, (char[2]){marker[i], 0}, 0xc6c6c6,
+                 0, 0);
+        for (; i < render_width; i++)
+          update(rendered_rows, i + render_x, " ", 0xc6c6c6, 0, 0);
         rendered_rows++;
       }
       do {
@@ -152,7 +151,7 @@ void render_editor(Editor *editor) {
         free(line);
         line_index++;
       } while (line_index < editor->size.row &&
-               editor->folded[line_index] == 1);
+               editor->folded[line_index].first == 1);
       continue;
     }
     uint32_t line_len;
@@ -167,21 +166,27 @@ void render_editor(Editor *editor) {
     while (current_byte_offset < line_len && rendered_rows < editor->size.row) {
       uint32_t color = editor->cursor.row == line_index ? 0x222222 : 0;
       if (current_byte_offset == 0 || rendered_rows == 0) {
-        char buf[EXTRA_META + 16];
-        char hook = ' ';
-        for (auto &p : v) {
-          if (p.first == line_index + 1) {
-            hook = p.second;
+        const char *hook = nullptr;
+        char h[2] = {0, 0};
+        auto it2 = hook_it;
+        for (; it2 != v.end(); ++it2) {
+          if (it2->first == line_index + 1) {
+            h[0] = it2->second;
+            hook = h;
+            hook_it = it2;
             break;
           }
         }
-        int len = snprintf(buf, sizeof(buf), "%c%*u", hook, numlen - 2,
-                           line_index + 1);
+        update(editor->position.row + rendered_rows, editor->position.col, hook,
+               0xAAAAAA, 0, 0);
+        char buf[16];
+        int len = snprintf(buf, sizeof(buf), "%*u", numlen - 3, line_index + 1);
         uint32_t num_color =
             editor->cursor.row == line_index ? 0xFFFFFF : 0x555555;
         for (int i = 0; i < len; i++)
-          update(editor->position.row + rendered_rows, editor->position.col + i,
-                 std::string(1, buf[i]).c_str(), num_color, 0, 0);
+          update(editor->position.row + rendered_rows,
+                 editor->position.col + i + 2, (char[2]){buf[i], 0}, num_color,
+                 0, 0);
       } else {
         for (uint32_t i = 0; i < numlen; i++)
           update(editor->position.row + rendered_rows, editor->position.col + i,
@@ -252,21 +257,27 @@ void render_editor(Editor *editor) {
     if (line_len == 0 ||
         (current_byte_offset >= line_len && rendered_rows == 0)) {
       uint32_t color = editor->cursor.row == line_index ? 0x222222 : 0;
-      char buf[EXTRA_META + 16];
-      char hook = ' ';
-      for (auto &p : v) {
-        if (p.first == line_index + 1) {
-          hook = p.second;
+      const char *hook = nullptr;
+      char h[2] = {0, 0};
+      auto it2 = hook_it;
+      for (; it2 != v.end(); ++it2) {
+        if (it2->first == line_index + 1) {
+          h[0] = it2->second;
+          hook = h;
+          hook_it = it2;
           break;
         }
       }
-      int len =
-          snprintf(buf, sizeof(buf), "%c%*u", hook, numlen - 2, line_index + 1);
+      update(editor->position.row + rendered_rows, editor->position.col, hook,
+             0xAAAAAA, 0, 0);
+      char buf[16];
+      int len = snprintf(buf, sizeof(buf), "%*u", numlen - 3, line_index + 1);
       uint32_t num_color =
           editor->cursor.row == line_index ? 0xFFFFFF : 0x555555;
       for (int i = 0; i < len; i++)
-        update(editor->position.row + rendered_rows, editor->position.col + i,
-               std::string(1, buf[i]).c_str(), num_color, 0, 0);
+        update(editor->position.row + rendered_rows,
+               editor->position.col + i + 2, (char[2]){buf[i], 0}, num_color, 0,
+               0);
       if (editor->cursor.row == line_index) {
         cursor.row = editor->position.row + rendered_rows;
         cursor.col = render_x;

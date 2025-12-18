@@ -1,4 +1,3 @@
-#include <cstdint>
 extern "C" {
 #include "../libs/libgrapheme/grapheme.h"
 }
@@ -49,6 +48,8 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
         last_click_time = now;
         last_click_pos = cur_pos;
         Coord p = editor_hit_test(editor, event.mouse_x, event.mouse_y);
+        if (p.row == UINT32_MAX && p.col == UINT32_MAX)
+          return;
         editor->cursor_preffered = UINT32_MAX;
         if (click_count == 1) {
           editor->cursor = p;
@@ -95,6 +96,8 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
     case DRAG:
       if (event.mouse_button == LEFT_BTN) {
         Coord p = editor_hit_test(editor, event.mouse_x, event.mouse_y);
+        if (p.row == UINT32_MAX && p.col == UINT32_MAX)
+          return;
         editor->cursor_preffered = UINT32_MAX;
         mode = SELECT;
         if (!editor->selection_active) {
@@ -208,6 +211,29 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
   case NORMAL:
     if (event.key_type == KEY_CHAR && event.len == 1) {
       switch (event.c[0]) {
+      case 'u':
+        if (editor->root->line_count > 0) {
+          editor->cursor.row = editor->root->line_count - 1;
+          LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
+          if (!it)
+            break;
+          uint32_t line_len;
+          char *line = next_line(it, &line_len);
+          if (!line)
+            break;
+          if (line_len > 0 && line[line_len - 1] == '\n')
+            line_len--;
+          free(line);
+          free(it);
+          line_len = count_clusters(line, line_len, 0, line_len);
+          editor->cursor.col = line_len;
+          editor->cursor_preffered = UINT32_MAX;
+          mode = SELECT;
+          editor->selection_active = true;
+          editor->selection = {0, 0};
+          editor->selection_type = LINE;
+        }
+        break;
       case 'a':
         mode = INSERT;
         cursor_right(editor, 1);
@@ -235,6 +261,7 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
         mode = SELECT;
         editor->selection_active = true;
         editor->selection = editor->cursor;
+        editor->selection_type = CHAR;
         break;
       case ';':
       case ':':
@@ -328,6 +355,20 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
       uint32_t len;
       char *text;
       switch (event.c[0]) {
+      case 'f':
+        if (editor->cursor.row != editor->selection.row) {
+          uint32_t start = MIN(editor->cursor.row, editor->selection.row);
+          uint32_t end = MAX(editor->cursor.row, editor->selection.row);
+          for (uint32_t row = start + 1; row <= end; row++)
+            editor->folded[row].first = 1;
+          editor->folded[start].first = 2;
+          editor->folded[start].second = end - start;
+        }
+        cursor_left(editor, 1);
+        cursor_down(editor, 1);
+        editor->selection_active = false;
+        mode = NORMAL;
+        break;
       case 0x1B:
       case 's':
       case 'v':
@@ -376,7 +417,7 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
     break;
   case JUMPER:
     if (event.key_type == KEY_CHAR && event.len == 1 &&
-        (event.c[0] > '!' && event.c[0] < '~')) {
+        (event.c[0] >= '!' && event.c[0] <= '~')) {
       if (editor->jumper_set) {
         for (uint8_t i = 0; i < 94; i++)
           if (editor->hooks[i] == editor->cursor.row + 1) {
@@ -387,7 +428,9 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
       } else {
         uint32_t line = editor->hooks[event.c[0] - '!'];
         if (line > 0) {
-          editor->cursor = {line - 1, 0};
+          if (editor->folded[--line].first)
+            break;
+          editor->cursor = {line, 0};
           editor->cursor_preffered = UINT32_MAX;
         }
       }
@@ -564,6 +607,7 @@ Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
     x++;
   uint32_t numlen =
       EXTRA_META + static_cast<int>(std::log10(editor->root->line_count + 1));
+  bool is_gutter_click = (x < numlen);
   uint32_t render_width = editor->size.col - numlen;
   x = MAX(x, numlen) - numlen;
   uint32_t target_visual_row = y;
@@ -575,11 +619,18 @@ Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
   if (!it)
     return editor->scroll;
   while (visual_row <= target_visual_row) {
-    if (editor->folded[line_index]) {
-      if (editor->folded[line_index] == 2) {
+    if (editor->folded[line_index].first) {
+      if (editor->folded[line_index].first == 2) {
         if (visual_row == target_visual_row) {
           free(it);
-          return {line_index, 0};
+          if (is_gutter_click) {
+            editor->folded[line_index].first = 0;
+            for (uint32_t row = line_index + 1; editor->folded[row].first == 1;
+                 row++)
+              editor->folded[row].first = 0;
+            return {UINT32_MAX, UINT32_MAX};
+          }
+          return {line_index - 1, 0};
         }
         visual_row++;
       }
@@ -589,7 +640,7 @@ Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
           break;
         free(l);
         line_index++;
-      } while (editor->folded[line_index] == 1);
+      } while (editor->folded[line_index].first == 1);
       continue;
     }
     uint32_t line_len;
@@ -642,6 +693,120 @@ Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
   return editor->scroll;
 }
 
+Coord move_right_pure(Editor *editor, Coord cursor, uint32_t number) {
+  Coord result = cursor;
+  if (!editor || !editor->root || number == 0)
+    return result;
+
+  uint32_t row = result.row;
+  uint32_t col = result.col;
+  uint32_t line_len = 0;
+
+  LineIterator *it = begin_l_iter(editor->root, row);
+  char *line = next_line(it, &line_len);
+  free(it);
+
+  if (!line)
+    return result;
+
+  if (line_len > 0 && line[line_len - 1] == '\n')
+    --line_len;
+
+  while (number > 0) {
+    if (col >= line_len) {
+      free(line);
+      line = nullptr;
+
+      uint32_t next_row = row + 1;
+      if (next_row >= editor->root->line_count) {
+        col = line_len;
+        break;
+      }
+
+      row = next_row;
+      col = 0;
+
+      it = begin_l_iter(editor->root, row);
+      line = next_line(it, &line_len);
+      free(it);
+
+      if (!line)
+        break;
+
+      if (line_len > 0 && line[line_len - 1] == '\n')
+        --line_len;
+    } else {
+      uint32_t inc =
+          grapheme_next_character_break_utf8(line + col, line_len - col);
+      if (inc == 0)
+        break;
+      col += inc;
+    }
+    number--;
+  }
+
+  if (line)
+    free(line);
+
+  result.row = row;
+  result.col = col;
+  return result;
+}
+
+Coord move_left_pure(Editor *editor, Coord cursor, uint32_t number) {
+  Coord result = cursor;
+  if (!editor || !editor->root || number == 0)
+    return result;
+  uint32_t row = result.row;
+  uint32_t col = result.col;
+  uint32_t len = 0;
+  LineIterator *it = begin_l_iter(editor->root, row);
+  char *line = next_line(it, &len);
+  if (!line) {
+    free(it);
+    return result;
+  }
+  if (len > 0 && line[len - 1] == '\n')
+    --len;
+  bool iterator_ahead = true;
+  while (number > 0) {
+    if (col == 0) {
+      if (row == 0)
+        break;
+      if (iterator_ahead) {
+        free(prev_line(it, nullptr));
+        iterator_ahead = false;
+      }
+      free(line);
+      line = nullptr;
+      row--;
+      line = prev_line(it, &len);
+      if (!line)
+        break;
+      if (len > 0 && line[len - 1] == '\n')
+        --len;
+      col = len;
+    } else {
+      uint32_t new_col = 0;
+      while (new_col < col) {
+        uint32_t inc =
+            grapheme_next_character_break_utf8(line + new_col, len - new_col);
+        if (new_col + inc >= col)
+          break;
+        new_col += inc;
+      }
+      col = new_col;
+    }
+    number--;
+  }
+  if (line)
+    free(line);
+  free(it);
+  result.row = row;
+  result.col = col;
+  return result;
+}
+
 Coord move_right(Editor *editor, Coord cursor, uint32_t number) {
   Coord result = cursor;
   if (!editor || !editor->root || number == 0)
@@ -662,7 +827,7 @@ Coord move_right(Editor *editor, Coord cursor, uint32_t number) {
       line = nullptr;
       uint32_t next_row = row + 1;
       while (next_row < editor->root->line_count &&
-             editor->folded[next_row] != 0)
+             editor->folded[next_row].first != 0)
         next_row++;
       if (next_row >= editor->root->line_count) {
         col = line_len;
@@ -702,26 +867,35 @@ Coord move_left(Editor *editor, Coord cursor, uint32_t number) {
   uint32_t len = 0;
   LineIterator *it = begin_l_iter(editor->root, row);
   char *line = next_line(it, &len);
-  free(it);
-  if (!line)
+  if (!line) {
+    free(it);
     return result;
+  }
   if (len > 0 && line[len - 1] == '\n')
     --len;
+  bool iterator_ahead = true;
   while (number > 0) {
     if (col == 0) {
-      free(line);
-      line = nullptr;
       if (row == 0)
         break;
-      int32_t prev_row = row - 1;
-      while (prev_row >= 0 && editor->folded[prev_row] != 0)
-        prev_row--;
-      if (prev_row < 0)
+      if (iterator_ahead) {
+        free(prev_line(it, nullptr));
+        iterator_ahead = false;
+      }
+      free(line);
+      line = nullptr;
+      while (row > 0) {
+        row--;
+        line = prev_line(it, &len);
+        if (!line)
+          break;
+        if (editor->folded[row].first != 0) {
+          free(line);
+          line = nullptr;
+          continue;
+        }
         break;
-      row = prev_row;
-      it = begin_l_iter(editor->root, row);
-      line = next_line(it, &len);
-      free(it);
+      }
       if (!line)
         break;
       if (len > 0 && line[len - 1] == '\n')
@@ -742,6 +916,7 @@ Coord move_left(Editor *editor, Coord cursor, uint32_t number) {
   }
   if (line)
     free(line);
+  free(it);
   result.row = row;
   result.col = col;
   return result;
@@ -767,7 +942,7 @@ void cursor_down(Editor *editor, uint32_t number) {
       editor->cursor.row = editor->root->line_count - 1;
       break;
     };
-    if (editor->folded[editor->cursor.row] != 0)
+    if (editor->folded[editor->cursor.row].first != 0)
       number++;
   } while (--number > 0);
   free(it);
@@ -778,7 +953,7 @@ void cursor_down(Editor *editor, uint32_t number) {
 }
 
 void cursor_up(Editor *editor, uint32_t number) {
-  if (!editor || !editor->root || number == 0)
+  if (!editor || !editor->root || number == 0 || editor->cursor.row == 0)
     return;
   LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
   uint32_t len;
@@ -792,22 +967,26 @@ void cursor_up(Editor *editor, uint32_t number) {
         get_visual_col_from_bytes(line_content, len, editor->cursor.col);
   uint32_t visual_col = editor->cursor_preffered;
   free(line_content);
-  while (number > 0 && editor->cursor.row > 0) {
+  line_content = prev_line(it, &len);
+  do {
+    free(line_content);
+    line_content = prev_line(it, &len);
+    if (!line_content) {
+      editor->cursor.row = 0;
+      break;
+    }
     editor->cursor.row--;
-    if (editor->folded[editor->cursor.row] != 0)
-      continue;
-    number--;
-  }
+    if (editor->folded[editor->cursor.row].first != 0)
+      number++;
+  } while (--number > 0 && editor->cursor.row > 0);
   free(it);
-  it = begin_l_iter(editor->root, editor->cursor.row);
-  line_content = next_line(it, &len);
-  if (!line_content) {
-    free(it);
-    return;
+  if (line_content) {
+    editor->cursor.col =
+        get_bytes_from_visual_col(line_content, len, visual_col);
+    free(line_content);
+  } else {
+    editor->cursor.col = 0;
   }
-  editor->cursor.col = get_bytes_from_visual_col(line_content, len, visual_col);
-  free(line_content);
-  free(it);
 }
 
 void cursor_right(Editor *editor, uint32_t number) {
@@ -837,13 +1016,23 @@ void move_line_up(Editor *editor) {
       lock.unlock();
       return;
     }
+    if (line_len > 0 && line[line_len - 1] == '\n')
+      line_len--;
     line_cluster_len = count_clusters(line, line_len, 0, line_len);
+    uint32_t up_by = 1;
+    while (editor->cursor.row >= up_by &&
+           editor->folded[editor->cursor.row - up_by].first)
+      up_by++;
+    if (up_by > 1)
+      up_by--;
     lock.unlock();
     Coord cursor = editor->cursor;
     edit_erase(editor, {cursor.row, 0}, line_cluster_len);
-    edit_insert(editor, {cursor.row - 1, 0}, line, line_len);
+    edit_erase(editor, {cursor.row, 0}, -1);
+    edit_insert(editor, {cursor.row - up_by, 0}, (char *)"\n", 1);
+    edit_insert(editor, {cursor.row - up_by, 0}, line, line_len);
     free(line);
-    editor->cursor = {cursor.row - 1, cursor.col};
+    editor->cursor = {cursor.row - up_by, cursor.col};
   } else if (mode == SELECT) {
     uint32_t start_row = MIN(editor->cursor.row, editor->selection.row);
     uint32_t end_row = MAX(editor->cursor.row, editor->selection.row);
@@ -880,13 +1069,24 @@ void move_line_down(Editor *editor) {
       lock.unlock();
       return;
     }
+    if (line_len && line[line_len - 1] == '\n')
+      line_len--;
     line_cluster_len = count_clusters(line, line_len, 0, line_len);
+    uint32_t down_by = 1;
+    while (editor->folded[editor->cursor.row + down_by].first)
+      down_by++;
+    if (down_by > 1)
+      down_by--;
+    uint32_t ln;
+    line_to_byte(editor->root, editor->cursor.row + down_by - 1, &ln);
     lock.unlock();
     Coord cursor = editor->cursor;
     edit_erase(editor, {cursor.row, 0}, line_cluster_len);
-    edit_insert(editor, {cursor.row + 1, 0}, line, line_len);
+    edit_erase(editor, {cursor.row, 0}, -1);
+    edit_insert(editor, {cursor.row + down_by, 0}, (char *)"\n", 1);
+    edit_insert(editor, {cursor.row + down_by, 0}, line, line_len);
     free(line);
-    editor->cursor = {cursor.row + 1, cursor.col};
+    editor->cursor = {cursor.row + down_by, cursor.col};
   } else if (mode == SELECT) {
     if (editor->cursor.row >= editor->root->line_count - 1 ||
         editor->selection.row >= editor->root->line_count - 1)
@@ -914,6 +1114,7 @@ void move_line_down(Editor *editor) {
 void edit_erase(Editor *editor, Coord pos, int64_t len) {
   if (len == 0)
     return;
+  uint32_t erased_rows, erase_start_row;
   if (len < 0) {
     std::shared_lock lock_1(editor->knot_mtx);
     uint32_t cursor_original =
@@ -921,7 +1122,7 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
         editor->cursor.col;
     TSPoint old_point = {pos.row, pos.col};
     uint32_t byte_pos = line_to_byte(editor->root, pos.row, nullptr) + pos.col;
-    Coord point = move_left(editor, pos, -len);
+    Coord point = move_left_pure(editor, pos, -len);
     uint32_t start = line_to_byte(editor->root, point.row, nullptr) + point.col;
     if (cursor_original > start && cursor_original <= byte_pos) {
       editor->cursor = point;
@@ -934,6 +1135,8 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
       editor->cursor_preffered = UINT32_MAX;
     }
     lock_1.unlock();
+    erased_rows = point.row - pos.row;
+    erase_start_row = pos.row;
     std::unique_lock lock_2(editor->knot_mtx);
     editor->root = erase(editor->root, start, byte_pos - start);
     lock_2.unlock();
@@ -961,7 +1164,7 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
         editor->cursor.col;
     TSPoint old_point = {pos.row, pos.col};
     uint32_t byte_pos = line_to_byte(editor->root, pos.row, nullptr) + pos.col;
-    Coord point = move_right(editor, pos, len);
+    Coord point = move_right_pure(editor, pos, len);
     uint32_t end = line_to_byte(editor->root, point.row, nullptr) + point.col;
     if (cursor_original > byte_pos && cursor_original <= end) {
       editor->cursor = pos;
@@ -974,6 +1177,26 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
       editor->cursor_preffered = UINT32_MAX;
     }
     lock_1.unlock();
+    int32_t fold_start = -1;
+    int32_t fold_end = -1;
+    if (editor->folded[point.row].first > 0) {
+      fold_start = point.row;
+      while (fold_start > 0 && editor->folded[fold_start].first == 1)
+        fold_start--;
+      fold_end = point.row;
+      while (fold_end + 1 < editor->folded.size() &&
+             editor->folded[fold_end + 1].first == 1)
+        fold_end++;
+    }
+    if (fold_start == point.row)
+      editor->folded.erase(editor->folded.begin() + point.row,
+                           editor->folded.begin() + pos.row);
+    else if (fold_end == point.row)
+      editor->folded.erase(editor->folded.begin() + point.row,
+                           editor->folded.begin());
+    else if (fold_start != -1 && fold_start == fold_end)
+      editor->folded.erase(editor->folded.begin() + point.row,
+                           editor->folded.begin());
     std::unique_lock lock_2(editor->knot_mtx);
     editor->root = erase(editor->root, byte_pos, end - byte_pos);
     lock_2.unlock();
@@ -1013,8 +1236,6 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
   lock_1.unlock();
   std::unique_lock lock_2(editor->knot_mtx);
   editor->root = insert(editor->root, byte_pos, data, len);
-  if (memchr(data, '\n', len))
-    editor->folded.resize(editor->root->line_count + 2);
   lock_2.unlock();
   uint32_t cols = 0;
   uint32_t rows = 0;
@@ -1026,6 +1247,21 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
       cols++;
     }
   }
+  int32_t fold_start = -1;
+  int32_t fold_end = -1;
+  if (editor->folded[pos.row].first > 0) {
+    fold_start = pos.row;
+    while (fold_start > 0 && editor->folded[fold_start].first == 1)
+      fold_start--;
+    fold_end = pos.row;
+    while (fold_end + 1 < editor->folded.size() &&
+           editor->folded[fold_end + 1].first == 1)
+      fold_end++;
+  }
+  if (fold_start == pos.row)
+    editor->folded.insert(editor->folded.begin() + pos.row, rows, {0, 0});
+  else if (fold_end == pos.row)
+    editor->folded.insert(editor->folded.begin() + pos.row + 1, rows, {0, 0});
   if (editor->tree) {
     TSInputEdit edit = {
         .start_byte = byte_pos,

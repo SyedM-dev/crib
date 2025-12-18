@@ -1,19 +1,3 @@
-[
-  (method)
-  (singleton_method)
-  (class)
-  (module)
-  (if)
-  (else)
-  (case)
-  (when)
-  (in)
-  (do_block)
-  (singleton_class)
-  (heredoc_content)
-  (lambda)
-] @fold
-
 ;; #ffffff #000000 0 0 0 1
 [
   (identifier)

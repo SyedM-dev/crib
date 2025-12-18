@@ -117,6 +117,8 @@ LineIterator *begin_l_iter(Knot *root, uint32_t start_line);
 // freed by the caller
 char *next_line(LineIterator *it, uint32_t *out_len);
 
+char *prev_line(LineIterator *it, uint32_t *out_len);
+
 // Used to start an iterator over leaf data
 // root is the root of the rope
 // the caller must free the iterator after use

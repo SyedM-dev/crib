@@ -520,6 +520,86 @@ LineIterator *begin_l_iter(Knot *root, uint32_t start_line) {
   return it;
 }
 
+static inline void iter_retreat_leaf(LineIterator *it) {
+  if (it->top == 0) {
+    it->node = nullptr;
+    return;
+  }
+  Knot *curr = it->stack[--it->top];
+  while (it->top > 0) {
+    Knot *parent = it->stack[it->top - 1];
+    if (parent->right == curr && parent->left) {
+      Knot *target = parent->left;
+      while (target) {
+        it->stack[it->top++] = target;
+        if (!target->left && !target->right) {
+          if (target->char_count == 0)
+            break;
+          it->node = target;
+          it->offset = target->char_count;
+          return;
+        }
+        target = (target->right) ? target->right : target->left;
+      }
+    }
+    curr = it->stack[--it->top];
+  }
+  it->node = nullptr;
+}
+
+static void str_reverse(char *begin, char *end) {
+  char temp;
+  while (begin < end) {
+    temp = *begin;
+    *begin++ = *end;
+    *end-- = temp;
+  }
+}
+
+char *prev_line(LineIterator *it, uint32_t *out_len) {
+  if (!it || !it->node)
+    return nullptr;
+  size_t capacity = 128;
+  size_t len = 0;
+  char *buffer = (char *)malloc(capacity);
+  if (!buffer)
+    return nullptr;
+  while (it->node) {
+    if (it->offset == 0) {
+      iter_retreat_leaf(it);
+      if (!it->node)
+        break;
+    }
+    it->offset--;
+    char c = it->node->data[it->offset];
+    if (c == '\n') {
+      if (len > 0) {
+        it->offset++;
+        break;
+      }
+    }
+    if (len + 1 >= capacity) {
+      capacity *= 2;
+      char *new_buf = (char *)realloc(buffer, capacity);
+      if (!new_buf) {
+        free(buffer);
+        return nullptr;
+      }
+      buffer = new_buf;
+    }
+    buffer[len++] = c;
+  }
+  if (len > 0) {
+    buffer[len] = '\0';
+    str_reverse(buffer, buffer + len - 1);
+    if (out_len)
+      *out_len = len;
+    return buffer;
+  }
+  free(buffer);
+  return nullptr;
+}
+
 static inline void iter_advance_leaf(LineIterator *it) {
   if (it->top == 0) {
     it->node = nullptr;
@@ -533,6 +613,8 @@ static inline void iter_advance_leaf(LineIterator *it) {
       while (curr) {
         it->stack[it->top++] = curr;
         if (!curr->left && !curr->right) {
+          if (curr->char_count == 0)
+            break;
           it->node = curr;
           it->offset = 0;
           return;

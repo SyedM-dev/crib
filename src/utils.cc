@@ -17,6 +17,15 @@ extern "C" {
 #include <unistd.h>
 #include <unordered_map>
 
+uint64_t fnv1a_64(const char *s, size_t len) {
+  uint64_t hash = 1469598103934665603ull;
+  for (size_t i = 0; i < len; ++i) {
+    hash ^= (uint8_t)s[i];
+    hash *= 1099511628211ull;
+  }
+  return hash;
+}
+
 char *get_from_clipboard(uint32_t *out_len) {
   FILE *pipe = popen("xclip -selection clipboard -o", "r");
   if (!pipe) {
