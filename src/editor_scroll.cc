@@ -18,6 +18,7 @@ void scroll_up(Editor *editor, int32_t number) {
   uint32_t len;
   char *line = next_line(it, &len);
   if (!line) {
+    free(it->buffer);
     free(it);
     return;
   }
@@ -45,24 +46,24 @@ void scroll_up(Editor *editor, int32_t number) {
        ++it_seg) {
     if (--number == 0) {
       editor->scroll = {line_index, *it_seg};
-      free(line);
+      free(it->buffer);
       free(it);
       return;
     }
   }
-  free(line);
   line = prev_line(it, &len);
   if (!line) {
     editor->scroll = {0, 0};
+    free(it->buffer);
     free(it);
     return;
   }
-  free(line);
   do {
     line_index--;
     line = prev_line(it, &len);
     if (!line) {
       editor->scroll = {0, 0};
+      free(it->buffer);
       free(it);
       return;
     }
@@ -74,19 +75,20 @@ void scroll_up(Editor *editor, int32_t number) {
         line_index--;
         if (!line) {
           editor->scroll = {0, 0};
+          free(it->buffer);
           free(it);
           return;
         }
       }
       if (--number == 0) {
         editor->scroll = {fold->start, 0};
-        free(line);
+        free(it->buffer);
         free(it);
         return;
       }
-      free(line);
       if (fold->start == 0) {
         editor->scroll = {0, 0};
+        free(it->buffer);
         free(it);
         return;
       }
@@ -94,6 +96,7 @@ void scroll_up(Editor *editor, int32_t number) {
       line = prev_line(it, &len);
       if (!line) {
         editor->scroll = {0, 0};
+        free(it->buffer);
         free(it);
         return;
       }
@@ -121,13 +124,13 @@ void scroll_up(Editor *editor, int32_t number) {
          ++it_seg) {
       if (--number == 0) {
         editor->scroll = {line_index, *it_seg};
-        free(line);
+        free(it->buffer);
         free(it);
         return;
       }
     }
-    free(line);
   } while (number > 0);
+  free(it->buffer);
   free(it);
 }
 
@@ -168,10 +171,10 @@ void scroll_down(Editor *editor, uint32_t number) {
         char *line = next_line(it, nullptr);
         if (!line) {
           free(scroll_queue);
+          free(it->buffer);
           free(it);
           return;
         }
-        free(line);
         line_index++;
       }
       continue;
@@ -200,8 +203,8 @@ void scroll_down(Editor *editor, uint32_t number) {
       visual_seen++;
       if (visual_seen >= number + max_visual_lines) {
         editor->scroll = scroll_queue[q_head];
-        free(line);
         free(scroll_queue);
+        free(it->buffer);
         free(it);
         return;
       }
@@ -223,13 +226,13 @@ void scroll_down(Editor *editor, uint32_t number) {
       if (line_len == 0)
         break;
     }
-    free(line);
     line_index++;
   }
   if (q_size > 0) {
     uint32_t advance = (q_size > number) ? number : (q_size - 1);
     editor->scroll = scroll_queue[(q_head + advance) % max_visual_lines];
   }
+  free(it->buffer);
   free(it);
   free(scroll_queue);
 }
@@ -267,7 +270,6 @@ void ensure_cursor(Editor *editor) {
         char *line = next_line(it, nullptr);
         if (!line)
           break;
-        free(line);
         line_index++;
       }
       continue;
@@ -302,7 +304,7 @@ void ensure_cursor(Editor *editor) {
       if (line_index == editor->cursor.row) {
         if (editor->cursor.col >= offset &&
             editor->cursor.col <= offset + advance) {
-          free(line);
+          free(it->buffer);
           free(it);
           return;
         }
@@ -313,7 +315,6 @@ void ensure_cursor(Editor *editor) {
       if (line_len == 0)
         break;
     }
-    free(line);
     line_index++;
   }
   uint32_t last_real_row = last_visible.row;
@@ -325,6 +326,7 @@ void ensure_cursor(Editor *editor) {
   editor->cursor.row = last_visible.row;
   editor->cursor.col = last_visible.row == last_real_row ? last_visible.col : 0;
   editor->cursor_preffered = UINT32_MAX;
+  free(it->buffer);
   free(it);
 }
 
@@ -340,6 +342,7 @@ void ensure_scroll(Editor *editor) {
     uint32_t len;
     char *line = next_line(it, &len);
     if (!line) {
+      free(it->buffer);
       free(it);
       return;
     }
@@ -359,7 +362,7 @@ void ensure_scroll(Editor *editor) {
         if (editor->cursor.col > old_offset && editor->cursor.col <= offset) {
           editor->scroll.row = editor->cursor.row;
           editor->scroll.col = old_offset;
-          free(line);
+          free(it->buffer);
           free(it);
           return;
         }
@@ -368,7 +371,7 @@ void ensure_scroll(Editor *editor) {
       cols += width;
       offset += inc;
     }
-    free(line);
+    free(it->buffer);
     free(it);
     editor->scroll.row = editor->cursor.row;
     editor->scroll.col = (editor->cursor.col == 0) ? 0 : old_offset;
@@ -403,7 +406,6 @@ void ensure_scroll(Editor *editor) {
           char *line = next_line(it, nullptr);
           if (!line)
             break;
-          free(line);
           line_index++;
         }
         continue;
@@ -453,8 +455,8 @@ void ensure_scroll(Editor *editor) {
             cursor_found = true;
           if (cursor_found) {
             editor->scroll = scroll_queue[q_head];
-            free(line);
             free(scroll_queue);
+            free(it->buffer);
             free(it);
             return;
           }
@@ -464,9 +466,9 @@ void ensure_scroll(Editor *editor) {
           break;
       }
       line_index++;
-      free(line);
     }
     free(scroll_queue);
+    free(it->buffer);
     free(it);
   }
 }

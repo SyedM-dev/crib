@@ -48,7 +48,6 @@ void word_boundaries_exclusive(Editor *editor, Coord coord, uint32_t *prev_col,
     return;
   uint32_t line_len;
   char *line = next_line(it, &line_len);
-  free(it);
   if (!line)
     return;
   if (line_len && line[line_len - 1] == '\n')
@@ -62,7 +61,8 @@ void word_boundaries_exclusive(Editor *editor, Coord coord, uint32_t *prev_col,
     *prev_col = left;
   if (next_col)
     *next_col = right;
-  free(line);
+  free(it->buffer);
+  free(it);
 }
 
 uint32_t word_jump_right(const char *line, size_t len, uint32_t pos) {
@@ -99,7 +99,6 @@ void word_boundaries(Editor *editor, Coord coord, uint32_t *prev_col,
     return;
   uint32_t line_len;
   char *line = next_line(it, &line_len);
-  free(it);
   if (!line)
     return;
   if (line_len && line[line_len - 1] == '\n')
@@ -117,7 +116,8 @@ void word_boundaries(Editor *editor, Coord coord, uint32_t *prev_col,
     *prev_clusters = count_clusters(line, line_len, left, col);
   if (next_clusters)
     *next_clusters = count_clusters(line, line_len, col, right);
-  free(line);
+  free(it->buffer);
+  free(it);
 }
 
 Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
@@ -140,6 +140,7 @@ Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
     const Fold *fold = fold_for_line(editor->folds, line_index);
     if (fold) {
       if (visual_row == target_visual_row) {
+        free(it->buffer);
         free(it);
         if (is_gutter_click) {
           remove_fold(editor, fold->start);
@@ -152,7 +153,6 @@ Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
         char *l = next_line(it, nullptr);
         if (!l)
           break;
-        free(l);
         line_index++;
       }
       continue;
@@ -177,7 +177,7 @@ Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
         if (col + w > render_width)
           break;
         if (visual_row == target_visual_row && x < col + w) {
-          free(line);
+          free(it->buffer);
           free(it);
           return {line_index, offset + advance};
         }
@@ -187,7 +187,7 @@ Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
         col += w;
       }
       if (visual_row == target_visual_row) {
-        free(line);
+        free(it->buffer);
         free(it);
         return {line_index, last_good_offset};
       }
@@ -200,9 +200,9 @@ Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
       if (line_len == 0)
         break;
     }
-    free(line);
     line_index++;
   }
+  free(it->buffer);
   free(it);
   return editor->scroll;
 }
@@ -215,16 +215,18 @@ Coord move_right_pure(Editor *editor, Coord cursor, uint32_t number) {
   uint32_t col = result.col;
   uint32_t line_len = 0;
   LineIterator *it = begin_l_iter(editor->root, row);
-  char *line = next_line(it, &line_len);
-  free(it);
-  if (!line)
+  if (!it)
     return result;
+  char *line = next_line(it, &line_len);
+  if (!line) {
+    free(it->buffer);
+    free(it);
+    return result;
+  }
   if (line_len > 0 && line[line_len - 1] == '\n')
     --line_len;
   while (number > 0) {
     if (col >= line_len) {
-      free(line);
-      line = nullptr;
       uint32_t next_row = row + 1;
       if (next_row >= editor->root->line_count) {
         col = line_len;
@@ -232,9 +234,7 @@ Coord move_right_pure(Editor *editor, Coord cursor, uint32_t number) {
       }
       row = next_row;
       col = 0;
-      it = begin_l_iter(editor->root, row);
       line = next_line(it, &line_len);
-      free(it);
       if (!line)
         break;
       if (line_len > 0 && line[line_len - 1] == '\n')
@@ -248,8 +248,8 @@ Coord move_right_pure(Editor *editor, Coord cursor, uint32_t number) {
     }
     number--;
   }
-  if (line)
-    free(line);
+  free(it->buffer);
+  free(it);
   result.row = row;
   result.col = col;
   return result;
@@ -265,6 +265,7 @@ Coord move_left_pure(Editor *editor, Coord cursor, uint32_t number) {
   LineIterator *it = begin_l_iter(editor->root, row);
   char *line = next_line(it, &len);
   if (!line) {
+    free(it->buffer);
     free(it);
     return result;
   }
@@ -276,10 +277,9 @@ Coord move_left_pure(Editor *editor, Coord cursor, uint32_t number) {
       if (row == 0)
         break;
       if (iterator_ahead) {
-        free(prev_line(it, nullptr));
+        prev_line(it, nullptr);
         iterator_ahead = false;
       }
-      free(line);
       line = nullptr;
       row--;
       line = prev_line(it, &len);
@@ -301,8 +301,7 @@ Coord move_left_pure(Editor *editor, Coord cursor, uint32_t number) {
     }
     number--;
   }
-  if (line)
-    free(line);
+  free(it->buffer);
   free(it);
   result.row = row;
   result.col = col;
@@ -317,41 +316,58 @@ Coord move_right(Editor *editor, Coord cursor, uint32_t number) {
   uint32_t col = result.col;
   uint32_t line_len = 0;
   LineIterator *it = begin_l_iter(editor->root, row);
-  char *line = next_line(it, &line_len);
-  free(it);
-  if (!line)
+  if (!it)
     return result;
+  uint32_t target_row = next_unfolded_row(editor, row);
+  while (row < target_row) {
+    if (!next_line(it, &line_len)) {
+      free(it->buffer);
+      free(it);
+      return result;
+    }
+    ++row;
+  }
+  char *line = next_line(it, &line_len);
+  if (!line) {
+    free(it->buffer);
+    free(it);
+    return result;
+  }
   if (line_len > 0 && line[line_len - 1] == '\n')
     --line_len;
   while (number > 0) {
     if (col >= line_len) {
-      free(line);
-      line = nullptr;
       uint32_t next_row = next_unfolded_row(editor, row + 1);
       if (next_row >= editor->root->line_count) {
         col = line_len;
         break;
       }
-      row = next_row;
+      while (row < next_row) {
+        line = next_line(it, &line_len);
+        if (!line) {
+          free(it->buffer);
+          free(it);
+          result.row = row;
+          result.col = col;
+          return result;
+        }
+        ++row;
+      }
       col = 0;
-      it = begin_l_iter(editor->root, row);
-      line = next_line(it, &line_len);
-      free(it);
-      if (!line)
-        break;
       if (line_len > 0 && line[line_len - 1] == '\n')
         --line_len;
+      continue;
     } else {
       uint32_t inc =
           grapheme_next_character_break_utf8(line + col, line_len - col);
       if (inc == 0)
         break;
       col += inc;
+      --number;
     }
-    number--;
   }
-  if (line)
-    free(line);
+  free(it->buffer);
+  free(it);
   result.row = row;
   result.col = col;
   return result;
@@ -367,6 +383,7 @@ Coord move_left(Editor *editor, Coord cursor, uint32_t number) {
   LineIterator *it = begin_l_iter(editor->root, row);
   char *line = next_line(it, &len);
   if (!line) {
+    free(it->buffer);
     free(it);
     return result;
   }
@@ -378,10 +395,9 @@ Coord move_left(Editor *editor, Coord cursor, uint32_t number) {
       if (row == 0)
         break;
       if (iterator_ahead) {
-        free(prev_line(it, nullptr));
+        prev_line(it, nullptr);
         iterator_ahead = false;
       }
-      free(line);
       line = nullptr;
       while (row > 0) {
         row--;
@@ -391,14 +407,10 @@ Coord move_left(Editor *editor, Coord cursor, uint32_t number) {
         const Fold *fold = fold_for_line(editor->folds, row);
         if (fold) {
           while (line && row > fold->start) {
-            free(line);
             line = prev_line(it, &len);
             row--;
           }
-          if (line) {
-            free(line);
-            line = nullptr;
-          }
+          line = nullptr;
           continue;
         }
         break;
@@ -421,8 +433,7 @@ Coord move_left(Editor *editor, Coord cursor, uint32_t number) {
     }
     number--;
   }
-  if (line)
-    free(line);
+  free(it->buffer);
   free(it);
   result.row = row;
   result.col = col;
@@ -435,14 +446,14 @@ void cursor_down(Editor *editor, uint32_t number) {
   uint32_t len;
   LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
   char *line_content = next_line(it, &len);
-  free(it);
   if (line_content == nullptr)
     return;
   if (editor->cursor_preffered == UINT32_MAX)
     editor->cursor_preffered =
         get_visual_col_from_bytes(line_content, len, editor->cursor.col);
   uint32_t visual_col = editor->cursor_preffered;
-  free(line_content);
+  free(it->buffer);
+  free(it);
   uint32_t target_row = editor->cursor.row;
   while (number > 0 && target_row < editor->root->line_count - 1) {
     target_row = next_unfolded_row(editor, target_row + 1);
@@ -454,14 +465,14 @@ void cursor_down(Editor *editor, uint32_t number) {
   }
   it = begin_l_iter(editor->root, target_row);
   line_content = next_line(it, &len);
-  free(it);
   if (!line_content)
     return;
   if (len > 0 && line_content[len - 1] == '\n')
     --len;
   editor->cursor.row = target_row;
   editor->cursor.col = get_bytes_from_visual_col(line_content, len, visual_col);
-  free(line_content);
+  free(it->buffer);
+  free(it);
 }
 
 void cursor_up(Editor *editor, uint32_t number) {
@@ -470,14 +481,14 @@ void cursor_up(Editor *editor, uint32_t number) {
   uint32_t len;
   LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
   char *line_content = next_line(it, &len);
-  free(it);
   if (!line_content)
     return;
   if (editor->cursor_preffered == UINT32_MAX)
     editor->cursor_preffered =
         get_visual_col_from_bytes(line_content, len, editor->cursor.col);
   uint32_t visual_col = editor->cursor_preffered;
-  free(line_content);
+  free(it->buffer);
+  free(it);
   uint32_t target_row = editor->cursor.row;
   while (number > 0 && target_row > 0) {
     target_row = prev_unfolded_row(editor, target_row - 1);
@@ -489,18 +500,18 @@ void cursor_up(Editor *editor, uint32_t number) {
   }
   it = begin_l_iter(editor->root, target_row);
   line_content = next_line(it, &len);
-  free(it);
   if (line_content) {
     if (len > 0 && line_content[len - 1] == '\n')
       --len;
     editor->cursor.row = target_row;
     editor->cursor.col =
         get_bytes_from_visual_col(line_content, len, visual_col);
-    free(line_content);
   } else {
     editor->cursor.row = 0;
     editor->cursor.col = 0;
   }
+  free(it->buffer);
+  free(it);
 }
 
 void cursor_right(Editor *editor, uint32_t number) {
@@ -525,7 +536,6 @@ void move_line_up(Editor *editor) {
     std::shared_lock lock(editor->knot_mtx);
     LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
     char *line = next_line(it, &line_len);
-    free(it);
     if (!line) {
       lock.unlock();
       return;
@@ -543,7 +553,8 @@ void move_line_up(Editor *editor) {
     edit_erase(editor, {cursor.row, 0}, -1);
     edit_insert(editor, {cursor.row - up_by, 0}, (char *)"\n", 1);
     edit_insert(editor, {cursor.row - up_by, 0}, line, line_len);
-    free(line);
+    free(it->buffer);
+    free(it);
     editor->cursor = {cursor.row - up_by, cursor.col};
   } else if (mode == SELECT) {
     uint32_t start_row = MIN(editor->cursor.row, editor->selection.row);
@@ -576,7 +587,6 @@ void move_line_down(Editor *editor) {
     std::shared_lock lock(editor->knot_mtx);
     LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
     char *line = next_line(it, &line_len);
-    free(it);
     if (!line) {
       lock.unlock();
       return;
@@ -601,7 +611,8 @@ void move_line_down(Editor *editor) {
     edit_erase(editor, {cursor.row, 0}, -1);
     edit_insert(editor, {cursor.row + down_by, 0}, (char *)"\n", 1);
     edit_insert(editor, {cursor.row + down_by, 0}, line, line_len);
-    free(line);
+    free(it->buffer);
+    free(it);
     editor->cursor = {cursor.row + down_by, cursor.col};
   } else if (mode == SELECT) {
     if (editor->cursor.row >= editor->root->line_count - 1 ||
@@ -811,12 +822,13 @@ char *get_selection(Editor *editor, uint32_t *out_len) {
     case LINE:
       LineIterator *it = begin_l_iter(editor->root, editor->selection.row);
       char *line = next_line(it, &line_len);
-      free(it);
       if (!line)
         return nullptr;
       if (line_len > 0 && line[line_len - 1] == '\n')
         line_len--;
       end = {editor->selection.row, line_len};
+      free(it->buffer);
+      free(it);
       break;
     }
   }
@@ -877,13 +889,11 @@ bool add_fold(Editor *editor, uint32_t start, uint32_t end) {
   end = std::min(end, editor->root->line_count - 1);
   if (start == end)
     return false;
-
   Fold new_fold{start, end};
   auto &folds = editor->folds;
   auto it = std::lower_bound(
       folds.begin(), folds.end(), new_fold.start,
       [](const Fold &fold, uint32_t value) { return fold.start < value; });
-
   if (it != folds.begin()) {
     auto prev = std::prev(it);
     if (prev->end + 1 >= new_fold.start) {

@@ -23,10 +23,10 @@ uint32_t get_indent(Editor *editor, Coord cursor) {
     if (line_len == 0)
       continue;
     uint32_t indent = leading_indent(line, line_len);
-    free(line);
-    free(it);
     return indent;
   }
+  free(it->buffer);
+  free(it);
   return 0;
 }
 

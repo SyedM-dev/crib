@@ -92,12 +92,12 @@ void render_editor(Editor *editor) {
       case LINE:
         LineIterator *it = begin_l_iter(editor->root, editor->selection.row);
         char *line = next_line(it, &line_len);
-        free(it);
         if (!line)
           return;
         if (line_len > 0 && line[line_len - 1] == '\n')
           line_len--;
-        free(line);
+        free(it->buffer);
+        free(it);
         end = {editor->selection.row, line_len};
         break;
       }
@@ -122,7 +122,7 @@ void render_editor(Editor *editor) {
       update(editor->position.row + rendered_rows, editor->position.col, "",
              0xAAAAAA, 0, 0);
       char buf[16];
-      int len = snprintf(buf, sizeof(buf), "%*u", numlen - 3, fold->start + 1);
+      int len = snprintf(buf, sizeof(buf), "%*u ", numlen - 3, fold->start + 1);
       uint32_t num_color =
           editor->cursor.row == fold->start ? 0xFFFFFF : 0x555555;
       for (int i = 0; i < len; i++)
@@ -148,7 +148,6 @@ void render_editor(Editor *editor) {
         if (line_len > 0 && line[line_len - 1] == '\n')
           global_byte_offset--;
         global_byte_offset++;
-        free(line);
         line_index++;
       }
       continue;
@@ -179,7 +178,8 @@ void render_editor(Editor *editor) {
         update(editor->position.row + rendered_rows, editor->position.col, hook,
                0xAAAAAA, 0, 0);
         char buf[16];
-        int len = snprintf(buf, sizeof(buf), "%*u", numlen - 3, line_index + 1);
+        int len =
+            snprintf(buf, sizeof(buf), "%*u ", numlen - 3, line_index + 1);
         uint32_t num_color =
             editor->cursor.row == line_index ? 0xFFFFFF : 0x555555;
         for (int i = 0; i < len; i++)
@@ -270,7 +270,7 @@ void render_editor(Editor *editor) {
       update(editor->position.row + rendered_rows, editor->position.col, hook,
              0xAAAAAA, 0, 0);
       char buf[16];
-      int len = snprintf(buf, sizeof(buf), "%*u", numlen - 3, line_index + 1);
+      int len = snprintf(buf, sizeof(buf), "%*u ", numlen - 3, line_index + 1);
       uint32_t num_color =
           editor->cursor.row == line_index ? 0xFFFFFF : 0x555555;
       for (int i = 0; i < len; i++)
@@ -298,7 +298,6 @@ void render_editor(Editor *editor) {
     }
     global_byte_offset += line_len + 1;
     line_index++;
-    free(line);
   }
   if (cursor.row != UINT32_MAX && cursor.col != UINT32_MAX) {
     int type = 0;
@@ -322,5 +321,6 @@ void render_editor(Editor *editor) {
              " ", 0xFFFFFF, 0, 0);
     rendered_rows++;
   }
+  free(it->buffer);
   free(it);
 }

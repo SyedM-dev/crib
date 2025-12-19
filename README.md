@@ -6,8 +6,6 @@ A TUI IDE.
 
 # TODO
 
-- [ ] Overwrite empty space between line number and line. (in the renderer)
-- [ ] Make iterator for next/prev line reuse same allocation buffer (so only free once with iterator).
 - [ ] Add tab/untab with [,<] and [.>]
 - [ ] Add something that works like `p` but doesnt move cursor.
 - [ ] Fix the fact that hooks arent updated when a line is deleted/added.

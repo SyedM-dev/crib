@@ -70,12 +70,12 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
             uint32_t line_len;
             LineIterator *it = begin_l_iter(editor->root, p.row);
             char *line = next_line(it, &line_len);
-            free(it);
             if (!line)
               return;
             if (line_len > 0 && line[line_len - 1] == '\n')
               line_len--;
-            free(line);
+            free(it->buffer);
+            free(it);
             editor->cursor = {p.row, line_len};
           }
           editor->cursor_preffered = UINT32_MAX;
@@ -115,12 +115,12 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
           } else {
             LineIterator *it = begin_l_iter(editor->root, p.row);
             char *line = next_line(it, &line_len);
-            free(it);
             if (!line)
               return;
             if (line_len > 0 && line[line_len - 1] == '\n')
               line_len--;
-            free(line);
+            free(it->buffer);
+            free(it);
             editor->cursor = {p.row, line_len};
           }
           break;
@@ -216,9 +216,9 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
             break;
           if (line_len > 0 && line[line_len - 1] == '\n')
             line_len--;
-          free(it);
           line_len = count_clusters(line, line_len, 0, line_len);
-          free(line);
+          free(it->buffer);
+          free(it);
           editor->cursor.col = line_len;
           editor->cursor_preffered = UINT32_MAX;
           mode = SELECT;
@@ -305,7 +305,6 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
           uint32_t line_len = 0;
           LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
           char *line = next_line(it, &line_len);
-          free(it);
           bool closing = false;
           if (line && line_len > 0 && line[line_len - 1] == '\n')
             line_len--;
@@ -314,8 +313,9 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
             if (indent == 0)
               indent = leading_indent(line, line_len);
             closing = closing_after_cursor(line, line_len, editor->cursor.col);
-            free(line);
           }
+          free(it->buffer);
+          free(it);
           uint32_t closing_indent =
               indent >= INDENT_WIDTH ? indent - INDENT_WIDTH : 0;
           std::string insert_text("\n");
@@ -366,10 +366,10 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
           if (!it)
             return;
           char *line = next_line(it, nullptr);
-          free(it);
           char prev_char = line[prev_pos.col];
           char next_char = line[editor->cursor.col];
-          free(line);
+          free(it->buffer);
+          free(it);
           bool is_pair = (prev_char == '{' && next_char == '}') ||
                          (prev_char == '(' && next_char == ')') ||
                          (prev_char == '[' && next_char == ']') ||

@@ -471,6 +471,12 @@ LineIterator *begin_l_iter(Knot *root, uint32_t start_line) {
     return nullptr;
   it->top = 0;
   it->node = nullptr;
+  it->capacity = 128;
+  it->buffer = (char *)malloc(it->capacity);
+  if (!it->buffer) {
+    free(it);
+    return nullptr;
+  }
   if (start_line == 0) {
     it->offset = 0;
     while (root->left) {
@@ -499,6 +505,7 @@ LineIterator *begin_l_iter(Knot *root, uint32_t start_line) {
     }
   }
   if (!it->node) {
+    free(it->buffer);
     free(it);
     return nullptr;
   }
@@ -516,7 +523,7 @@ LineIterator *begin_l_iter(Knot *root, uint32_t start_line) {
       }
     }
   }
-  free(next_line(it, nullptr));
+  next_line(it, nullptr);
   return it;
 }
 
@@ -559,11 +566,7 @@ static void str_reverse(char *begin, char *end) {
 char *prev_line(LineIterator *it, uint32_t *out_len) {
   if (!it || !it->node)
     return nullptr;
-  size_t capacity = 128;
   size_t len = 0;
-  char *buffer = (char *)malloc(capacity);
-  if (!buffer)
-    return nullptr;
   while (it->node) {
     if (it->offset == 0) {
       iter_retreat_leaf(it);
@@ -578,25 +581,22 @@ char *prev_line(LineIterator *it, uint32_t *out_len) {
         break;
       }
     }
-    if (len + 1 >= capacity) {
-      capacity *= 2;
-      char *new_buf = (char *)realloc(buffer, capacity);
-      if (!new_buf) {
-        free(buffer);
+    if (len + 1 >= it->capacity) {
+      it->capacity *= 2;
+      char *new_buf = (char *)realloc(it->buffer, it->capacity);
+      if (!new_buf)
         return nullptr;
-      }
-      buffer = new_buf;
+      it->buffer = new_buf;
     }
-    buffer[len++] = c;
+    it->buffer[len++] = c;
   }
   if (len > 0) {
-    buffer[len] = '\0';
-    str_reverse(buffer, buffer + len - 1);
+    it->buffer[len] = '\0';
+    str_reverse(it->buffer, it->buffer + len - 1);
     if (out_len)
       *out_len = len;
-    return buffer;
+    return it->buffer;
   }
-  free(buffer);
   return nullptr;
 }
 
@@ -630,11 +630,7 @@ static inline void iter_advance_leaf(LineIterator *it) {
 char *next_line(LineIterator *it, uint32_t *out_len) {
   if (!it || !it->node)
     return nullptr;
-  size_t capacity = 128;
   size_t len = 0;
-  char *buffer = (char *)malloc(capacity);
-  if (!buffer)
-    return nullptr;
   while (it->node) {
     if (it->offset >= it->node->char_count) {
       iter_advance_leaf(it);
@@ -652,32 +648,30 @@ char *next_line(LineIterator *it, uint32_t *out_len) {
     } else {
       chunk_len = end - start;
     }
-    if (len + chunk_len + 1 > capacity) {
-      capacity = (capacity * 2) + chunk_len;
-      char *new_buf = (char *)realloc(buffer, capacity);
+    if (len + chunk_len + 1 > it->capacity) {
+      it->capacity = (it->capacity * 2) + chunk_len;
+      char *new_buf = (char *)realloc(it->buffer, it->capacity);
       if (!new_buf) {
-        free(buffer);
         return nullptr;
       }
-      buffer = new_buf;
+      it->buffer = new_buf;
     }
-    memcpy(buffer + len, start, chunk_len);
+    memcpy(it->buffer + len, start, chunk_len);
     len += chunk_len;
     it->offset += chunk_len;
     if (found_newline) {
-      buffer[len] = '\0';
+      it->buffer[len] = '\0';
       if (out_len)
         *out_len = len;
-      return buffer;
+      return it->buffer;
     }
   }
   if (len > 0) {
-    buffer[len] = '\0';
+    it->buffer[len] = '\0';
     if (out_len)
       *out_len = len;
-    return buffer;
+    return it->buffer;
   }
-  free(buffer);
   return nullptr;
 }
 

@@ -27,6 +27,8 @@ typedef struct LineIterator {
   uint8_t top;
   uint32_t offset;
   Knot *stack[64];
+  char *buffer;
+  size_t capacity;
 } LineIterator;
 
 typedef struct LeafIterator {
