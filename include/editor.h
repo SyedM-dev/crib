@@ -98,6 +98,32 @@ struct SpanCursor {
   }
 };
 
+struct VHint {
+  Coord pos;
+  char *text; // Can only be a single line with ascii only
+  uint32_t len;
+
+  bool operator<(const VHint &other) const { return pos < other.pos; }
+};
+
+struct VWarn {
+  uint32_t line;
+  char *text; // Can only be a single line
+  uint32_t len;
+  int8_t type; // For hl
+
+  bool operator<(const VWarn &other) const { return line < other.line; }
+};
+
+struct VAI {
+  Coord pos;
+  char *text;
+  uint32_t len;
+  uint32_t lines; // number of \n in text for speed .. the ai part will not
+                  // line wrap but multiline ones need to have its own lines
+                  // after the first one
+};
+
 struct Editor {
   const char *filename;
   Knot *root;
@@ -121,6 +147,9 @@ struct Editor {
   Spans def_spans;
   uint32_t hooks[94];
   bool jumper_set;
+  std::vector<VHint> hints;
+  std::vector<VWarn> warnings;
+  VAI ai;
 };
 
 inline const Fold *fold_for_line(const std::vector<Fold> &folds,
