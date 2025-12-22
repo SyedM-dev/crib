@@ -137,6 +137,60 @@ void capture_mouse(char *buf, KeyEvent *ret) {
   }
 }
 
+bool read_bracketed_paste(char **out, int *out_len) {
+  size_t cap = 256, len = 0;
+  char *buf = (char *)malloc(cap);
+  if (!buf)
+    return false;
+  char window[6] = {0};
+  size_t wlen = 0;
+  auto push_byte = [&](char c) {
+    if (len + 1 >= cap) {
+      cap *= 2;
+      buf = (char *)realloc(buf, cap);
+    }
+    buf[len++] = c;
+  };
+  while (true) {
+    char c;
+    if (!get_next_byte(&c)) {
+      free(buf);
+      return false;
+    }
+    if (wlen < 5) {
+      window[wlen++] = c;
+    } else {
+      memmove(window, window + 1, 4);
+      window[4] = c;
+      wlen = 5;
+    }
+    if (wlen == 5 && window[0] == '\x1b' && window[1] == '[' &&
+        window[2] == '2' && window[3] == '0' && window[4] == '1') {
+      char tilde;
+      if (!get_next_byte(&tilde)) {
+        free(buf);
+        return false;
+      }
+      if (tilde == '~')
+        break;
+      for (int i = 0; i < 5; i++)
+        push_byte(window[i]);
+      push_byte(tilde);
+      wlen = 0;
+      continue;
+    }
+    if (wlen == 5) {
+      push_byte(window[0]);
+      memmove(window, window + 1, 4);
+      wlen = 4;
+    }
+  }
+  buf[len] = '\0';
+  *out = buf;
+  *out_len = (int)len;
+  return true;
+}
+
 KeyEvent read_key() {
   KeyEvent ret;
   char *buf;
@@ -145,10 +199,21 @@ KeyEvent read_key() {
     ret.key_type = KEY_NONE;
     return ret;
   }
-  if (buf[0] == '\x1b' && buf[1] == '[' && buf[2] == 'M') {
+  if (n >= 6 && buf[0] == '\x1b' && buf[1] == '[' && buf[2] == '2' &&
+      buf[3] == '0' && buf[4] == '0' && buf[5] == '~') {
+    char *pbuf = nullptr;
+    int plen = 0;
+    if (read_bracketed_paste(&pbuf, &plen)) {
+      free(buf);
+      ret.key_type = KEY_PASTE;
+      ret.c = pbuf;
+      ret.len = plen;
+      return ret;
+    }
+  } else if (n >= 3 && buf[0] == '\x1b' && buf[1] == '[' && buf[2] == 'M') {
     ret.key_type = KEY_MOUSE;
     capture_mouse(buf, &ret);
-  } else if (buf[0] == '\x1b' && buf[1] == '[') {
+  } else if (n >= 2 && buf[0] == '\x1b' && buf[1] == '[') {
     ret.key_type = KEY_SPECIAL;
     int using_modifiers = buf[3] == ';';
     int pos;

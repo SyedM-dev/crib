@@ -131,6 +131,8 @@ Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
   uint32_t target_visual_row = y;
   uint32_t visual_row = 0;
   uint32_t line_index = editor->scroll.row;
+  uint32_t last_line_index = editor->scroll.row;
+  uint32_t last_col = editor->scroll.col;
   bool first_visual_line = true;
   std::shared_lock knot_lock(editor->knot_mtx);
   LineIterator *it = begin_l_iter(editor->root, line_index);
@@ -155,6 +157,8 @@ Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
           break;
         line_index++;
       }
+      last_line_index = fold->end;
+      last_col = 0;
       continue;
     }
     uint32_t line_len;
@@ -163,6 +167,8 @@ Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
       break;
     if (line_len && line[line_len - 1] == '\n')
       line_len--;
+    last_line_index = line_index;
+    last_col = line_len;
     uint32_t offset = first_visual_line ? editor->scroll.col : 0;
     first_visual_line = false;
     while (offset < line_len || (line_len == 0 && offset == 0)) {
@@ -186,6 +192,7 @@ Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
         left -= g;
         col += w;
       }
+      last_col = last_good_offset;
       if (visual_row == target_visual_row) {
         free(it->buffer);
         free(it);
@@ -204,7 +211,7 @@ Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
   }
   free(it->buffer);
   free(it);
-  return editor->scroll;
+  return {last_line_index, last_col};
 }
 
 Coord move_right_pure(Editor *editor, Coord cursor, uint32_t number) {
@@ -353,9 +360,10 @@ Coord move_right(Editor *editor, Coord cursor, uint32_t number) {
         }
         ++row;
       }
-      col = 0;
       if (line_len > 0 && line[line_len - 1] == '\n')
         --line_len;
+      col = 0;
+      --number;
       continue;
     } else {
       uint32_t inc =
@@ -672,6 +680,7 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     uint32_t start_row = point.row;
     uint32_t end_row = pos.row;
     apply_line_deletion(editor, start_row + 1, end_row);
+    apply_hook_deletion(editor, start_row + 1, end_row);
     std::unique_lock lock_2(editor->knot_mtx);
     editor->root = erase(editor->root, start, byte_pos - start);
     lock_2.unlock();
@@ -715,6 +724,7 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     uint32_t start_row = pos.row;
     uint32_t end_row = point.row;
     apply_line_deletion(editor, start_row + 1, end_row);
+    apply_hook_deletion(editor, start_row + 1, end_row);
     std::unique_lock lock_2(editor->knot_mtx);
     editor->root = erase(editor->root, byte_pos, end - byte_pos);
     lock_2.unlock();
@@ -766,6 +776,7 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
     }
   }
   apply_line_insertion(editor, pos.row, rows);
+  apply_hook_insertion(editor, pos.row, rows);
   if (editor->tree) {
     TSInputEdit edit = {
         .start_byte = byte_pos,
@@ -786,7 +797,7 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
   apply_edit(editor->def_spans.spans, byte_pos, len);
 }
 
-char *get_selection(Editor *editor, uint32_t *out_len) {
+char *get_selection(Editor *editor, uint32_t *out_len, Coord *out_start) {
   std::shared_lock lock(editor->knot_mtx);
   Coord start, end;
   if (editor->cursor >= editor->selection) {
@@ -832,6 +843,8 @@ char *get_selection(Editor *editor, uint32_t *out_len) {
       break;
     }
   }
+  if (out_start)
+    *out_start = start;
   uint32_t start_byte =
       line_to_byte(editor->root, start.row, nullptr) + start.col;
   uint32_t end_byte = line_to_byte(editor->root, end.row, nullptr) + end.col;
@@ -952,4 +965,17 @@ void apply_line_deletion(Editor *editor, uint32_t removal_start,
     }
   }
   editor->folds.swap(updated);
+}
+
+void apply_hook_insertion(Editor *editor, uint32_t line, uint32_t rows) {
+  for (auto &hook : editor->hooks)
+    if (hook > line)
+      hook += rows;
+}
+
+void apply_hook_deletion(Editor *editor, uint32_t removal_start,
+                         uint32_t removal_end) {
+  for (auto &hook : editor->hooks)
+    if (hook > removal_start)
+      hook -= removal_end - removal_start + 1;
 }

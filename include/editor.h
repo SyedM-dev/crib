@@ -177,6 +177,9 @@ inline uint32_t prev_unfolded_row(const Editor *editor, uint32_t row) {
 }
 
 void apply_edit(std::vector<Span> &spans, uint32_t x, int64_t y);
+void apply_hook_insertion(Editor *editor, uint32_t line, uint32_t rows);
+void apply_hook_deletion(Editor *editor, uint32_t removal_start,
+                         uint32_t removal_end);
 Editor *new_editor(const char *filename, Coord position, Coord size);
 void free_editor(Editor *editor);
 void render_editor(Editor *editor);
@@ -190,12 +193,14 @@ void cursor_right(Editor *editor, uint32_t number);
 void scroll_up(Editor *editor, int32_t number);
 void scroll_down(Editor *editor, uint32_t number);
 void ensure_cursor(Editor *editor);
+void indent_line(Editor *editor, uint32_t row);
+void dedent_line(Editor *editor, uint32_t row);
 void ensure_scroll(Editor *editor);
 void handle_editor_event(Editor *editor, KeyEvent event);
 void edit_erase(Editor *editor, Coord pos, int64_t len);
 void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len);
 Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y);
-char *get_selection(Editor *editor, uint32_t *out_len);
+char *get_selection(Editor *editor, uint32_t *out_len, Coord *out_start);
 void editor_worker(Editor *editor);
 void move_line_down(Editor *editor);
 void move_line_up(Editor *editor);

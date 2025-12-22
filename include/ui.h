@@ -15,7 +15,8 @@
 #define KEY_CHAR 0
 #define KEY_SPECIAL 1
 #define KEY_MOUSE 2
-#define KEY_NONE 3
+#define KEY_PASTE 3
+#define KEY_NONE 4
 
 #define KEY_UP 0
 #define KEY_DOWN 1

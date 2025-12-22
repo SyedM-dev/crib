@@ -9,7 +9,7 @@ std::mutex screen_mutex;
 termios orig_termios;
 
 void disable_raw_mode() {
-  std::string os = "\x1b[?1049l\x1b[2 q\x1b[?1002l\x1b[?25h";
+  std::string os = "\x1b[?1049l\x1b[2 q\x1b[?1002l\x1b[?25h\x1b[?2004l";
   write(STDOUT_FILENO, os.c_str(), os.size());
   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1) {
     perror("tcsetattr");
@@ -30,7 +30,7 @@ void enable_raw_mode() {
   raw.c_cc[VTIME] = 0;
   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1)
     exit(EXIT_FAILURE);
-  std::string os = "\x1b[?1049h\x1b[2 q\x1b[?1002h\x1b[?25l";
+  std::string os = "\x1b[?1049h\x1b[2 q\x1b[?1002h\x1b[?25l\x1b[?2004h";
   write(STDOUT_FILENO, os.c_str(), os.size());
 }
 

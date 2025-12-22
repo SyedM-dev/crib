@@ -6,18 +6,8 @@ A TUI IDE.
 
 # TODO
 
-- [ ] Add tab/untab with [,<] and [.>]
-- [ ] Add something that works like `p` but doesnt move cursor.
-- [ ] Fix the fact that hooks arent updated when a line is deleted/added.
-- [ ] also use this sorta rules apart from previous lines indentation for the indentor.
-    - if previous line ends with { or similar → indent +1 
-        - (i.e. just check the last line that is not string or comment or empty)
-    - language-specific rules later if you want
-    - ignore comments that dedent etc. - anything else should be handled by LSP.
-- [ ] Fix bug where clicking outside eof sets to top.
-- [ ] Add this thing where select at end of screen scrolls down. (and vice versa)
 - [ ] Add a virtual text support (text that is rendered in the editor but not in the actual text)
-    - Add a whitespace highlighter (nerd font). for spaces and tabs at start/end of line.
+    - Add a whitespace highlighter (nerd font). for spaces and tabs at start/end of line. as a test.
 - [ ] Add support for LSP & autocomplete / snippets.
     - First research
         - `textDocument/documentHighlight` - for highlighting stuff (probably tree-sitter is enough)
@@ -39,6 +29,9 @@ A TUI IDE.
             3. One for Warnings/errors and inlay hints etc. (stuff that adds virtual text to the editor)
             4. One for fromatting and stuff like that. (stuff that edits the buffer text)
 - [ ] Add snippets from wherever i get them. (like luasnip or vsnip)
+- [ ] Add this thing where select at end of screen scrolls down. (and vice versa)
+    - Can be acheived by updating `main.cc` to send drag events to the selected editor instead of just under cursor.
+    - Then a drag event above or below will scroll the selected editor.
 - [ ] Add support for virtual cursor where edits apply at all the places.
 - [ ] Add alt + click to set multiple cursors.
 - [ ] Add search / replace along with search / virtual cursors are searched pos.

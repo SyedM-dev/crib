@@ -1,6 +1,7 @@
 #include "../include/editor.h"
 #include "../include/main.h"
 #include "../include/ts.h"
+#include <cstdint>
 
 void handle_editor_event(Editor *editor, KeyEvent event) {
   static std::chrono::steady_clock::time_point last_click_time =
@@ -203,6 +204,7 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
   switch (mode) {
   case NORMAL:
     if (event.key_type == KEY_CHAR && event.len == 1) {
+      Coord start = editor->cursor;
       switch (event.c[0]) {
       case 'u':
         if (editor->root->line_count > 0) {
@@ -230,6 +232,8 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
       case 'a':
         mode = INSERT;
         cursor_right(editor, 1);
+        if (start.row != editor->cursor.row)
+          cursor_left(editor, 1);
         break;
       case 'i':
         mode = INSERT;
@@ -281,6 +285,14 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
       case CTRL('u'):
         scroll_up(editor, 1);
         ensure_cursor(editor);
+        break;
+      case '>':
+      case '.':
+        indent_line(editor, editor->cursor.row);
+        break;
+      case '<':
+      case ',':
+        dedent_line(editor, editor->cursor.row);
         break;
       case 'p':
         uint32_t len;
@@ -382,8 +394,11 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
             edit_erase(editor, editor->cursor, -1);
           }
         } else if (event.c[0] == 0x1B) {
+          Coord prev_pos = editor->cursor;
           mode = NORMAL;
           cursor_left(editor, 1);
+          if (prev_pos.row != editor->cursor.row)
+            cursor_right(editor, 1);
         }
       } else if (event.len > 1) {
         edit_insert(editor, editor->cursor, event.c, event.len);
@@ -405,12 +420,20 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
           edit_erase(editor, editor->cursor, next_col_cluster);
         break;
       }
+    } else if (event.key_type == KEY_PASTE) {
+      if (event.c) {
+        edit_insert(editor, editor->cursor, event.c, event.len);
+        uint32_t grapheme_len =
+            count_clusters(event.c, event.len, 0, event.len);
+        cursor_right(editor, grapheme_len);
+      }
     }
     break;
   case SELECT:
     if (event.key_type == KEY_CHAR && event.len == 1) {
       uint32_t len;
       char *text;
+      Coord start;
       switch (event.c[0]) {
       case 'f':
         if (editor->cursor.row != editor->selection.row) {
@@ -430,16 +453,17 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
         mode = NORMAL;
         break;
       case 'y':
-        text = get_selection(editor, &len);
+        text = get_selection(editor, &len, nullptr);
         copy_to_clipboard(text, len);
         free(text);
         editor->selection_active = false;
         mode = NORMAL;
         break;
       case 'x':
-        text = get_selection(editor, &len);
+        text = get_selection(editor, &len, &start);
         copy_to_clipboard(text, len);
-        edit_erase(editor, MIN(editor->cursor, editor->selection), len);
+        len = count_clusters(text, len, 0, len);
+        edit_erase(editor, start, len);
         free(text);
         editor->selection_active = false;
         mode = NORMAL;
@@ -502,7 +526,7 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
     break;
   }
   ensure_scroll(editor);
-  if (event.key_type == KEY_CHAR && event.c)
+  if ((event.key_type == KEY_CHAR || event.key_type == KEY_PASTE) && event.c)
     free(event.c);
 }
 
