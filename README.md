@@ -6,8 +6,6 @@ A TUI IDE.
 
 # TODO
 
-- [ ] Add a virtual text support (text that is rendered in the editor but not in the actual text)
-    - Add a whitespace highlighter (nerd font). for spaces and tabs at start/end of line. as a test.
 - [ ] Add support for LSP & autocomplete / snippets.
     - First research
         - `textDocument/documentHighlight` - for highlighting stuff (probably tree-sitter is enough)
@@ -28,6 +26,10 @@ A TUI IDE.
             2. One for stuff that only affects highlighting and styles . like symbol highlighting etc.
             3. One for Warnings/errors and inlay hints etc. (stuff that adds virtual text to the editor)
             4. One for fromatting and stuff like that. (stuff that edits the buffer text)
+- [ ] Use LSP to add inlay hints in order to test virtual text. then make an iterator over screen that mimics the renderer for scrolling functions.
+- [ ] Add codeium/copilot support for auto-completion (uses the VAI virtual text) as a test phase.
+- [ ] Add a whitespace highlighter (nerd font). for spaces and tabs at start/end of line. not as virtual but instead at render time.
+- [ ] Once renderer is proven to work well (i.e. redo this commit) merge `experimental` branch into `main`. commit `43f443e` on `experimental`.
 - [ ] Add snippets from wherever i get them. (like luasnip or vsnip)
 - [ ] Add this thing where select at end of screen scrolls down. (and vice versa)
     - Can be acheived by updating `main.cc` to send drag events to the selected editor instead of just under cursor.
@@ -38,7 +40,6 @@ A TUI IDE.
 - [ ] Add support for undo/redo.
 - [ ] Add `.scm` files for all the supported languages. (2/14) Done.
 - [ ] Add splash screen / minigame jumping.
-- [ ] Add codeium/copilot support.
 - [ ] Normalize / validate unicode on file open.
 - [ ] Add git stuff.
 - [ ] Add SQL support. (viewer and basic editor)
