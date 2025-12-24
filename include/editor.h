@@ -1,23 +1,16 @@
 #ifndef EDITOR_H
 #define EDITOR_H
 
-#include "../libs/tree-sitter/lib/include/tree_sitter/api.h"
 #include "./knot.h"
+#include "./pch.h"
 #include "./ui.h"
 #include "./utils.h"
-#include <algorithm>
-#include <cstdint>
-#include <map>
-#include <shared_mutex>
-#include <unordered_map>
-#include <vector>
 
 #define CHAR 0
 #define WORD 1
 #define LINE 2
 
 #define EXTRA_META 4
-
 #define INDENT_WIDTH 2
 
 struct Highlight {
@@ -125,7 +118,8 @@ struct VAI {
 };
 
 struct Editor {
-  const char *filename;
+  std::string filename;
+  std::string uri;
   Knot *root;
   std::shared_mutex knot_mtx;
   Coord cursor;
@@ -138,6 +132,7 @@ struct Editor {
   Coord scroll;
   TSTree *tree;
   TSParser *parser;
+  std::string query_file;
   TSQuery *query;
   const TSLanguage *language;
   Queue<TSInputEdit> edit_queue;
@@ -150,6 +145,8 @@ struct Editor {
   std::vector<VHint> hints;
   std::vector<VWarn> warnings;
   VAI ai;
+  std::shared_mutex lsp_mtx;
+  struct LSPInstance *lsp;
 };
 
 inline const Fold *fold_for_line(const std::vector<Fold> &folds,
@@ -217,6 +214,8 @@ void cursor_up(Editor *editor, uint32_t number);
 void cursor_down(Editor *editor, uint32_t number);
 Coord move_left(Editor *editor, Coord cursor, uint32_t number);
 Coord move_right(Editor *editor, Coord cursor, uint32_t number);
+Coord move_left_pure(Editor *editor, Coord cursor, uint32_t number);
+Coord move_right_pure(Editor *editor, Coord cursor, uint32_t number);
 void cursor_left(Editor *editor, uint32_t number);
 void cursor_right(Editor *editor, uint32_t number);
 void scroll_up(Editor *editor, int32_t number);
@@ -247,5 +246,6 @@ void apply_line_deletion(Editor *editor, uint32_t removal_start,
 uint32_t leading_indent(const char *line, uint32_t len);
 uint32_t get_indent(Editor *editor, Coord cursor);
 bool closing_after_cursor(const char *line, uint32_t len, uint32_t col);
+// void editor_lsp_handle(Editor *editor, json msg);
 
 #endif

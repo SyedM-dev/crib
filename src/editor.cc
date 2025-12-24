@@ -2,10 +2,10 @@ extern "C" {
 #include "../libs/libgrapheme/grapheme.h"
 }
 #include "../include/editor.h"
+#include "../include/lsp.h"
 #include "../include/main.h"
 #include "../include/ts.h"
 #include "../include/utils.h"
-#include <cmath>
 
 Editor *new_editor(const char *filename, Coord position, Coord size) {
   Editor *editor = new Editor();
@@ -18,23 +18,26 @@ Editor *new_editor(const char *filename, Coord position, Coord size) {
     return nullptr;
   }
   editor->filename = filename;
+  editor->uri = path_to_file_uri(filename);
   editor->position = position;
   editor->size = size;
   editor->cursor_preffered = UINT32_MAX;
   editor->root = load(str, len, optimal_chunk_size(len));
   free(str);
   if (len <= (1024 * 128)) {
-    editor->parser = ts_parser_new();
     Language language = language_for_file(filename);
+    editor->parser = ts_parser_new();
     editor->language = language.fn();
     ts_parser_set_language(editor->parser, editor->language);
-    std::string query = get_exe_dir() + "/../grammar/" + language.name + ".scm";
-    editor->query = load_query(query.c_str(), editor);
+    editor->query_file =
+        get_exe_dir() + "/../grammar/" + language.name + ".scm";
+    request_add_to_lsp(language, editor);
   }
   return editor;
 }
 
 void free_editor(Editor *editor) {
+  remove_from_lsp(editor);
   ts_parser_delete(editor->parser);
   if (editor->tree)
     ts_tree_delete(editor->tree);
@@ -143,7 +146,6 @@ void render_editor(Editor *editor) {
   auto ai_line_span = [&](const VAI &ai,
                           uint32_t n) -> std::pair<const char *, uint32_t> {
     const char *p = ai.text;
-    uint32_t remaining = ai.len;
     uint32_t line_no = 0;
     const char *start = p;
     uint32_t len = 0;

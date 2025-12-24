@@ -1,8 +1,7 @@
 #ifndef MAIN_H
 #define MAIN_H
 
-#include <atomic>
-#include <vector>
+#include "./pch.h"
 
 #define NORMAL 0
 #define INSERT 1

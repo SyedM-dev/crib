@@ -1,16 +1,8 @@
 #ifndef UI_H
 #define UI_H
 
+#include "./pch.h"
 #include "./utils.h"
-#include <atomic>
-#include <cstdint>
-#include <mutex>
-#include <string.h>
-#include <string>
-#include <sys/ioctl.h>
-#include <termios.h>
-#include <unistd.h>
-#include <vector>
 
 #define KEY_CHAR 0
 #define KEY_SPECIAL 1

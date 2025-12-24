@@ -1,9 +1,12 @@
-#include "../libs/tree-sitter/lib/include/tree_sitter/api.h"
-#include <string>
+#ifndef TS_DEF_H
+#define TS_DEF_H
+
+#include "./pch.h"
 
 struct Language {
   std::string name;
   const TSLanguage *(*fn)();
+  uint8_t lsp_id = 0;
 };
 
 extern "C" {
@@ -22,3 +25,5 @@ const TSLanguage *tree_sitter_make();
 const TSLanguage *tree_sitter_python();
 const TSLanguage *tree_sitter_ruby();
 }
+
+#endif

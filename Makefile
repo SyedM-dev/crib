@@ -1,9 +1,13 @@
 SRC_DIR := src
 BIN_DIR := bin
 OBJ_DIR := build
+INCLUDE_DIR := include
 
 TARGET_DEBUG := $(BIN_DIR)/crib-dbg
 TARGET_RELEASE := $(BIN_DIR)/crib
+
+PCH_DEBUG := $(OBJ_DIR)/debug/pch.h.gch
+PCH_RELEASE := $(OBJ_DIR)/release/pch.h.gch
 
 CCACHE := ccache
 CXX_DEBUG := $(CCACHE) g++
@@ -17,6 +21,9 @@ CFLAGS_RELEASE := -std=c++20 -O3 -march=native -flto=thin \
 	-fomit-frame-pointer -DNDEBUG -s \
 	-mllvm -vectorize-loops \
 	-fno-unwind-tables -fno-asynchronous-unwind-tables
+
+PCH_CFLAGS_DEBUG := $(CFLAGS_DEBUG) -x c++-header
+PCH_CFLAGS_RELEASE := $(CFLAGS_RELEASE) -x c++-header
 
 UNICODE_SRC := $(wildcard libs/unicode_width/*.c)
 
@@ -50,21 +57,29 @@ test: $(TARGET_DEBUG)
 
 release: $(TARGET_RELEASE)
 
-$(TARGET_DEBUG): $(OBJ_DEBUG) $(UNICODE_OBJ_DEBUG)
-	mkdir -p $(BIN_DIR)
-	$(CXX_DEBUG) $(CFLAGS_DEBUG) -o $@ $^ $(LIBS)
-
-$(TARGET_RELEASE): $(OBJ_RELEASE) $(UNICODE_OBJ_RELEASE)
-	mkdir -p $(BIN_DIR)
-	$(CXX_RELEASE) $(CFLAGS_RELEASE) -o $@ $^ $(LIBS)
-
-$(OBJ_DIR)/debug/%.o: $(SRC_DIR)/%.cc
+$(PCH_DEBUG): $(INCLUDE_DIR)/pch.h
 	mkdir -p $(dir $@)
-	$(CXX_DEBUG) $(CFLAGS_DEBUG) -MMD -MP -c $< -o $@
+	$(CXX_DEBUG) $(PCH_CFLAGS_DEBUG) -o $@ $<
 
-$(OBJ_DIR)/release/%.o: $(SRC_DIR)/%.cc
+$(PCH_RELEASE): $(INCLUDE_DIR)/pch.h
 	mkdir -p $(dir $@)
-	$(CXX_RELEASE) $(CFLAGS_RELEASE) -MMD -MP -c $< -o $@
+	$(CXX_RELEASE) $(PCH_CFLAGS_RELEASE) -o $@ $<
+
+$(TARGET_DEBUG): $(PCH_DEBUG) $(OBJ_DEBUG) $(UNICODE_OBJ_DEBUG)
+	mkdir -p $(BIN_DIR)
+	$(CXX_DEBUG) $(CFLAGS_DEBUG) -o $@ $(OBJ_DEBUG) $(UNICODE_OBJ_DEBUG) $(LIBS)
+
+$(TARGET_RELEASE): $(PCH_RELEASE) $(OBJ_RELEASE) $(UNICODE_OBJ_RELEASE)
+	mkdir -p $(BIN_DIR)
+	$(CXX_RELEASE) $(CFLAGS_RELEASE) -o $@ $(OBJ_RELEASE) $(UNICODE_OBJ_RELEASE) $(LIBS)
+
+$(OBJ_DIR)/debug/%.o: $(SRC_DIR)/%.cc $(PCH_DEBUG)
+	mkdir -p $(dir $@)
+	$(CXX_DEBUG) $(CFLAGS_DEBUG) -include $(INCLUDE_DIR)/pch.h -MMD -MP -c $< -o $@
+
+$(OBJ_DIR)/release/%.o: $(SRC_DIR)/%.cc $(PCH_RELEASE)
+	mkdir -p $(dir $@)
+	$(CXX_RELEASE) $(CFLAGS_RELEASE) -include $(INCLUDE_DIR)/pch.h -MMD -MP -c $< -o $@
 
 $(OBJ_DIR)/debug/unicode_width/%.o: libs/unicode_width/%.c
 	mkdir -p $(dir $@)

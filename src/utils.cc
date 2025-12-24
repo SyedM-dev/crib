@@ -4,11 +4,13 @@ extern "C" {
 }
 #include "../include/utils.h"
 #include <algorithm>
+#include <cctype>
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <limits.h>
 #include <magic.h>
@@ -16,6 +18,29 @@ extern "C" {
 #include <string>
 #include <unistd.h>
 #include <unordered_map>
+
+static std::string percent_encode(const std::string &s) {
+  static const char *hex = "0123456789ABCDEF";
+  std::string out;
+  for (unsigned char c : s) {
+    if (std::isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~' ||
+        c == '/') {
+      out.push_back(c);
+    } else {
+      out.push_back('%');
+      out.push_back(hex[c >> 4]);
+      out.push_back(hex[c & 0xF]);
+    }
+  }
+  return out;
+}
+
+std::string path_to_file_uri(const std::string &path_str) {
+  namespace fs = std::filesystem;
+  fs::path p = fs::weakly_canonical(fs::absolute(fs::path(path_str)));
+  std::string generic = p.generic_string();
+  return "file://" + percent_encode(generic);
+}
 
 uint64_t fnv1a_64(const char *s, size_t len) {
   uint64_t hash = 1469598103934665603ull;
@@ -234,14 +259,14 @@ char *detect_file_type(const char *filename) {
 static const std::unordered_map<std::string, Language> ext_map = {
     {"sh", {"bash", tree_sitter_bash}},
     {"bash", {"bash", tree_sitter_bash}},
-    {"c", {"c", tree_sitter_c}},
-    {"cpp", {"cpp", tree_sitter_cpp}},
-    {"cxx", {"cpp", tree_sitter_cpp}},
-    {"cc", {"cpp", tree_sitter_cpp}},
-    {"hpp", {"cpp", tree_sitter_cpp}},
-    {"hh", {"cpp", tree_sitter_cpp}},
-    {"hxx", {"cpp", tree_sitter_cpp}},
-    {"h", {"cpp", tree_sitter_cpp}},
+    {"c", {"c", tree_sitter_c, 1}},
+    {"cpp", {"cpp", tree_sitter_cpp, 1}},
+    {"cxx", {"cpp", tree_sitter_cpp, 1}},
+    {"cc", {"cpp", tree_sitter_cpp, 1}},
+    {"hpp", {"cpp", tree_sitter_cpp, 1}},
+    {"hh", {"cpp", tree_sitter_cpp, 1}},
+    {"hxx", {"cpp", tree_sitter_cpp, 1}},
+    {"h", {"cpp", tree_sitter_cpp, 1}},
     {"css", {"css", tree_sitter_css}},
     {"fish", {"fish", tree_sitter_fish}},
     {"go", {"go", tree_sitter_go}},
@@ -258,8 +283,8 @@ static const std::unordered_map<std::string, Language> ext_map = {
 };
 
 static const std::unordered_map<std::string, Language> mime_map = {
-    {"text/x-c", {"c", tree_sitter_c}},
-    {"text/x-c++", {"cpp", tree_sitter_cpp}},
+    {"text/x-c", {"c", tree_sitter_c, 1}},
+    {"text/x-c++", {"cpp", tree_sitter_cpp, 1}},
     {"text/x-shellscript", {"bash", tree_sitter_bash}},
     {"application/json", {"json", tree_sitter_json}},
     {"text/javascript", {"javascript", tree_sitter_javascript}},

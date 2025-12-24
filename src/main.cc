@@ -1,13 +1,12 @@
 #include "../include/main.h"
 #include "../include/editor.h"
+#include "../include/lsp.h"
 #include "../include/ts.h"
 #include "../include/ui.h"
 #include <atomic>
 #include <cstdint>
 #include <sys/ioctl.h>
 #include <thread>
-
-using namespace std::chrono_literals;
 
 std::atomic<bool> running{true};
 Queue<KeyEvent> event_queue;
@@ -18,7 +17,12 @@ uint8_t mode = NORMAL;
 
 void background_worker() {
   while (running)
-    throttle(16ms, editor_worker, editors[current_editor]);
+    throttle(8ms, editor_worker, editors[current_editor]);
+}
+
+void background_lsp() {
+  while (running)
+    throttle(8ms, lsp_worker);
 }
 
 void input_listener() {
@@ -71,6 +75,7 @@ int main(int argc, char *argv[]) {
 
   std::thread input_thread(input_listener);
   std::thread work_thread(background_worker);
+  std::thread lsp_thread(background_lsp);
 
   while (running) {
     KeyEvent event;
@@ -98,9 +103,22 @@ int main(int argc, char *argv[]) {
   if (work_thread.joinable())
     work_thread.join();
 
+  if (lsp_thread.joinable())
+    lsp_thread.join();
+
   end_screen();
 
-  free_editor(editor);
+  for (auto editor : editors)
+    free_editor(editor);
+
+  while (true) {
+    std::unique_lock lk(active_lsps_mtx);
+    if (active_lsps.empty())
+      break;
+    lk.unlock();
+    throttle(16ms, lsp_worker);
+  }
+
   clear_regex_cache();
   return 0;
 }

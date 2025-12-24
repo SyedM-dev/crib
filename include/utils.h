@@ -1,16 +1,8 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include "./pch.h"
 #include "./ts_def.h"
-#include <chrono>
-#include <functional>
-#include <mutex>
-#include <queue>
-#include <string>
-#include <thread>
-
-#define PCRE2_CODE_UNIT_WIDTH 8
-#define PCRE_WORKSPACE_SIZE 512
 
 template <typename T> struct Queue {
   std::queue<T> q;
@@ -20,6 +12,10 @@ template <typename T> struct Queue {
     std::lock_guard<std::mutex> lock(m);
     q.push(val);
   }
+  T front() {
+    std::lock_guard<std::mutex> lock(m);
+    return q.front();
+  }
   bool pop(T &val) {
     std::lock_guard<std::mutex> lock(m);
     if (q.empty())
@@ -27,6 +23,10 @@ template <typename T> struct Queue {
     val = q.front();
     q.pop();
     return true;
+  }
+  void pop() {
+    std::lock_guard<std::mutex> lock(m);
+    q.pop();
   }
   bool empty() {
     std::lock_guard<std::mutex> lock(m);
@@ -52,6 +52,7 @@ struct Coord {
   bool operator>=(const Coord &other) const { return !(*this < other); }
 };
 
+std::string path_to_file_uri(const std::string &path_str);
 int display_width(const char *str, size_t len);
 uint32_t get_visual_col_from_bytes(const char *line, uint32_t len,
                                    uint32_t byte_limit);

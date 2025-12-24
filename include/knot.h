@@ -1,9 +1,8 @@
 #ifndef ROPE_H
 #define ROPE_H
 
+#include "./pch.h"
 #include "./utils.h"
-#include <cstdint>
-#include <vector>
 
 #define MIN_CHUNK_SIZE 64       // 64 Bytes
 #define MAX_CHUNK_SIZE 1024 * 8 // 8192 Bytes (8 KiB)

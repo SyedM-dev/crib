@@ -1,4 +1,3 @@
-// includes
 #include "../include/ui.h"
 
 uint32_t rows, cols;
