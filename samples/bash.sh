@@ -28,12 +28,13 @@ handle_error() {
 trap 'handle_error $LINENO' ERR
 
 # Multiline string test
-read -r -d '' MULTI <<'EOF'
-This is a multi-line
-string used to test
-syntax highlighting for
-here-documents.
-EOF
+read -r -d '' MULTI <<'CPP'
+
+int main() {
+  
+}
+
+CPP
 
 log INFO "Multi-line string loaded"
 

@@ -1,24 +1,10 @@
-(heredoc_body
-;; !bash
-  (heredoc_content) @bash_injection
-  ((heredoc_end) @lang
-    (#match? @lang "BASH"))
-)
-
-(heredoc_body
-;; !ruby
-  (heredoc_content) @ruby_injection
-  ((heredoc_end) @lang
-    (#match? @lang "RUBY"))
-)
-
-;; #ffffff #000000 0 0 0 1
+;; #FFFFFF #000000 0 0 0 1
 [
   (identifier)
   (global_variable)
 ] @variable
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 [
   "alias"
   "begin"
@@ -30,17 +16,17 @@
   "then"
 ] @keyword
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 "class" @keyword.type
 
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 [
   "return"
   "yield"
 ] @keyword.return
 
-;; #fbb152 #000000 0 0 0 1
+;; #F29668 #000000 0 0 0 1
 [
   "and"
   "or"
@@ -48,7 +34,7 @@
   "not"
 ] @keyword.operator
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 [
   "def"
   "undef"
@@ -58,7 +44,7 @@
   "end" @keyword.function)
 
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 [
   "case"
   "else"
@@ -72,7 +58,7 @@
 (if
   "end" @keyword.conditional)
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 [
   "for"
   "until"
@@ -83,27 +69,28 @@
   "next"
 ] @keyword.repeat
 
-;; #ebda8c #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 1
 (constant) @constant
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 [
   "rescue"
   "ensure"
 ] @keyword.exception
 
-;; #aad84c #000000 0 0 0 3
+;; #FFB454 #000000 0 0 0 3
 "defined?" @function
 
-;; #aad84c #000000 0 0 0 3
+;; #FFB454 #000000 0 0 0 3
 (call
   receiver: (constant)? @type
   method: [
     (identifier)
     (constant)
-;; #ff5689 #000000 0 0 0 2
+;; #FFB454 #000000 0 0 0 2
   ] @function.call)
 
+;; #FFB454 #000000 0 0 0 2
 (alias
   (identifier) @function)
 
@@ -122,6 +109,7 @@
     (constant) @type
   ])
 
+;; #59C2FF #000000 0 0 0 2
 (class
   name: (constant) @type)
 
@@ -131,26 +119,27 @@
 (superclass
   (constant) @type)
 
-;; #ffffff #000000 0 0 0 1
+;; #F07178 #000000 0 0 0 1
 [
   (class_variable)
   (instance_variable)
 ] @variable.member
 
+;; #FF8F40 #000000 0 0 0 2
 ((identifier) @keyword.modifier
   (#match? @keyword.modifier "^(private|protected|public)$" ))
 
-;; #fbb152 #000000 0 0 0 3
+;; #FF8F40 #000000 0 0 0 3
 (program
   (call
     (identifier) @keyword.import)
   (#match? @keyword.import "^(require|require_relative|load)$"))
 
-;; #fbb152 #000000 0 0 0 4
+;; #D2A6FF #000000 0 0 0 4
 ((identifier) @constant.builtin
   (#match? @constant.builtin "^(__callee__|__dir__|__id__|__method__|__send__|__ENCODING__|__FILE__|__LINE__)$" ))
 
-;; #aad84c #000000 0 0 0 3
+;; #FFB454 #000000 0 0 0 3
 ((identifier) @function.builtin
   (#match? @function.builtin "^(attr_reader|attr_writer|attr_accessor|module_function)$" ))
 
@@ -159,16 +148,17 @@
   method: (identifier) @function.builtin)
   (#match? @function.builtin "^(include|extend|prepend|refine|using)$"))
 
+;; #FF8F40 #000000 0 0 0 3
 ((identifier) @keyword.exception
   (#match? @keyword.exception "^(raise|fail|catch|throw)$" ))
 
-;; #ffffff #000000 0 0 0 1
+;; #F07178 #000000 0 0 0 1
 [
   (self)
   (super)
 ] @variable.builtin
 
-;; #ffffff #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 1
 (method_parameters
   (identifier) @variable.parameter)
 
@@ -196,7 +186,7 @@
 (keyword_parameter
   (identifier) @variable.parameter)
 
-;; #aad84c #000000 0 0 0 1
+;; #AAD94C #000000 0 0 0 1
 [
   (string_content)
   (heredoc_content)
@@ -204,13 +194,13 @@
   "`"
 ] @string
 
-;; #fbb152 #000000 0 0 0 1
+;; #E6C08A #000000 0 0 0 1
 [
   (heredoc_beginning)
   (heredoc_end)
 ] @label
 
-;; #bd9ae6 #000000 0 0 0 2
+;; #39BAE6 #000000 0 0 0 2
 [
   (bare_symbol)
   (simple_symbol)
@@ -218,38 +208,38 @@
   (hash_key_symbol)
 ] @string.special.symbol
 
-;; #e6a24c #000000 0 0 0 2
+;; #95E6CB #000000 0 0 0 2
 (regex
   (string_content) @string.regexp)
 
-;; #e6a24c #000000 0 0 0 2
+;; #95E6CB #000000 0 0 0 2
 (escape_sequence) @string.escape
 
-;; #ebda8c #000000 0 0 0 2
+;; #D2A6FF #000000 0 0 0 2
 (integer) @number
 
-;; #ebda8c #000000 0 0 0 2
+;; #D2A6FF #000000 0 0 0 2
 (float) @number.float
 
-;; #51eeba #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 1
 (true) @boolean.true
 
-;; #ee513a #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 1
 (false) @boolean.false
 
-;; #ee8757 #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 1
 (nil) @constant.nil
 
-;; #AAAAAA #000000 0 1 0 1
+;; #99ADBF #000000 0 1 0 1
 (comment) @comment
 
-;; #51eeba #000000 0 0 0 3
+;; #AAD94C #000000 0 0 0 3
 ((program
   .
   (comment) @shebang @nospell)
   (#match? @shebang "^#!/"))
 
-;; #ffffff #000000 0 0 0 1
+;; #F29668 #000000 0 0 0 1
 [
   "!"
   "="
@@ -277,7 +267,7 @@
   ":"
 ] @operator
 
-;; #ffffff #000000 0 1 0 1
+;; #F29668 #000000 0 1 0 1
 [
   "=="
   "==="
@@ -295,7 +285,7 @@
   "..."
 ] @operator.ligature
 
-;; #bd9ae6 #000000 0 0 0 1
+;; #BFBDB6 #000000 0 0 0 1
 [
   ","
   ";"
@@ -307,7 +297,7 @@
 (pair
   ":" @punctuation.delimiter)
 
-;; #bd9ae6 #000000 0 0 0 1
+;; #BFBDB6 #000000 0 0 0 1
 [
   "("
   ")"
@@ -325,7 +315,226 @@
 (block_parameters
   "|" @punctuation.bracket)
 
-;; #e6a24c #000000 0 0 0 2
+;; #7dcfff #000000 0 0 0 2
 (interpolation
   "#{" @punctuation.special
   "}" @punctuation.special)
+
+; Injections
+
+(heredoc_body
+;; !bash
+  (heredoc_content) @bash_injection
+  ((heredoc_end) @lang
+    (#match? @lang "BASH"))
+)
+
+(heredoc_body
+;; !c
+  (heredoc_content) @c_injection
+  ((heredoc_end) @lang
+    (#match? @lang "C$"))
+)
+
+(heredoc_body
+;; !cpp
+  (heredoc_content) @cpp_injection
+  ((heredoc_end) @lang
+    (#match? @lang "CPP"))
+)
+
+(heredoc_body
+;; !css
+  (heredoc_content) @css_injection
+  ((heredoc_end) @lang
+    (#match? @lang "CSS"))
+)
+
+(heredoc_body
+;; !fish
+  (heredoc_content) @fish_injection
+  ((heredoc_end) @lang
+    (#match? @lang "FISH"))
+)
+
+(heredoc_body
+;; !go
+  (heredoc_content) @go_injection
+  ((heredoc_end) @lang
+    (#match? @lang "GO"))
+)
+
+(heredoc_body
+;; !haskell
+  (heredoc_content) @haskell_injection
+  ((heredoc_end) @lang
+    (#match? @lang "HASKELL"))
+)
+
+(heredoc_body
+;; !html
+  (heredoc_content) @html_injection
+  ((heredoc_end) @lang
+    (#match? @lang "HTML"))
+)
+
+(heredoc_body
+;; !javascript
+  (heredoc_content) @javascript_injection
+  ((heredoc_end) @lang
+    (#match? @lang "JAVASCRIPT"))
+)
+
+(heredoc_body
+;; !json
+  (heredoc_content) @json_injection
+  ((heredoc_end) @lang
+    (#match? @lang "JSON"))
+)
+
+(heredoc_body
+;; !lua
+  (heredoc_content) @lua_injection
+  ((heredoc_end) @lang
+    (#match? @lang "LUA"))
+)
+
+(heredoc_body
+;; !make
+  (heredoc_content) @make_injection
+  ((heredoc_end) @lang
+    (#match? @lang "MAKE"))
+)
+
+(heredoc_body
+;; !python
+  (heredoc_content) @python_injection
+  ((heredoc_end) @lang
+    (#match? @lang "PYTHON"))
+)
+
+(heredoc_body
+;; !ruby
+  (heredoc_content) @ruby_injection
+  ((heredoc_end) @lang
+    (#match? @lang "RUBY"))
+)
+
+(heredoc_body
+;; !rust
+  (heredoc_content) @rust_injection
+  ((heredoc_end) @lang
+    (#match? @lang "RUST"))
+)
+
+(heredoc_body
+;; !diff
+  (heredoc_content) @diff_injection
+  ((heredoc_end) @lang
+    (#match? @lang "DIFF"))
+)
+
+(heredoc_body
+;; !embedded_template
+  (heredoc_content) @embedded_template_injection
+  ((heredoc_end) @lang
+    (#match? @lang "ERB"))
+)
+
+(heredoc_body
+;; !gdscript
+  (heredoc_content) @gdscript_injection
+  ((heredoc_end) @lang
+    (#match? @lang "GDSCRIPT"))
+)
+
+(heredoc_body
+;; !gitattributes
+  (heredoc_content) @gitattributes_injection
+  ((heredoc_end) @lang
+    (#match? @lang "GITATTRIBUTES"))
+)
+
+(heredoc_body
+;; !gitignore
+  (heredoc_content) @gitignore_injection
+  ((heredoc_end) @lang
+    (#match? @lang "GITIGNORE"))
+)
+
+(heredoc_body
+;; !gomod
+  (heredoc_content) @gomod_injection
+  ((heredoc_end) @lang
+    (#match? @lang "GOMOD"))
+)
+
+(heredoc_body
+;; !ini
+  (heredoc_content) @ini_injection
+  ((heredoc_end) @lang
+    (#match? @lang "INI"))
+)
+
+(heredoc_body
+;; !markdown
+  (heredoc_content) @markdown_injection
+  ((heredoc_end) @lang
+    (#match? @lang "MARKDOWN"))
+)
+
+(heredoc_body
+;; !nginx
+  (heredoc_content) @nginx_injection
+  ((heredoc_end) @lang
+    (#match? @lang "NGINX"))
+)
+
+(heredoc_body
+;; !php
+  (heredoc_content) @php_injection
+  ((heredoc_end) @lang
+    (#match? @lang "PHP"))
+)
+
+(heredoc_body
+;; !query
+  (heredoc_content) @query_injection
+  ((heredoc_end) @lang
+    (#match? @lang "QUERY"))
+)
+
+(heredoc_body
+;; !regex
+  (heredoc_content) @regex_injection
+  ((heredoc_end) @lang
+    (#match? @lang "REGEX"))
+)
+
+(heredoc_body
+;; !sql
+  (heredoc_content) @sql_injection
+  ((heredoc_end) @lang
+    (#match? @lang "SQL"))
+)
+
+(heredoc_body
+;; !toml
+  (heredoc_content) @toml_injection
+  ((heredoc_end) @lang
+    (#match? @lang "TOML"))
+)
+
+(heredoc_body
+;; !yaml
+  (heredoc_content) @yaml_injection
+  ((heredoc_end) @lang
+    (#match? @lang "YAML"))
+)
+
+(heredoc_body
+;; !cabal
+  (heredoc_content) @cabal_injection
+  ((heredoc_end) @lang
+    (#match? @lang "CABAL"))
+)

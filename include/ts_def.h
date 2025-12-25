@@ -13,7 +13,6 @@ struct Language {
 };
 
 TS_DEF(bash);
-TS_DEF(c);
 TS_DEF(cpp);
 TS_DEF(css);
 TS_DEF(fish);

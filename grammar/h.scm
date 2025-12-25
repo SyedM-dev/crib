@@ -5,7 +5,7 @@
 (preproc_def
   (preproc_arg) @variable)
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 [
   "default"
   "goto"
@@ -29,10 +29,10 @@
   .
   _ @keyword.operator)
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 "return" @keyword.return
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 [
   "while"
   "for"
@@ -41,7 +41,7 @@
   "break"
 ] @keyword.repeat
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 [
   "if"
   "else"
@@ -49,7 +49,7 @@
   "switch"
 ] @keyword.conditional
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 [
   "#if"
   "#ifdef"
@@ -62,13 +62,13 @@
   (preproc_directive)
 ] @keyword.directive
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 "#define" @keyword.directive.define
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 "#include" @keyword.import
 
-;; #bd9ae6 #000000 0 0 0 1
+;; #BFBDB6 #000000 0 0 0 1
 [
   ";"
   ":"
@@ -77,10 +77,10 @@
   "::"
 ] @punctuation.delimiter
 
-;; #e6a24c #000000 0 0 0 2
+;; #BFBDB6 #000000 0 0 0 2
 "..." @punctuation.special
 
-;; #bd9ae6 #000000 0 0 0 1
+;; #BFBDB6 #000000 0 0 0 1
 [
   "("
   ")"
@@ -90,7 +90,7 @@
   "}"
 ] @punctuation.bracket
 
-;; #ffffff #000000 0 0 0 1
+;; #F29668 #000000 0 1 0 1
 [
   "="
   "-"
@@ -128,17 +128,17 @@
   "++"
 ] @operator
 
-;; #ffffff #000000 0 0 0 1
+;; #F29668 #000000 0 0 0 1
 (comma_expression
   "," @operator)
 
-;; #51eeba #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 1
 [
   (true)
   (false)
 ] @boolean
 
-;; #fbb152 #000000 0 0 0 1
+;; #F29668 #000000 0 0 0 1
 (conditional_expression
   [
     "?"
@@ -150,22 +150,22 @@
 
 (system_lib_string) @string
 
-;; #e6a24c #000000 0 0 0 2
+;; #95E6CB #000000 0 0 0 2
 (escape_sequence) @string.escape
 
-;; #ebda8c #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 1
 (null) @constant.builtin
 
-;; #ebda8c #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 1
 (number_literal) @number
 
-;; #ebda8c #000000 0 0 0 1
+;; #39BAE6 #000000 0 0 0 1
 (char_literal) @character
 
-;; #aad84c #000000 0 0 0 1
+;; #FFB454 #000000 0 0 0 1
 (preproc_defined) @function.macro
 
-;; #ffffff #000000 0 0 0 1
+;; #F07178 #000000 0 0 0 1
 ((field_expression
   (field_identifier) @property) @_parent)
 
@@ -173,7 +173,7 @@
 
 ((field_identifier) @property)
 
-;; #fbb152 #000000 0 0 0 1
+;; #39BAE6 #000000 0 0 0 1
 (statement_identifier) @label
 
 (declaration
@@ -181,13 +181,13 @@
   declarator: (identifier) @label
   (#match? @_type "^__label__$"))
 
-;; #aad84c #000000 0 0 0 1
+;; #59C2FF #000000 0 0 0 1
 [
   (type_identifier)
   (type_descriptor)
 ] @type
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 (storage_class_specifier) @keyword.modifier
 
 [
@@ -196,22 +196,22 @@
   "__extension__"
 ] @keyword.modifier
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 (linkage_specification
   "extern" @keyword.modifier)
 
-;; #aad84c #000000 0 0 0 1
+;; #59C2FF #000000 0 0 0 1
 (type_definition
   declarator: (type_identifier) @type.definition)
 
-;; #aad84c #000000 0 0 0 1
+;; #59C2FF #000000 0 0 0 1
 (primitive_type) @type.builtin
 
 (sized_type_specifier
   _ @type.builtin
   type: _?)
 
-;; #ebda8c #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 1
 ((identifier) @constant
   (#match? @constant "^[A-Z][A-Z0-9_]+$"))
 
@@ -225,7 +225,7 @@
 (case_statement
   value: (identifier) @constant)
 
-;; #ebda8c #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 1
 ((identifier) @constant.builtin
   (#match? @constant.builtin "^(stderr|stdin|stdout|__FILE__|__LINE__|__DATE__|__TIME__|__STDC__|__STDC_VERSION__|__STDC_HOSTED__|__cplusplus|__OBJC__|__ASSEMBLER__|__BASE_FILE__|__FILE_NAME__|__INCLUDE_LEVEL__|__TIMESTAMP__|__clang__|__clang_major__|__clang_minor__|__clang_patchlevel__|__clang_version__|__clang_literal_encoding__|__clang_wide_literal_encoding__|__FUNCTION__|__func__|__PRETTY_FUNCTION__|__VA_ARGS__|__VA_OPT__)$"))
 
@@ -233,7 +233,7 @@
   (preproc_arg) @constant.builtin
   (#match? @constant.builtin "^(stderr|stdin|stdout|__FILE__|__LINE__|__DATE__|__TIME__|__STDC__|__STDC_VERSION__|__STDC_HOSTED__|__cplusplus|__OBJC__|__ASSEMBLER__|__BASE_FILE__|__FILE_NAME__|__INCLUDE_LEVEL__|__TIMESTAMP__|__clang__|__clang_major__|__clang_minor__|__clang_patchlevel__|__clang_version__|__clang_literal_encoding__|__clang_wide_literal_encoding__|__FUNCTION__|__func__|__PRETTY_FUNCTION__|__VA_ARGS__|__VA_OPT__)$"))
 
-;; #ffffff #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 1
 (attribute_specifier
   (argument_list
     (identifier) @variable.builtin))
@@ -243,7 +243,7 @@
     (call_expression
       function: (identifier) @variable.builtin)))
 
-;; #aad84c #000000 0 0 0 1
+;; #FFB454 #000000 0 0 0 1
 ((call_expression
   function: (identifier) @function.builtin)
   (#match? @function.builtin "^__builtin_"))
@@ -251,7 +251,7 @@
 ((call_expression
   function: (identifier) @function.builtin))
 
-;; #ebda8c #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 1
 (preproc_def
   name: (_) @constant.macro)
 
@@ -269,7 +269,7 @@
 (preproc_defined
   (identifier) @constant.macro)
 
-;; #aad84c #000000 0 0 0 3
+;; #FFB454 #000000 0 0 0 3
 (call_expression
   function: (identifier) @function.call)
 
@@ -277,7 +277,7 @@
   function: (field_expression
     field: (field_identifier) @function.call))
 
-;; #aad84c #000000 0 0 0 3
+;; #FFB454 #000000 0 0 0 3
 (function_declarator
   declarator: (identifier) @function)
 
@@ -286,18 +286,18 @@
     (pointer_declarator
       declarator: (field_identifier) @function)))
 
-;; #aad84c #000000 0 0 0 3
+;; #FFB454 #000000 0 0 0 3
 (preproc_function_def
   name: (identifier) @function.macro)
 
-;; #AAAAAA #000000 0 1 0 1
+;; #99ADBF #000000 0 1 0 1
 (comment) @comment @spell
 
-;; #AAAAAA #000000 0 1 0 1
+;; #99ADBF #000000 0 1 0 1
 ((comment) @comment.documentation
   (#match? @comment.documentation "^/[*][*][^*].*[*]/$"))
 
-;; #ffffff #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 1
 (parameter_declaration
   declarator: (identifier) @variable.parameter)
 
@@ -310,7 +310,7 @@
 (preproc_params
   (identifier) @variable.parameter)
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 [
   "__attribute__"
   "__declspec"
@@ -325,7 +325,7 @@
   (attribute_declaration)
 ] @attribute
 
-;; #ffffff #000000 0 0 0 1
+;; #F07178 #000000 0 0 0 1
 ((identifier) @variable.member
   (#match? @variable.member "^m_.*$"))
 
@@ -339,7 +339,7 @@
 (optional_parameter_declaration
   declarator: (_) @variable.parameter)
 
-;; #ffffff #000000 0 0 0 1
+;; #F07178 #000000 0 0 0 1
 ((field_expression
   (field_identifier) @function.method) @_parent)
 
@@ -352,29 +352,29 @@
 (function_declarator
   declarator: (field_identifier) @function.method)
 
-;; #aad84c #000000 0 0 0 3
+;; #59C2FF #000000 0 0 0 3
 (concept_definition
   name: (identifier) @type.definition)
 
 (alias_declaration
   name: (type_identifier) @type.definition)
 
-;; #aad84c #000000 0 0 0 1
+;; #59C2FF #000000 0 0 0 1
 (auto) @type.builtin
 
-;; #aad84c #000000 0 0 0 1
+;; #59C2FF #000000 0 0 0 1
 (namespace_identifier) @module
 
-;; #aad84c #000000 0 0 0 1
+;; #59C2FF #000000 0 0 0 1
 ((namespace_identifier) @type
   (#match? @type "^[A-Z]"))
 
-;; #ebda8c #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 1
 (case_statement
   value: (qualified_identifier
     (identifier) @constant))
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 (using_declaration
   .
   "using"
@@ -386,11 +386,11 @@
     (identifier)
   ] @module)
 
-;; #aad84c #000000 0 0 0 3
+;; #FFB454 #000000 0 0 0 3
 (destructor_name
   (identifier) @function.method)
 
-;; #aad84c #000000 0 0 0 3
+;; #FFB454 #000000 0 0 0 3
 (function_declarator
   (qualified_identifier
     (identifier) @function))
@@ -420,10 +420,10 @@
 
 "operator" @function
 
-;; #aad84c #000000 0 0 0 3
+;; #FFB454 #000000 0 0 0 3
 "static_assert" @function.builtin
 
-;; #aad84c #000000 0 0 0 3
+;; #FFB454 #000000 0 0 0 3
 (call_expression
   (qualified_identifier
     (identifier) @function.call))
@@ -478,7 +478,7 @@
   (template_method
     (field_identifier) @function.method))
 
-;; #aad84c #000000 0 0 0 3
+;; #FFB454 #000000 0 0 0 3
 (call_expression
   (field_expression
     (field_identifier) @function.method.call))
@@ -488,7 +488,7 @@
     (template_method
       (field_identifier) @function.method.call)))
 
-;; #aad84c #000000 0 0 0 3
+;; #FFB454 #000000 0 0 0 3
 ((function_declarator
   (qualified_identifier
     (identifier) @constructor))
@@ -513,23 +513,23 @@
   (argument_list))
   (#match? @constructor "^[A-Z]"))
 
-;; #ffffff #000000 0 0 0 1
+;; #F07178 #000000 0 0 0 1
 (this) @variable.builtin
 
-;; #ebda8c #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 1
 (null
   "nullptr" @constant.builtin)
 
-;; #51eeba #000000 0 0 0 2
+;; #D2A6FF #000000 0 0 0 2
 (true) @boolean_true
 
-;; #ee513a #000000 0 0 0 2
+;; #D2A6FF #000000 0 0 0 2
 (false) @boolean_false
 
 ;; #aad84c #000000 0 0 0 1
 (raw_string_literal) @string
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 [
   "try"
   "catch"
@@ -537,7 +537,7 @@
   "throw"
 ] @keyword.exception
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 [
   "decltype"
   "explicit"
@@ -548,7 +548,7 @@
   "constexpr"
 ] @keyword
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 [
   "class"
   "namespace"
@@ -557,14 +557,14 @@
   "concept"
 ] @keyword.type
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 [
   "co_await"
   "co_yield"
   "co_return"
 ] @keyword.coroutine
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 [
   "public"
   "private"
@@ -573,7 +573,7 @@
   "virtual"
 ] @keyword.modifier
 
-;; #fbb152 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 [
   "new"
   "delete"
@@ -590,13 +590,13 @@
   "or"
 ] @keyword.operator
 
-;; #ffffff #000000 0 0 0 1
+;; #F29668 #000000 0 0 0 1
 "<=>" @operator
 
-;; #bd9ae6 #000000 0 0 0 1
+;; #BFBDB6 #000000 0 0 0 1
 "::" @punctuation.delimiter
 
-;; #bd9ae6 #000000 0 0 0 1
+;; #BFBDB6 #000000 0 0 0 1
 (template_argument_list
   [
     "<"
@@ -609,5 +609,5 @@
     ">"
   ] @punctuation.bracket)
 
-;; #ffffff #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 1
 (literal_suffix) @operator

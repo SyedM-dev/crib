@@ -23,7 +23,7 @@ static const std::unordered_map<uint8_t, LSP> kLsps = {
 
 static const std::unordered_map<std::string, Language> kLanguages = {
     {"bash", {"bash", LANG(bash)}},
-    {"c", {"c", LANG(c), 1}},
+    {"c", {"c", LANG(cpp), 1}},
     {"cpp", {"cpp", LANG(cpp), 1}},
     {"h", {"h", LANG(cpp), 1}},
     {"css", {"css", LANG(css)}},
