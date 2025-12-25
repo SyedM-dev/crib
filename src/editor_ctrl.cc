@@ -2,6 +2,7 @@ extern "C" {
 #include "../libs/libgrapheme/grapheme.h"
 }
 #include "../include/editor.h"
+#include "../include/lsp.h"
 #include "../include/main.h"
 #include "../include/utils.h"
 
@@ -342,6 +343,26 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     TSPoint old_point = {pos.row, pos.col};
     uint32_t byte_pos = line_to_byte(editor->root, pos.row, nullptr) + pos.col;
     Coord point = move_left_pure(editor, pos, -len);
+    json lsp_range;
+    bool do_lsp = (editor->lsp != nullptr);
+    if (do_lsp) {
+      LineIterator *it = begin_l_iter(editor->root, point.row);
+      char *line = next_line(it, nullptr);
+      int utf16_start = 0;
+      if (line)
+        utf16_start = utf8_byte_offset_to_utf16(line, point.col);
+      free(it->buffer);
+      free(it);
+      it = begin_l_iter(editor->root, pos.row);
+      line = next_line(it, nullptr);
+      int utf16_end = 0;
+      if (line)
+        utf16_end = utf8_byte_offset_to_utf16(line, pos.col);
+      free(it->buffer);
+      free(it);
+      lsp_range = {{"start", {{"line", point.row}, {"character", utf16_start}}},
+                   {"end", {{"line", pos.row}, {"character", utf16_end}}}};
+    }
     uint32_t start = line_to_byte(editor->root, point.row, nullptr) + point.col;
     if (cursor_original > start && cursor_original <= byte_pos) {
       editor->cursor = point;
@@ -372,6 +393,17 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
       };
       editor->edit_queue.push(edit);
     }
+    if (do_lsp) {
+      json message = {
+          {"jsonrpc", "2.0"},
+          {"method", "textDocument/didChange"},
+          {"params",
+           {{"textDocument",
+             {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
+            {"contentChanges",
+             json::array({{{"range", lsp_range}, {"text", ""}}})}}}};
+      lsp_send(editor->lsp, message, nullptr);
+    }
     std::unique_lock lock_3(editor->spans.mtx);
     apply_edit(editor->spans.spans, start, start - byte_pos);
     if (editor->spans.mid_parse)
@@ -386,6 +418,26 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     TSPoint old_point = {pos.row, pos.col};
     uint32_t byte_pos = line_to_byte(editor->root, pos.row, nullptr) + pos.col;
     Coord point = move_right_pure(editor, pos, len);
+    json lsp_range;
+    bool do_lsp = (editor->lsp != nullptr);
+    if (do_lsp) {
+      LineIterator *it = begin_l_iter(editor->root, pos.row);
+      char *line = next_line(it, nullptr);
+      int utf16_start = 0;
+      if (line)
+        utf16_start = utf8_byte_offset_to_utf16(line, pos.col);
+      free(it->buffer);
+      free(it);
+      it = begin_l_iter(editor->root, point.row);
+      line = next_line(it, nullptr);
+      int utf16_end = 0;
+      if (line)
+        utf16_end = utf8_byte_offset_to_utf16(line, point.col);
+      free(it->buffer);
+      free(it);
+      lsp_range = {{"start", {{"line", pos.row}, {"character", utf16_start}}},
+                   {"end", {{"line", point.row}, {"character", utf16_end}}}};
+    }
     uint32_t end = line_to_byte(editor->root, point.row, nullptr) + point.col;
     if (cursor_original > byte_pos && cursor_original <= end) {
       editor->cursor = pos;
@@ -415,6 +467,17 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
           .new_end_point = old_point,
       };
       editor->edit_queue.push(edit);
+    }
+    if (do_lsp) {
+      json message = {
+          {"jsonrpc", "2.0"},
+          {"method", "textDocument/didChange"},
+          {"params",
+           {{"textDocument",
+             {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
+            {"contentChanges",
+             json::array({{{"range", lsp_range}, {"text", ""}}})}}}};
+      lsp_send(editor->lsp, message, nullptr);
     }
     std::unique_lock lock_3(editor->spans.mtx);
     apply_edit(editor->spans.spans, byte_pos, byte_pos - end);
@@ -465,6 +528,30 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
                           (rows == 0) ? (start_point.column + cols) : cols},
     };
     editor->edit_queue.push(edit);
+  }
+  if (editor->lsp) {
+    lock_1.lock();
+    LineIterator *it = begin_l_iter(editor->root, pos.row);
+    char *line = next_line(it, nullptr);
+    int utf16_col = 0;
+    if (line)
+      utf16_col = utf8_byte_offset_to_utf16(line, pos.col);
+    free(it->buffer);
+    free(it);
+    lock_1.unlock();
+    json message = {
+        {"jsonrpc", "2.0"},
+        {"method", "textDocument/didChange"},
+        {"params",
+         {{"textDocument",
+           {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
+          {"contentChanges",
+           json::array(
+               {{{"range",
+                  {{"start", {{"line", pos.row}, {"character", utf16_col}}},
+                   {"end", {{"line", pos.row}, {"character", utf16_col}}}}},
+                 {"text", std::string(data, len)}}})}}}};
+    lsp_send(editor->lsp, message, nullptr);
   }
   std::unique_lock lock_3(editor->spans.mtx);
   apply_edit(editor->spans.spans, byte_pos, len);

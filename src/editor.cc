@@ -71,6 +71,10 @@ void render_editor(Editor *editor) {
   auto hook_it = v.begin();
   while (hook_it != v.end() && hook_it->first <= editor->scroll.row)
     ++hook_it;
+  auto warn_it = editor->warnings.begin();
+  while (warn_it != editor->warnings.end() &&
+         warn_it->line < editor->scroll.row)
+    ++warn_it;
   std::shared_lock knot_lock(editor->knot_mtx);
   if (editor->selection_active) {
     Coord start, end;
@@ -131,6 +135,7 @@ void render_editor(Editor *editor) {
   uint32_t global_byte_offset = line_to_byte(editor->root, line_index, nullptr);
   span_cursor.sync(global_byte_offset);
   def_span_cursor.sync(global_byte_offset);
+  std::shared_lock v_lock(editor->v_mtx);
   while (rendered_rows < editor->size.row) {
     const Fold *fold = fold_for_line(editor->folds, line_index);
     if (fold) {
@@ -156,6 +161,8 @@ void render_editor(Editor *editor) {
       while (line_index <= skip_until) {
         if (hook_it != v.end() && hook_it->first == line_index + 1)
           hook_it++;
+        while (warn_it != editor->warnings.end() && warn_it->line == line_index)
+          ++warn_it;
         uint32_t line_len;
         char *line = next_line(it, &line_len);
         if (!line)
@@ -174,6 +181,11 @@ void render_editor(Editor *editor) {
       break;
     if (line_len > 0 && line[line_len - 1] == '\n')
       line_len--;
+    std::vector<VWarn> line_warnings;
+    while (warn_it != editor->warnings.end() && warn_it->line == line_index) {
+      line_warnings.push_back(*warn_it);
+      ++warn_it;
+    }
     uint32_t current_byte_offset = 0;
     if (rendered_rows == 0)
       current_byte_offset += editor->scroll.col;
@@ -256,6 +268,78 @@ void render_editor(Editor *editor) {
         update(editor->position.row + rendered_rows, render_x + col, " ", 0,
                0x555555 | color, 0);
         col++;
+      }
+      if (!line_warnings.empty() && line_left == 0) {
+        VWarn warn = line_warnings.front();
+        update(editor->position.row + rendered_rows, render_x + col, " ", 0,
+               color, 0);
+        col++;
+        for (size_t i = 0; i < line_warnings.size(); i++) {
+          if (line_warnings[i].type < warn.type)
+            warn = line_warnings[i];
+          std::string err_sym = " ";
+          uint32_t fg_color = 0;
+          switch (line_warnings[i].type) {
+          case 1:
+            err_sym = "";
+            fg_color = 0xFF0000;
+            goto final;
+          case 2:
+            err_sym = "";
+            fg_color = 0xFFFF00;
+            goto final;
+          case 3:
+            err_sym = "";
+            fg_color = 0xFF00FF;
+            goto final;
+          case 4:
+            err_sym = "";
+            fg_color = 0xAAAAAA;
+            goto final;
+          final:
+            if (col < render_width) {
+              update(editor->position.row + rendered_rows, render_x + col,
+                     err_sym, fg_color, color, 0);
+              col++;
+              update(editor->position.row + rendered_rows, render_x + col, " ",
+                     fg_color, color, 0);
+              col++;
+            }
+          }
+        }
+        if (col < render_width) {
+          update(editor->position.row + rendered_rows, render_x + col, " ", 0,
+                 0 | color, 0);
+          col++;
+        }
+        size_t warn_idx = 0;
+        uint32_t fg_color = 0;
+        switch (warn.type) {
+        case 1:
+          fg_color = 0xFF0000;
+          break;
+        case 2:
+          fg_color = 0xFFFF00;
+          break;
+        case 3:
+          fg_color = 0xFF00FF;
+          break;
+        case 4:
+          fg_color = 0xAAAAAA;
+          break;
+        }
+        while (col < render_width && warn_idx < warn.text.length()) {
+          uint32_t cluster_len = grapheme_next_character_break_utf8(
+              warn.text.c_str() + warn_idx, warn.text.length() - warn_idx);
+          std::string cluster = warn.text.substr(warn_idx, cluster_len);
+          int width = display_width(cluster.c_str(), cluster_len);
+          if (col + width > render_width)
+            break;
+          update(editor->position.row + rendered_rows, render_x + col,
+                 cluster.c_str(), fg_color, color, 0);
+          col += width;
+          warn_idx += cluster_len;
+        }
       }
       while (col < render_width) {
         update(editor->position.row + rendered_rows, render_x + col, " ", 0,

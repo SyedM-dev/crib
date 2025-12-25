@@ -351,24 +351,49 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
             edit_erase(editor, editor->cursor, -(int64_t)prev_col_cluster);
         } else if (isprint((unsigned char)(event.c[0]))) {
           char c = event.c[0];
-          char closing = 0;
-          if (c == '{')
-            closing = '}';
-          else if (c == '(')
-            closing = ')';
-          else if (c == '[')
-            closing = ']';
-          else if (c == '"')
-            closing = '"';
-          else if (c == '\'')
-            closing = '\'';
-          if (closing) {
-            char pair[2] = {c, closing};
-            edit_insert(editor, editor->cursor, pair, 2);
-            cursor_right(editor, 1);
-          } else {
-            edit_insert(editor, editor->cursor, event.c, 1);
-            cursor_right(editor, 1);
+          uint32_t col = editor->cursor.col;
+          LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
+          uint32_t len;
+          char *line = next_line(it, &len);
+          bool skip_insert = false;
+          if (line && col < len) {
+            char next = line[col];
+            if ((c == '}' && next == '}') || (c == ')' && next == ')') ||
+                (c == ']' && next == ']') || (c == '"' && next == '"') ||
+                (c == '\'' && next == '\'')) {
+              cursor_right(editor, 1);
+              skip_insert = true;
+            }
+          }
+          free(it->buffer);
+          free(it);
+          if (!skip_insert) {
+            char closing = 0;
+            switch (c) {
+            case '{':
+              closing = '}';
+              break;
+            case '(':
+              closing = ')';
+              break;
+            case '[':
+              closing = ']';
+              break;
+            case '"':
+              closing = '"';
+              break;
+            case '\'':
+              closing = '\'';
+              break;
+            }
+            if (closing) {
+              char pair[2] = {c, closing};
+              edit_insert(editor, editor->cursor, pair, 2);
+              cursor_right(editor, 1);
+            } else {
+              edit_insert(editor, editor->cursor, &c, 1);
+              cursor_right(editor, 1);
+            }
           }
         } else if (event.c[0] == 0x7F || event.c[0] == 0x08) {
           Coord prev_pos = editor->cursor;
@@ -569,5 +594,25 @@ void editor_worker(Editor *editor) {
     std::unique_lock lock(editor->def_spans.mtx);
     editor->def_spans.spans.clear();
     lock.unlock();
+  }
+}
+
+void editor_lsp_handle(Editor *editor, json msg) {
+  if (msg.contains("method") &&
+      msg["method"] == "textDocument/publishDiagnostics") {
+    std::unique_lock lock(editor->v_mtx);
+    editor->warnings.clear();
+    json diagnostics = msg["params"]["diagnostics"];
+    for (size_t i = 0; i < diagnostics.size(); i++) {
+      json d = diagnostics[i];
+      VWarn w;
+      w.line = d["range"]["start"]["line"];
+      std::string text = d["message"].get<std::string>();
+      auto pos = text.find('\n');
+      w.text = (pos == std::string::npos) ? text : text.substr(0, pos);
+      w.type = d["severity"].get<int>();
+      editor->warnings.push_back(w);
+    }
+    std::sort(editor->warnings.begin(), editor->warnings.end());
   }
 }

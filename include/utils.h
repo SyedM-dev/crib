@@ -62,6 +62,7 @@ void log(const char *fmt, ...);
 std::string get_exe_dir();
 char *load_file(const char *path, uint32_t *out_len);
 char *detect_file_type(const char *filename);
+int utf8_byte_offset_to_utf16(const char *s, size_t byte_pos);
 Language language_for_file(const char *filename);
 void copy_to_clipboard(const char *text, size_t len);
 char *get_from_clipboard(uint32_t *out_len);

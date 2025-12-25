@@ -82,6 +82,8 @@ extern std::mutex screen_mutex;
 
 Coord start_screen();
 void end_screen();
+void update(uint32_t row, uint32_t col, std::string utf8, uint32_t fg,
+            uint32_t bg, uint8_t flags);
 void update(uint32_t row, uint32_t col, const char *utf8, uint32_t fg,
             uint32_t bg, uint8_t flags);
 void set_cursor(int row, int col, int type, bool show_cursor_param);

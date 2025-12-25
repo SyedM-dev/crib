@@ -3,34 +3,36 @@
 
 #include "./pch.h"
 
+#define LANG(name) tree_sitter_##name
+#define TS_DEF(name) extern "C" const TSLanguage *LANG(name)();
+
 struct Language {
   std::string name;
   const TSLanguage *(*fn)();
   uint8_t lsp_id = 0;
 };
 
-extern "C" {
-const TSLanguage *tree_sitter_bash();
-const TSLanguage *tree_sitter_c();
-const TSLanguage *tree_sitter_cpp();
-const TSLanguage *tree_sitter_css();
-const TSLanguage *tree_sitter_fish();
-const TSLanguage *tree_sitter_go();
-const TSLanguage *tree_sitter_haskell();
-const TSLanguage *tree_sitter_html();
-const TSLanguage *tree_sitter_javascript();
-const TSLanguage *tree_sitter_json();
-const TSLanguage *tree_sitter_lua();
-const TSLanguage *tree_sitter_make();
-const TSLanguage *tree_sitter_python();
-const TSLanguage *tree_sitter_ruby();
-const TSLanguage *tree_sitter_rust();
+TS_DEF(bash)
+TS_DEF(c)
+TS_DEF(cpp)
+TS_DEF(css)
+TS_DEF(fish)
+TS_DEF(go)
+TS_DEF(haskell)
+TS_DEF(html)
+TS_DEF(javascript)
+TS_DEF(json)
+TS_DEF(lua)
+TS_DEF(make)
+TS_DEF(python)
+TS_DEF(ruby)
+TS_DEF(rust)
+
 // TO ADD
 // sql
 // wasm
 // conf
 // yaml, toml
 // godot
-}
 
 #endif

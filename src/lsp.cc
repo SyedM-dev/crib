@@ -13,7 +13,6 @@ std::unordered_map<uint8_t, LSPInstance *> active_lsps;
 Queue<LSPOpenRequest> lsp_open_queue;
 
 static bool init_lsp(LSPInstance *lsp) {
-  log("starting %s\n", lsp->lsp->command);
   int in_pipe[2];
   int out_pipe[2];
   if (pipe(in_pipe) == -1 || pipe(out_pipe) == -1) {
@@ -240,8 +239,7 @@ void lsp_worker() {
         Editor *ed = editor_for_uri(lsp, uri);
         lock.unlock();
         if (ed)
-          // editor_lsp_handle(ed, *msg)
-          ;
+          editor_lsp_handle(ed, *msg);
         else
           lsp_handle(lsp, *msg);
         lock.lock();

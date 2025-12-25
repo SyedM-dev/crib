@@ -7,6 +7,7 @@
 #include "./utils.h"
 #include "ts_def.h"
 #include <cstdint>
+#include <shared_mutex>
 
 #define CHAR 0
 #define WORD 1
@@ -95,16 +96,14 @@ struct SpanCursor {
 
 struct VHint {
   Coord pos;
-  char *text; // Can only be a single line with ascii only
-  uint32_t len;
+  std::string hint;
 
   bool operator<(const VHint &other) const { return pos < other.pos; }
 };
 
 struct VWarn {
   uint32_t line;
-  char *text; // Can only be a single line
-  uint32_t len;
+  std::string text;
   int8_t type; // For hl
 
   bool operator<(const VWarn &other) const { return line < other.line; }
@@ -158,11 +157,13 @@ struct Editor {
   Spans def_spans;
   uint32_t hooks[94];
   bool jumper_set;
+  std::shared_mutex v_mtx;
   std::vector<VHint> hints;
   std::vector<VWarn> warnings;
   VAI ai;
   std::shared_mutex lsp_mtx;
   struct LSPInstance *lsp;
+  int lsp_version = 1;
 };
 
 inline const Fold *fold_for_line(const std::vector<Fold> &folds,
@@ -262,6 +263,6 @@ void apply_line_deletion(Editor *editor, uint32_t removal_start,
 uint32_t leading_indent(const char *line, uint32_t len);
 uint32_t get_indent(Editor *editor, Coord cursor);
 bool closing_after_cursor(const char *line, uint32_t len, uint32_t col);
-// void editor_lsp_handle(Editor *editor, json msg);
+void editor_lsp_handle(Editor *editor, json msg);
 
 #endif

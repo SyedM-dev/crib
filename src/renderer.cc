@@ -48,14 +48,24 @@ void end_screen() { disable_raw_mode(); }
 
 Coord get_size() { return {rows, cols}; }
 
+void update(uint32_t row, uint32_t col, std::string utf8, uint32_t fg,
+            uint32_t bg, uint8_t flags) {
+  if (row >= rows || col >= cols)
+    return;
+  uint32_t idx = row * cols + col;
+  std::lock_guard<std::mutex> lock(screen_mutex);
+  screen[idx].utf8 = utf8 != "" ? utf8 : "";
+  screen[idx].fg = fg;
+  screen[idx].bg = bg;
+  screen[idx].flags = flags;
+}
+
 void update(uint32_t row, uint32_t col, const char *utf8, uint32_t fg,
             uint32_t bg, uint8_t flags) {
   if (row >= rows || col >= cols)
     return;
-
   uint32_t idx = row * cols + col;
   std::lock_guard<std::mutex> lock(screen_mutex);
-
   screen[idx].utf8 = utf8 ? utf8 : "";
   screen[idx].fg = fg;
   screen[idx].bg = bg;

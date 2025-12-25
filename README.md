@@ -19,7 +19,7 @@ A TUI IDE.
         - `textDocument/foldingRange` - i will never use this for folding but it might be useful for other things.
         - `textDocument/rename` & `textDocument/prepareRename` - probably useful
         - And a lot more (just go through each for `clangd` and then expand to say `solargraph`).
-    - Make incremental edits apply.
+    - Make incremental edits apply. // make a bool field in LSP qhich says if it supports incremental and based on it apply edits
     - Make a universal plug for lsp. So focus more on making a general purpose solid communication interface. Instead of something specific.
         - With a 4ish pass system. (more like each returned value from the lsp is used in 4 ways)
             1. One for stuff like jump to x position. or rename symbol x to y. (stuff that explicitly requires user request to do something)

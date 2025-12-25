@@ -304,6 +304,7 @@ void ts_collect_spans(Editor *editor) {
       while (editor->spans.edits.pop(span_edit))
         apply_edit(new_spans, span_edit.first, span_edit.second);
       TSTree *inj_tree = ts_parser_parse(inj.parser, nullptr, tsinput);
+      knot_mtx.unlock();
       TSQueryCursor *inj_cursor = ts_query_cursor_new();
       ts_query_cursor_exec(inj_cursor, inj.query, ts_tree_root_node(inj_tree));
       TSQueryMatch inj_match;

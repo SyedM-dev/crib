@@ -7,21 +7,21 @@
 #include <unordered_map>
 
 static const std::unordered_map<std::string, Language> kLanguages = {
-    {"bash", {"bash", tree_sitter_bash}},
-    {"c", {"c", tree_sitter_c, 1}},
-    {"cpp", {"cpp", tree_sitter_cpp, 1}},
-    {"h", {"h", tree_sitter_cpp, 1}},
-    {"css", {"css", tree_sitter_css}},
-    {"fish", {"fish", tree_sitter_fish}},
-    {"go", {"go", tree_sitter_go}},
-    {"haskell", {"haskell", tree_sitter_haskell}},
-    {"html", {"html", tree_sitter_html}},
-    {"javascript", {"javascript", tree_sitter_javascript}},
-    {"json", {"json", tree_sitter_json}},
-    {"lua", {"lua", tree_sitter_lua}},
-    {"make", {"make", tree_sitter_make}},
-    {"python", {"python", tree_sitter_python}},
-    {"ruby", {"ruby", tree_sitter_ruby}},
+    {"bash", {"bash", LANG(bash)}},
+    {"c", {"c", LANG(c), 1}},
+    {"cpp", {"cpp", LANG(cpp), 1}},
+    {"h", {"h", LANG(cpp), 1}},
+    {"css", {"css", LANG(css)}},
+    {"fish", {"fish", LANG(fish)}},
+    {"go", {"go", LANG(go)}},
+    {"haskell", {"haskell", LANG(haskell)}},
+    {"html", {"html", LANG(html)}},
+    {"javascript", {"javascript", LANG(javascript)}},
+    {"json", {"json", LANG(json)}},
+    {"lua", {"lua", LANG(lua)}},
+    {"make", {"make", LANG(make)}},
+    {"python", {"python", LANG(python)}},
+    {"ruby", {"ruby", LANG(ruby)}},
 };
 
 static const std::unordered_map<uint8_t, LSP> kLsps = {

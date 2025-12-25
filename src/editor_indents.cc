@@ -17,6 +17,7 @@ uint32_t get_indent(Editor *editor, Coord cursor) {
   if (!editor)
     return 0;
   LineIterator *it = begin_l_iter(editor->root, cursor.row);
+  next_line(it, nullptr);
   uint32_t line_len;
   char *line;
   while ((line = prev_line(it, &line_len)) != nullptr) {

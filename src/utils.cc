@@ -242,6 +242,28 @@ char *detect_file_type(const char *filename) {
   return result;
 }
 
+int utf8_byte_offset_to_utf16(const char *s, size_t byte_pos) {
+  int utf16_units = 0;
+  size_t i = 0;
+  while (i < byte_pos) {
+    unsigned char c = s[i];
+    if ((c & 0x80) == 0x00) {
+      i += 1;
+      utf16_units += 1;
+    } else if ((c & 0xE0) == 0xC0) {
+      i += 2;
+      utf16_units += 1;
+    } else if ((c & 0xF0) == 0xE0) {
+      i += 3;
+      utf16_units += 1;
+    } else {
+      i += 4;
+      utf16_units += 2;
+    }
+  }
+  return utf16_units;
+}
+
 Language language_for_file(const char *filename) {
   std::string ext = file_extension(filename);
   std::string lang_name;
