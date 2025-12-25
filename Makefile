@@ -31,15 +31,35 @@ UNICODE_OBJ_DEBUG := $(patsubst libs/unicode_width/%.c,$(OBJ_DIR)/debug/unicode_
 UNICODE_OBJ_RELEASE := $(patsubst libs/unicode_width/%.c,$(OBJ_DIR)/release/unicode_width/%.o,$(UNICODE_SRC))
 
 TREE_SITTER_LIBS := $(wildcard libs/tree-sitter-*/libtree-sitter*.a)
+
+PHP_LIB := libs/tree-sitter-php/php/libtree-sitter-php.a
+
 FISH_OBJ_PARSER := libs/tree-sitter-fish/build/Release/obj.target/tree_sitter_fish_binding/src/parser.o
 FISH_OBJ_SCANNER := libs/tree-sitter-fish/build/Release/obj.target/tree_sitter_fish_binding/src/scanner.o
+
+NGINX_OBJ_PARSER := libs/tree-sitter-nginx/build/Release/obj.target/tree_sitter_nginx_binding/src/parser.o
+
+CABAL_OBJ_PARSER := libs/tree-sitter-cabal/build/Release/obj.target/tree_sitter_cabal_binding/src/parser.o
+CABAL_OBJ_SCANNER := libs/tree-sitter-cabal/src/scanner.o
+
+GITIGNORE_OBJ_PARSER := libs/tree-sitter-gitignore/build/Release/obj.target/tree_sitter_ignore_binding/src/parser.o
+
+MD_OBJ_PARSER := libs/tree-sitter-markdown/build/Release/obj.target/tree_sitter_markdown_binding/tree-sitter-markdown/src/parser.o
+MD_OBJ_SCANNER := libs/tree-sitter-markdown/build/Release/obj.target/tree_sitter_markdown_binding/tree-sitter-markdown/src/scanner.o
 
 LIBS := \
 	libs/libgrapheme/libgrapheme.a \
 	libs/tree-sitter/libtree-sitter.a \
 	$(TREE_SITTER_LIBS) \
+	$(PHP_LIB) \
+	$(NGINX_OBJ_PARSER) \
+	$(GITIGNORE_OBJ_PARSER) \
 	$(FISH_OBJ_PARSER) \
+	$(CABAL_OBJ_PARSER) \
+	$(CABAL_OBJ_SCANNER) \
 	$(FISH_OBJ_SCANNER) \
+	$(MD_OBJ_PARSER) \
+	$(MD_OBJ_SCANNER) \
 	-lpcre2-8 -lmagic
 
 SRC := $(wildcard $(SRC_DIR)/*.cc)

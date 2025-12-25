@@ -21,11 +21,14 @@ static std::string percent_encode(const std::string &s) {
   return out;
 }
 
-std::string path_to_file_uri(const std::string &path_str) {
+std::string path_abs(const std::string &path_str) {
   namespace fs = std::filesystem;
   fs::path p = fs::weakly_canonical(fs::absolute(fs::path(path_str)));
-  std::string generic = p.generic_string();
-  return "file://" + percent_encode(generic);
+  return p.generic_string();
+}
+
+std::string path_to_file_uri(const std::string &path_str) {
+  return "file://" + percent_encode(path_abs(path_str));
 }
 
 uint64_t fnv1a_64(const char *s, size_t len) {

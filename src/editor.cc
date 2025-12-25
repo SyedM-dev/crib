@@ -6,12 +6,13 @@ extern "C" {
 #include "../include/main.h"
 #include "../include/utils.h"
 
-Editor *new_editor(const char *filename, Coord position, Coord size) {
+Editor *new_editor(const char *filename_arg, Coord position, Coord size) {
   Editor *editor = new Editor();
   if (!editor)
     return nullptr;
   uint32_t len = 0;
-  char *str = load_file(filename, &len);
+  std::string filename = path_abs(filename_arg);
+  char *str = load_file(filename.c_str(), &len);
   if (!str) {
     free_editor(editor);
     return nullptr;
@@ -23,7 +24,7 @@ Editor *new_editor(const char *filename, Coord position, Coord size) {
   editor->cursor_preffered = UINT32_MAX;
   editor->root = load(str, len, optimal_chunk_size(len));
   free(str);
-  Language language = language_for_file(filename);
+  Language language = language_for_file(filename.c_str());
   if (language.name != "unknown" && len <= (1024 * 128)) {
     editor->ts.parser = ts_parser_new();
     editor->ts.language = language.fn();
@@ -55,6 +56,17 @@ void free_editor(Editor *editor) {
   free_tsset(&editor->ts);
   free_rope(editor->root);
   delete editor;
+}
+
+void save_file(Editor *editor) {
+  if (!editor || !editor->root)
+    return;
+  char *str = read(editor->root, 0, editor->root->char_count);
+  if (!str)
+    return;
+  std::ofstream out(editor->filename);
+  out.write(str, editor->root->char_count);
+  free(str);
 }
 
 void render_editor(Editor *editor) {

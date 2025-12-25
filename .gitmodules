@@ -54,18 +54,87 @@
 	path = libs/tree-sitter-bash
 	url = https://github.com/tree-sitter/tree-sitter-bash.git
   ignore = dirty
-[submodule "libs/tree-sitter-markdown"]
-	path = libs/tree-sitter-markdown
-	url = https://github.com/tree-sitter-grammars/tree-sitter-markdown
 [submodule "libs/tree-sitter-make"]
 	path = libs/tree-sitter-make
 	url = https://github.com/tree-sitter-grammars/tree-sitter-make
+  ignore = dirty
 [submodule "libs/tree-sitter-lua"]
 	path = libs/tree-sitter-lua
 	url = https://github.com/tree-sitter-grammars/tree-sitter-lua
+  ignore = dirty
 [submodule "libs/tree-sitter-fish"]
 	path = libs/tree-sitter-fish
 	url = https://github.com/ram02z/tree-sitter-fish
+  ignore = dirty
 [submodule "libs/tree-sitter-rust"]
 	path = libs/tree-sitter-rust
 	url = https://github.com/tree-sitter/tree-sitter-rust.git
+  ignore = dirty
+[submodule "libs/tree-sitter-nginx"]
+	path = libs/tree-sitter-nginx
+	url = https://gitlab.com/joncoole/tree-sitter-nginx
+  ignore = dirty
+[submodule "libs/tree-sitter-yaml"]
+	path = libs/tree-sitter-yaml
+	url = https://github.com/tree-sitter-grammars/tree-sitter-yaml.git
+  ignore = dirty
+[submodule "libs/tree-sitter-gdscript"]
+	path = libs/tree-sitter-gdscript
+	url = https://github.com/PrestonKnopp/tree-sitter-gdscript
+  ignore = dirty
+[submodule "libs/tree-sitter-ini"]
+	path = libs/tree-sitter-ini
+	url = https://github.com/justinmk/tree-sitter-ini
+  ignore = dirty
+[submodule "libs/tree-sitter-php"]
+	path = libs/tree-sitter-php
+	url = https://github.com/tree-sitter/tree-sitter-php
+  ignore = dirty
+[submodule "libs/tree-sitter-query"]
+	path = libs/tree-sitter-query
+	url = https://github.com/tree-sitter-grammars/tree-sitter-query
+  ignore = dirty
+[submodule "libs/tree-sitter-cabal"]
+	path = libs/tree-sitter-cabal
+	url = https://gitlab.com/magus/tree-sitter-cabal
+  ignore = dirty
+[submodule "libs/tree-sitter-go-mod"]
+	path = libs/tree-sitter-go-mod
+	url = https://github.com/camdencheek/tree-sitter-go-mod
+  ignore = dirty
+[submodule "libs/tree-sitter-gitattributes"]
+	path = libs/tree-sitter-gitattributes
+	url = https://github.com/tree-sitter-grammars/tree-sitter-gitattributes
+  ignore = dirty
+[submodule "libs/tree-sitter-gitignore"]
+	path = libs/tree-sitter-gitignore
+	url = https://github.com/shunsambongi/tree-sitter-gitignore
+  ignore = dirty
+[submodule "libs/tree-sitter-diff"]
+	path = libs/tree-sitter-diff
+	url = https://github.com/tree-sitter-grammars/tree-sitter-diff
+  ignore = dirty
+[submodule "libs/tree-sitter-regex"]
+	path = libs/tree-sitter-regex
+	url = https://github.com/tree-sitter/tree-sitter-regex
+  ignore = dirty
+[submodule "libs/tree-sitter-embedded-template"]
+	path = libs/tree-sitter-embedded-template
+	url = https://github.com/tree-sitter/tree-sitter-embedded-template
+  ignore = dirty
+[submodule "libs/tree-sitter-sql"]
+	path = libs/tree-sitter-sql
+	url = https://github.com/DerekStride/tree-sitter-sql.git
+  ignore = dirty
+[submodule "libs/libs/tree-sitter-yaml"]
+	path = libs/libs/tree-sitter-yaml
+	url = https://github.com/tree-sitter-grammars/tree-sitter-yaml.git
+  ignore = dirty
+[submodule "libs/tree-sitter-toml"]
+	path = libs/tree-sitter-toml
+	url = https://github.com/tree-sitter-grammars/tree-sitter-toml.git
+  ignore = dirty
+[submodule "libs/tree-sitter-markdown"]
+	path = libs/tree-sitter-markdown
+	url = https://github.com/tree-sitter-grammars/tree-sitter-markdown.git
+  ignore = dirty

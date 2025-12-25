@@ -2,6 +2,7 @@
 #include "../include/main.h"
 #include "../include/ts.h"
 #include <cstdint>
+#include <sys/ioctl.h>
 
 void handle_editor_event(Editor *editor, KeyEvent event) {
   static std::chrono::steady_clock::time_point last_click_time =
@@ -293,6 +294,9 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
       case '<':
       case ',':
         dedent_line(editor, editor->cursor.row);
+        break;
+      case CTRL('s'):
+        save_file(editor);
         break;
       case 'p':
         uint32_t len;

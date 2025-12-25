@@ -223,7 +223,8 @@ void apply_edit(std::vector<Span> &spans, uint32_t x, int64_t y);
 void apply_hook_insertion(Editor *editor, uint32_t line, uint32_t rows);
 void apply_hook_deletion(Editor *editor, uint32_t removal_start,
                          uint32_t removal_end);
-Editor *new_editor(const char *filename, Coord position, Coord size);
+Editor *new_editor(const char *filename_arg, Coord position, Coord size);
+void save_file(Editor *editor);
 void free_editor(Editor *editor);
 void render_editor(Editor *editor);
 void fold(Editor *editor, uint32_t start_line, uint32_t end_line);

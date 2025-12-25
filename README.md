@@ -6,6 +6,7 @@ A TUI IDE.
 
 # TODO
 
+- [ ] Get all tree-sitter grammars needed and write down their scm files.
 - [ ] Add support for LSP & autocomplete / snippets.
     - First research
         - `textDocument/documentHighlight` - for highlighting stuff (probably tree-sitter is enough)

@@ -52,6 +52,7 @@ struct Coord {
   bool operator>=(const Coord &other) const { return !(*this < other); }
 };
 
+std::string path_abs(const std::string &path_str);
 std::string path_to_file_uri(const std::string &path_str);
 int display_width(const char *str, size_t len);
 uint32_t get_visual_col_from_bytes(const char *line, uint32_t len,
