@@ -43,7 +43,7 @@ end
 puts "Emoji count: #{emojis.length}"
 
 # Multi-line string with unicode
-multi = <<~EOF
+multi = <<~BASH
   # Function recursion demo
   factorial() {
     local n="$1"
@@ -57,7 +57,7 @@ multi = <<~EOF
   }
 
   log INFO "factorial(5) = $(factorial 5)"
-EOF
+BASH
 
 puts multi
 

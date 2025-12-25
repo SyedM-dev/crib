@@ -192,7 +192,7 @@ void ts_collect_spans(Editor *editor) {
     return;
   const bool injections_enabled = editor->root->char_count < (1024 * 32);
   for (auto &inj : editor->ts.injections)
-    inj.ranges.clear();
+    inj.second.ranges.clear();
   TSInput tsinput{
       .payload = editor,
       .read = read_ts,
@@ -228,10 +228,6 @@ void ts_collect_spans(Editor *editor) {
     ts_tree_delete(editor->ts.tree);
   editor->ts.tree = tree;
   copy = ts_tree_copy(tree);
-  std::unordered_map<std::string, TSSet *> inj_lookup;
-  for (auto &inj : editor->ts.injections)
-    if (inj.lang != "unknown")
-      inj_lookup[inj.lang] = &inj;
   TSQueryCursor *cursor = ts_query_cursor_new();
   ts_query_cursor_exec(cursor, editor->ts.query, ts_tree_root_node(copy));
   std::vector<Span> new_spans;
@@ -255,24 +251,18 @@ void ts_collect_spans(Editor *editor) {
         continue;
       if (Language *inj_lang = safe_get(editor->ts.injection_map, cap.index)) {
         auto &pending = pending_injections[inj_lang->name];
-        if (!pending.tsset) {
-          if (auto it = inj_lookup.find(inj_lang->name);
-              it != inj_lookup.end()) {
-            pending.tsset = it->second;
-          } else {
-            TSSet fresh{};
-            fresh.lang = inj_lang->name;
-            fresh.parser = ts_parser_new();
-            ts_parser_set_language(fresh.parser, inj_lang->fn());
-            fresh.language = inj_lang->fn();
-            fresh.query_file =
-                get_exe_dir() + "/../grammar/" + inj_lang->name + ".scm";
-            fresh.query = load_query(fresh.query_file.c_str(), &fresh);
-            editor->ts.injections.push_back(std::move(fresh));
-            pending.tsset = &editor->ts.injections.back();
-            inj_lookup[inj_lang->name] = pending.tsset;
-          }
+        TSSet &tsset =
+            editor->ts.injections.try_emplace(inj_lang->name).first->second;
+        if (!tsset.parser) {
+          tsset.lang = inj_lang->name;
+          tsset.parser = ts_parser_new();
+          ts_parser_set_language(tsset.parser, inj_lang->fn());
+          tsset.language = inj_lang->fn();
+          tsset.query_file =
+              get_exe_dir() + "/../grammar/" + inj_lang->name + ".scm";
+          tsset.query = load_query(tsset.query_file.c_str(), &tsset);
         }
+        pending.tsset = &tsset;
         pending.ranges.push_back(TSRange{
             ts_node_start_point(cap.node),
             ts_node_end_point(cap.node),
@@ -291,7 +281,7 @@ void ts_collect_spans(Editor *editor) {
       if (!tsset)
         continue;
       tsset->ranges = std::move(pending.ranges);
-      if (tsset->ranges.size() > 1)
+      if (tsset->ranges.size() > 0)
         new_spans.erase(std::remove_if(new_spans.begin(), new_spans.end(),
                                        [&](const Span &sp) {
                                          return std::any_of(
@@ -303,23 +293,19 @@ void ts_collect_spans(Editor *editor) {
                                        }),
                         new_spans.end());
     }
-    for (auto &inj : editor->ts.injections) {
+    for (auto &kv : editor->ts.injections) {
+      auto &inj = kv.second;
       if (!inj.parser || !inj.query || inj.ranges.size() == 0)
         continue;
       ts_parser_set_included_ranges(inj.parser, inj.ranges.data(),
                                     inj.ranges.size());
+      knot_mtx.lock();
       std::pair<uint32_t, int64_t> span_edit;
       while (editor->spans.edits.pop(span_edit))
         apply_edit(new_spans, span_edit.first, span_edit.second);
-      knot_mtx.lock();
-      TSTree *inj_tree = ts_parser_parse(inj.parser, inj.tree, tsinput);
-      knot_mtx.unlock();
-      if (inj.tree)
-        ts_tree_delete(inj.tree);
-      inj.tree = inj_tree;
-      TSTree *inj_copy = ts_tree_copy(inj_tree);
+      TSTree *inj_tree = ts_parser_parse(inj.parser, nullptr, tsinput);
       TSQueryCursor *inj_cursor = ts_query_cursor_new();
-      ts_query_cursor_exec(inj_cursor, inj.query, ts_tree_root_node(inj_copy));
+      ts_query_cursor_exec(inj_cursor, inj.query, ts_tree_root_node(inj_tree));
       TSQueryMatch inj_match;
       while (ts_query_cursor_next_match(inj_cursor, &inj_match)) {
         if (!ts_predicate(inj.query, inj_match, editor->root))
@@ -333,7 +319,7 @@ void ts_collect_spans(Editor *editor) {
         }
       }
       ts_query_cursor_delete(inj_cursor);
-      ts_tree_delete(inj_copy);
+      ts_tree_delete(inj_tree);
     }
   }
   ts_query_cursor_delete(cursor);

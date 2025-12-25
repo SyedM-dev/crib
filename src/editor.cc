@@ -43,12 +43,10 @@ void free_tsset(TSSetMain *set) {
   if (set->query)
     ts_query_delete(set->query);
   for (auto &inj : set->injections) {
-    if (inj.parser)
-      ts_parser_delete(inj.parser);
-    if (inj.tree)
-      ts_tree_delete(inj.tree);
-    if (inj.query)
-      ts_query_delete(inj.query);
+    if (inj.second.parser)
+      ts_parser_delete(inj.second.parser);
+    if (inj.second.query)
+      ts_query_delete(inj.second.query);
   }
 }
 

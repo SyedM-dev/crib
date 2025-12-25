@@ -1,6 +1,16 @@
-; This is an injection test - it should hight all heredoc content as bash code
-;; !bash - this part should be ignored (anything after the first wordbreak after the `!`)
-(heredoc_content) @ruby_injection
+(heredoc_body
+;; !bash
+  (heredoc_content) @bash_injection
+  ((heredoc_end) @lang
+    (#match? @lang "BASH"))
+)
+
+(heredoc_body
+;; !ruby
+  (heredoc_content) @ruby_injection
+  ((heredoc_end) @lang
+    (#match? @lang "RUBY"))
+)
 
 ;; #ffffff #000000 0 0 0 1
 [
@@ -147,10 +157,10 @@
 ((call
   !receiver
   method: (identifier) @function.builtin)
-  (#match? @function.builtin "^(include|extend|prepend|refine|using)"))
+  (#match? @function.builtin "^(include|extend|prepend|refine|using)$"))
 
 ((identifier) @keyword.exception
-  (#match? @keyword.exception "^(raise|fail|catch|throw)" ))
+  (#match? @keyword.exception "^(raise|fail|catch|throw)$" ))
 
 ;; #ffffff #000000 0 0 0 1
 [

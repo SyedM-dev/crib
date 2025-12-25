@@ -121,7 +121,6 @@ struct VAI {
 
 struct TSSetBase {
   std::string lang;
-  TSTree *tree;
   TSParser *parser;
   std::string query_file;
   TSQuery *query;
@@ -135,7 +134,8 @@ struct TSSet : TSSetBase {
 };
 
 struct TSSetMain : TSSetBase {
-  std::vector<TSSet> injections;
+  TSTree *tree;
+  std::unordered_map<std::string, TSSet> injections;
 };
 
 struct Editor {
