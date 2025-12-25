@@ -361,7 +361,7 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     std::unique_lock lock_2(editor->knot_mtx);
     editor->root = erase(editor->root, start, byte_pos - start);
     lock_2.unlock();
-    if (editor->tree) {
+    if (editor->ts.tree) {
       TSInputEdit edit = {
           .start_byte = start,
           .old_end_byte = byte_pos,
@@ -405,7 +405,7 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     std::unique_lock lock_2(editor->knot_mtx);
     editor->root = erase(editor->root, byte_pos, end - byte_pos);
     lock_2.unlock();
-    if (editor->tree) {
+    if (editor->ts.tree) {
       TSInputEdit edit = {
           .start_byte = byte_pos,
           .old_end_byte = end,
@@ -454,7 +454,7 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
   }
   apply_line_insertion(editor, pos.row, rows);
   apply_hook_insertion(editor, pos.row, rows);
-  if (editor->tree) {
+  if (editor->ts.tree) {
     TSInputEdit edit = {
         .start_byte = byte_pos,
         .old_end_byte = byte_pos,

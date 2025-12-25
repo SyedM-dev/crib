@@ -2,22 +2,8 @@ extern "C" {
 #include "../libs/libgrapheme/grapheme.h"
 #include "../libs/unicode_width/unicode_width.h"
 }
+#include "../include/maps.h"
 #include "../include/utils.h"
-#include <algorithm>
-#include <cctype>
-#include <cstdarg>
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <filesystem>
-#include <fstream>
-#include <limits.h>
-#include <magic.h>
-#include <string.h>
-#include <string>
-#include <unistd.h>
-#include <unordered_map>
 
 static std::string percent_encode(const std::string &s) {
   static const char *hex = "0123456789ABCDEF";
@@ -256,61 +242,21 @@ char *detect_file_type(const char *filename) {
   return result;
 }
 
-static const std::unordered_map<std::string, Language> ext_map = {
-    {"sh", {"bash", tree_sitter_bash}},
-    {"bash", {"bash", tree_sitter_bash}},
-    {"c", {"c", tree_sitter_c, 1}},
-    {"cpp", {"cpp", tree_sitter_cpp, 1}},
-    {"cxx", {"cpp", tree_sitter_cpp, 1}},
-    {"cc", {"cpp", tree_sitter_cpp, 1}},
-    {"hpp", {"cpp", tree_sitter_cpp, 1}},
-    {"hh", {"cpp", tree_sitter_cpp, 1}},
-    {"hxx", {"cpp", tree_sitter_cpp, 1}},
-    {"h", {"cpp", tree_sitter_cpp, 1}},
-    {"css", {"css", tree_sitter_css}},
-    {"fish", {"fish", tree_sitter_fish}},
-    {"go", {"go", tree_sitter_go}},
-    {"hs", {"haskell", tree_sitter_haskell}},
-    {"html", {"html", tree_sitter_html}},
-    {"htm", {"html", tree_sitter_html}},
-    {"js", {"javascript", tree_sitter_javascript}},
-    {"json", {"json", tree_sitter_json}},
-    {"lua", {"lua", tree_sitter_lua}},
-    {"mk", {"make", tree_sitter_make}},
-    {"makefile", {"make", tree_sitter_make}},
-    {"py", {"python", tree_sitter_python}},
-    {"rb", {"ruby", tree_sitter_ruby}},
-};
-
-static const std::unordered_map<std::string, Language> mime_map = {
-    {"text/x-c", {"c", tree_sitter_c, 1}},
-    {"text/x-c++", {"cpp", tree_sitter_cpp, 1}},
-    {"text/x-shellscript", {"bash", tree_sitter_bash}},
-    {"application/json", {"json", tree_sitter_json}},
-    {"text/javascript", {"javascript", tree_sitter_javascript}},
-    {"text/html", {"html", tree_sitter_html}},
-    {"text/css", {"css", tree_sitter_css}},
-    {"text/x-python", {"python", tree_sitter_python}},
-    {"text/x-ruby", {"ruby", tree_sitter_ruby}},
-    {"text/x-go", {"go", tree_sitter_go}},
-    {"text/x-haskell", {"haskell", tree_sitter_haskell}},
-    {"text/x-lua", {"lua", tree_sitter_lua}},
-};
-
 Language language_for_file(const char *filename) {
   std::string ext = file_extension(filename);
+  std::string lang_name;
   if (!ext.empty()) {
-    auto it = ext_map.find(ext);
-    if (it != ext_map.end())
-      return it->second;
+    auto it = kExtToLang.find(ext);
+    if (it != kExtToLang.end())
+      return kLanguages.find(it->second)->second;
   }
   char *mime = detect_file_type(filename);
   if (mime) {
     std::string mime_type(mime);
     free(mime);
-    auto it = mime_map.find(mime_type);
-    if (it != mime_map.end())
-      return it->second;
+    auto it = kMimeToLang.find(mime_type);
+    if (it != kMimeToLang.end())
+      return kLanguages.find(it->second)->second;
   }
   return {"unknown", nullptr};
 }

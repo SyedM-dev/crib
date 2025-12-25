@@ -24,6 +24,13 @@ const TSLanguage *tree_sitter_lua();
 const TSLanguage *tree_sitter_make();
 const TSLanguage *tree_sitter_python();
 const TSLanguage *tree_sitter_ruby();
+const TSLanguage *tree_sitter_rust();
+// TO ADD
+// sql
+// wasm
+// conf
+// yaml, toml
+// godot
 }
 
 #endif

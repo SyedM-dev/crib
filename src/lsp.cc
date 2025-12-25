@@ -1,4 +1,5 @@
 #include "../include/lsp.h"
+#include "../include/maps.h"
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/poll.h>
@@ -10,22 +11,6 @@ std::shared_mutex active_lsps_mtx;
 std::unordered_map<uint8_t, LSPInstance *> active_lsps;
 
 Queue<LSPOpenRequest> lsp_open_queue;
-
-std::unordered_map<uint8_t, LSP> lsp_map = {
-    {
-        1,
-        {"clangd",
-         {
-             "clangd",
-             "--background-index",
-             "--clang-tidy",
-             "--completion-style=detailed",
-             "--header-insertion=iwyu",
-             "--log=error",
-             nullptr,
-         }},
-    },
-};
 
 static bool init_lsp(LSPInstance *lsp) {
   log("starting %s\n", lsp->lsp->command);
@@ -66,8 +51,8 @@ LSPInstance *get_or_init_lsp(uint8_t lsp_id) {
   std::unique_lock lock(active_lsps_mtx);
   auto it = active_lsps.find(lsp_id);
   if (it == active_lsps.end()) {
-    auto map_it = lsp_map.find(lsp_id);
-    if (map_it == lsp_map.end())
+    auto map_it = kLsps.find(lsp_id);
+    if (map_it == kLsps.end())
       return nullptr;
     LSPInstance *lsp = new LSPInstance();
     lsp->lsp = &map_it->second;
@@ -78,9 +63,7 @@ LSPInstance *get_or_init_lsp(uint8_t lsp_id) {
     LSPPending *pending = new LSPPending();
     pending->method = "initialize";
     pending->editor = nullptr;
-    pending->callback = [lsp]([[maybe_unused]] Editor *_e,
-                              [[maybe_unused]] std::string _m,
-                              [[maybe_unused]] json _j) {
+    pending->callback = [lsp](Editor *, std::string, json) {
       lsp->initialized = true;
       json initialized = {{"jsonrpc", "2.0"},
                           {"method", "initialized"},
@@ -327,7 +310,7 @@ void remove_from_lsp(Editor *editor) {
     close_lsp(lsp_id);
 }
 
-void lsp_handle([[maybe_unused]] LSPInstance *lsp, json message) {
+void lsp_handle(LSPInstance *, json message) {
   std::string method = message.value("method", "");
   if (method == "window/showMessage") {
     if (message.contains("params")) {

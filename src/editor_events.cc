@@ -535,9 +535,11 @@ static Highlight HL_UNDERLINE = {0, 0, 1 << 2, 100};
 void editor_worker(Editor *editor) {
   if (!editor || !editor->root)
     return;
-  if (editor->query_file != "" && !editor->query)
-    editor->query = load_query(editor->query_file.c_str(), editor);
-  if (editor->parser && editor->query)
+  if (editor->root->char_count > (1024 * 200))
+    return;
+  if (editor->ts.query_file != "" && !editor->ts.query)
+    editor->ts.query = load_query(editor->ts.query_file.c_str(), &editor->ts);
+  if (editor->ts.parser && editor->ts.query)
     ts_collect_spans(editor);
   uint32_t prev_col, next_col;
   word_boundaries_exclusive(editor, editor->cursor, &prev_col, &next_col);

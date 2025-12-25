@@ -44,9 +44,19 @@ puts "Emoji count: #{emojis.length}"
 
 # Multi-line string with unicode
 multi = <<~EOF
-  これは複数行テキストです。
-  Emojis inside heredoc: 🎉🔥✨💀❤️🧡💛💚💙💜🖤🤍🤎
-  End of block.
+  # Function recursion demo
+  factorial() {
+    local n="$1"
+    if ((n <= 1)); then
+      echo 1
+    else
+      local prev
+      prev=$(factorial $((n - 1)))
+      echo $((n * prev))
+    fi
+  }
+
+  log INFO "factorial(5) = $(factorial 5)"
 EOF
 
 puts multi

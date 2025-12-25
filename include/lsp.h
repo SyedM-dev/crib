@@ -24,7 +24,7 @@ struct LSPOpenRequest {
 
 struct LSPInstance {
   std::shared_mutex mtx;
-  LSP *lsp;
+  const LSP *lsp;
   std::string root_dir;
   int pid{-1};
   int stdin_fd{-1};
@@ -39,7 +39,6 @@ struct LSPInstance {
 
 extern std::shared_mutex active_lsps_mtx;
 extern std::unordered_map<uint8_t, LSPInstance *> active_lsps;
-extern std::unordered_map<uint8_t, LSP> lsp_map;
 
 void lsp_worker();
 void lsp_handle(LSPInstance *lsp, json message);

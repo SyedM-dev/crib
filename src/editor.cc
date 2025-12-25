@@ -4,7 +4,6 @@ extern "C" {
 #include "../include/editor.h"
 #include "../include/lsp.h"
 #include "../include/main.h"
-#include "../include/ts.h"
 #include "../include/utils.h"
 
 Editor *new_editor(const char *filename, Coord position, Coord size) {
@@ -24,25 +23,38 @@ Editor *new_editor(const char *filename, Coord position, Coord size) {
   editor->cursor_preffered = UINT32_MAX;
   editor->root = load(str, len, optimal_chunk_size(len));
   free(str);
-  if (len <= (1024 * 128)) {
-    Language language = language_for_file(filename);
-    editor->parser = ts_parser_new();
-    editor->language = language.fn();
-    ts_parser_set_language(editor->parser, editor->language);
-    editor->query_file =
+  Language language = language_for_file(filename);
+  if (language.name != "unknown" && len <= (1024 * 128)) {
+    editor->ts.parser = ts_parser_new();
+    editor->ts.language = language.fn();
+    ts_parser_set_language(editor->ts.parser, editor->ts.language);
+    editor->ts.query_file =
         get_exe_dir() + "/../grammar/" + language.name + ".scm";
     request_add_to_lsp(language, editor);
   }
   return editor;
 }
 
+void free_tsset(TSSetMain *set) {
+  if (set->parser)
+    ts_parser_delete(set->parser);
+  if (set->tree)
+    ts_tree_delete(set->tree);
+  if (set->query)
+    ts_query_delete(set->query);
+  for (auto &inj : set->injections) {
+    if (inj.parser)
+      ts_parser_delete(inj.parser);
+    if (inj.tree)
+      ts_tree_delete(inj.tree);
+    if (inj.query)
+      ts_query_delete(inj.query);
+  }
+}
+
 void free_editor(Editor *editor) {
   remove_from_lsp(editor);
-  ts_parser_delete(editor->parser);
-  if (editor->tree)
-    ts_tree_delete(editor->tree);
-  if (editor->query)
-    ts_query_delete(editor->query);
+  free_tsset(&editor->ts);
   free_rope(editor->root);
   delete editor;
 }
@@ -61,23 +73,6 @@ void render_editor(Editor *editor) {
   auto hook_it = v.begin();
   while (hook_it != v.end() && hook_it->first <= editor->scroll.row)
     ++hook_it;
-
-  // Iterators for hints and warnings (both already sorted)
-  size_t hint_idx = 0;
-  size_t warn_idx = 0;
-
-  // Helper to advance hint iterator to current line
-  auto advance_hints_to = [&](uint32_t row) {
-    while (hint_idx < editor->hints.size() &&
-           editor->hints[hint_idx].pos.row < row)
-      ++hint_idx;
-  };
-  auto advance_warns_to = [&](uint32_t row) {
-    while (warn_idx < editor->warnings.size() &&
-           editor->warnings[warn_idx].line < row)
-      ++warn_idx;
-  };
-
   std::shared_lock knot_lock(editor->knot_mtx);
   if (editor->selection_active) {
     Coord start, end;
@@ -127,46 +122,6 @@ void render_editor(Editor *editor) {
     sel_start = line_to_byte(editor->root, start.row, nullptr) + start.col;
     sel_end = line_to_byte(editor->root, end.row, nullptr) + end.col;
   }
-
-  // Helper for warning colors based on type
-  auto warn_colors = [](int8_t type) -> std::pair<uint32_t, uint32_t> {
-    switch (type) {
-    case 1: // info
-      return {0x7fbfff, 0};
-    case 2: // warn
-      return {0xffd166, 0};
-    case 3: // error
-      return {0xff5f5f, 0};
-    default: // neutral
-      return {0xaaaaaa, 0};
-    }
-  };
-
-  // Helper to get nth line (0-based) from VAI text (ASCII/UTF-8)
-  auto ai_line_span = [&](const VAI &ai,
-                          uint32_t n) -> std::pair<const char *, uint32_t> {
-    const char *p = ai.text;
-    uint32_t line_no = 0;
-    const char *start = p;
-    uint32_t len = 0;
-    for (uint32_t i = 0; i < ai.len; i++) {
-      if (ai.text[i] == '\n') {
-        if (line_no == n) {
-          len = i - (start - ai.text);
-          return {start, len};
-        }
-        line_no++;
-        start = ai.text + i + 1;
-      }
-    }
-    // last line (no trailing newline)
-    if (line_no == n) {
-      len = ai.text + ai.len - start;
-      return {start, len};
-    }
-    return {nullptr, 0};
-  };
-
   Coord cursor = {UINT32_MAX, UINT32_MAX};
   uint32_t line_index = editor->scroll.row;
   SpanCursor span_cursor(editor->spans);
@@ -178,15 +133,7 @@ void render_editor(Editor *editor) {
   uint32_t global_byte_offset = line_to_byte(editor->root, line_index, nullptr);
   span_cursor.sync(global_byte_offset);
   def_span_cursor.sync(global_byte_offset);
-
-  const bool ai_active = editor->ai.text && editor->ai.len > 0;
-  const uint32_t ai_row = ai_active ? editor->ai.pos.row : UINT32_MAX;
-  const uint32_t ai_lines = ai_active ? editor->ai.lines : 0;
-
   while (rendered_rows < editor->size.row) {
-    advance_hints_to(line_index);
-    advance_warns_to(line_index);
-
     const Fold *fold = fold_for_line(editor->folds, line_index);
     if (fold) {
       update(editor->position.row + rendered_rows, editor->position.col, "",
@@ -207,17 +154,10 @@ void render_editor(Editor *editor) {
       for (; i < render_width; i++)
         update(rendered_rows, i + render_x, " ", 0xc6c6c6, 0, 0);
       rendered_rows++;
-
       uint32_t skip_until = fold->end;
       while (line_index <= skip_until) {
         if (hook_it != v.end() && hook_it->first == line_index + 1)
           hook_it++;
-        if (hint_idx < editor->hints.size() &&
-            editor->hints[hint_idx].pos.row == line_index)
-          hint_idx++;
-        if (warn_idx < editor->warnings.size() &&
-            editor->warnings[warn_idx].line == line_index)
-          warn_idx++;
         uint32_t line_len;
         char *line = next_line(it, &line_len);
         if (!line)
@@ -239,15 +179,7 @@ void render_editor(Editor *editor) {
     uint32_t current_byte_offset = 0;
     if (rendered_rows == 0)
       current_byte_offset += editor->scroll.col;
-
-    // AI handling: determine if this line is overridden by AI
-    bool ai_this_line =
-        ai_active && line_index >= ai_row && line_index <= ai_row + ai_lines;
-    bool ai_first_line = ai_this_line && line_index == ai_row;
-
-    while ((ai_this_line ? current_byte_offset <= line_len
-                         : current_byte_offset < line_len) &&
-           rendered_rows < editor->size.row) {
+    while (current_byte_offset < line_len && rendered_rows < editor->size.row) {
       uint32_t color = editor->cursor.row == line_index ? 0x222222 : 0;
       if (current_byte_offset == 0 || rendered_rows == 0) {
         const char *hook = nullptr;
@@ -276,71 +208,7 @@ void render_editor(Editor *editor) {
       uint32_t col = 0;
       uint32_t local_render_offset = 0;
       uint32_t line_left = line_len - current_byte_offset;
-
-      // For AI extra lines (line > ai_row), we don't render real text
-      if (ai_this_line && !ai_first_line) {
-        const uint32_t ai_line_no = line_index - ai_row;
-        auto [aptr, alen] = ai_line_span(editor->ai, ai_line_no);
-        if (aptr && alen) {
-          uint32_t draw = std::min<uint32_t>(alen, render_width);
-          update(editor->position.row + rendered_rows, render_x,
-                 std::string(aptr, draw).c_str(), 0x666666, 0, CF_ITALIC);
-          col = draw;
-        }
-        while (col < render_width) {
-          update(editor->position.row + rendered_rows, render_x + col, " ", 0,
-                 0 | color, 0);
-          col++;
-        }
-        rendered_rows++;
-        break; // move to next screen row
-      }
-
       while (line_left > 0 && col < render_width) {
-        // Render pending hints at this byte offset
-        while (hint_idx < editor->hints.size() &&
-               editor->hints[hint_idx].pos.row == line_index &&
-               editor->hints[hint_idx].pos.col ==
-                   current_byte_offset + local_render_offset) {
-          const VHint &vh = editor->hints[hint_idx];
-          uint32_t draw = std::min<uint32_t>(vh.len, render_width - col);
-          if (draw == 0)
-            break;
-          update(editor->position.row + rendered_rows, render_x + col,
-                 std::string(vh.text, draw).c_str(), 0x777777, 0 | color,
-                 CF_ITALIC);
-          col += draw;
-          ++hint_idx;
-          if (col >= render_width)
-            break;
-        }
-        if (col >= render_width)
-          break;
-
-        // AI first line: stop underlying text at ai.pos.col, then render AI,
-        // clip
-        if (ai_first_line &&
-            (current_byte_offset + local_render_offset) >= editor->ai.pos.col) {
-          // render AI first line
-          auto [aptr, alen] = ai_line_span(editor->ai, 0);
-          if (aptr && alen) {
-            uint32_t draw = std::min<uint32_t>(alen, render_width - col);
-            update(editor->position.row + rendered_rows, render_x + col,
-                   std::string(aptr, draw).c_str(), 0x666666, 0 | color,
-                   CF_ITALIC);
-            col += draw;
-          }
-          // fill rest and break
-          while (col < render_width) {
-            update(editor->position.row + rendered_rows, render_x + col, " ", 0,
-                   0 | color, 0);
-            col++;
-          }
-          rendered_rows++;
-          current_byte_offset = line_len; // hide rest of real text
-          goto after_line_body;
-        }
-
         if (line_index == editor->cursor.row &&
             editor->cursor.col == (current_byte_offset + local_render_offset)) {
           cursor.row = editor->position.row + rendered_rows;
@@ -379,14 +247,11 @@ void render_editor(Editor *editor) {
           update(editor->position.row + rendered_rows, render_x + col - width,
                  "\x1b", fg, bg | color, fl);
       }
-
       if (line_index == editor->cursor.row &&
           editor->cursor.col == (current_byte_offset + local_render_offset)) {
         cursor.row = editor->position.row + rendered_rows;
         cursor.col = render_x + col;
       }
-
-      // Trailing selection block
       if (editor->selection_active &&
           global_byte_offset + line_len + 1 > sel_start &&
           global_byte_offset + line_len + 1 <= sel_end && col < render_width) {
@@ -394,20 +259,6 @@ void render_editor(Editor *editor) {
                0x555555 | color, 0);
         col++;
       }
-
-      // Render warning text at end (does not affect wrapping)
-      if (warn_idx < editor->warnings.size() &&
-          editor->warnings[warn_idx].line == line_index && col < render_width) {
-        const VWarn &w = editor->warnings[warn_idx];
-        auto [wfg, wbg] = warn_colors(w.type);
-        uint32_t draw = std::min<uint32_t>(w.len, render_width - col);
-        if (draw)
-          update(editor->position.row + rendered_rows, render_x + col,
-                 std::string(w.text, draw).c_str(), wfg, wbg | color,
-                 CF_ITALIC);
-        // do not advance col for padding skip; we still fill remaining spaces
-      }
-
       while (col < render_width) {
         update(editor->position.row + rendered_rows, render_x + col, " ", 0,
                0 | color, 0);
@@ -415,11 +266,7 @@ void render_editor(Editor *editor) {
       }
       rendered_rows++;
       current_byte_offset += local_render_offset;
-
-    after_line_body:
-      break; // proceed to next screen row
     }
-
     if (line_len == 0 ||
         (current_byte_offset >= line_len && rendered_rows == 0)) {
       uint32_t color = editor->cursor.row == line_index ? 0x222222 : 0;
@@ -451,17 +298,6 @@ void render_editor(Editor *editor) {
         update(editor->position.row + rendered_rows, render_x + col, " ", 0,
                0x555555 | color, 0);
         col++;
-      }
-      // warning on empty line
-      if (warn_idx < editor->warnings.size() &&
-          editor->warnings[warn_idx].line == line_index && col < render_width) {
-        const VWarn &w = editor->warnings[warn_idx];
-        auto [wfg, wbg] = warn_colors(w.type);
-        uint32_t draw = std::min<uint32_t>(w.len, render_width - col);
-        if (draw)
-          update(editor->position.row + rendered_rows, render_x + col,
-                 std::string(w.text, draw).c_str(), wfg, wbg | color,
-                 CF_ITALIC);
       }
       while (col < render_width) {
         update(editor->position.row + rendered_rows, render_x + col, " ", 0,

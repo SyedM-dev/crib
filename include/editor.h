@@ -5,6 +5,8 @@
 #include "./pch.h"
 #include "./ui.h"
 #include "./utils.h"
+#include "ts_def.h"
+#include <cstdint>
 
 #define CHAR 0
 #define WORD 1
@@ -117,6 +119,25 @@ struct VAI {
                   // after the first one
 };
 
+struct TSSetBase {
+  std::string lang;
+  TSTree *tree;
+  TSParser *parser;
+  std::string query_file;
+  TSQuery *query;
+  std::map<uint16_t, Highlight> query_map;
+  std::map<uint16_t, Language> injection_map;
+  const TSLanguage *language;
+};
+
+struct TSSet : TSSetBase {
+  std::vector<TSRange> ranges;
+};
+
+struct TSSetMain : TSSetBase {
+  std::vector<TSSet> injections;
+};
+
 struct Editor {
   std::string filename;
   std::string uri;
@@ -130,13 +151,8 @@ struct Editor {
   Coord position;
   Coord size;
   Coord scroll;
-  TSTree *tree;
-  TSParser *parser;
-  std::string query_file;
-  TSQuery *query;
-  const TSLanguage *language;
+  TSSetMain ts;
   Queue<TSInputEdit> edit_queue;
-  std::vector<Highlight> query_map;
   std::vector<Fold> folds;
   Spans spans;
   Spans def_spans;

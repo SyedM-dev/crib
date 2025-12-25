@@ -1,3 +1,7 @@
+; This is an injection test - it should hight all heredoc content as bash code
+;; !bash - this part should be ignored (anything after the first wordbreak after the `!`)
+(heredoc_content) @ruby_injection
+
 ;; #ffffff #000000 0 0 0 1
 [
   (identifier)
