@@ -119,7 +119,7 @@
 (superclass
   (constant) @type)
 
-;; #F07178 #000000 0 0 0 1
+;; #F07178 #000000 0 0 0 2
 [
   (class_variable)
   (instance_variable)
@@ -207,10 +207,6 @@
   (delimited_symbol)
   (hash_key_symbol)
 ] @string.special.symbol
-
-;; #95E6CB #000000 0 0 0 2
-(regex
-  (string_content) @string.regexp)
 
 ;; #95E6CB #000000 0 0 0 2
 (escape_sequence) @string.escape
@@ -322,219 +318,192 @@
 
 ; Injections
 
+;; !regex
+(regex
+  (string_content) @string.regexp)
+
 (heredoc_body
 ;; !bash
   (heredoc_content) @bash_injection
   ((heredoc_end) @lang
-    (#match? @lang "BASH"))
-)
+    (#match? @lang "BASH")))
 
 (heredoc_body
 ;; !c
   (heredoc_content) @c_injection
   ((heredoc_end) @lang
-    (#match? @lang "C$"))
-)
+    (#match? @lang "C$")))
 
 (heredoc_body
 ;; !cpp
   (heredoc_content) @cpp_injection
   ((heredoc_end) @lang
-    (#match? @lang "CPP"))
-)
+    (#match? @lang "CPP")))
 
 (heredoc_body
 ;; !css
   (heredoc_content) @css_injection
   ((heredoc_end) @lang
-    (#match? @lang "CSS"))
-)
+    (#match? @lang "CSS")))
 
 (heredoc_body
 ;; !fish
   (heredoc_content) @fish_injection
   ((heredoc_end) @lang
-    (#match? @lang "FISH"))
-)
+    (#match? @lang "FISH")))
 
 (heredoc_body
 ;; !go
   (heredoc_content) @go_injection
   ((heredoc_end) @lang
-    (#match? @lang "GO"))
-)
+    (#match? @lang "GO")))
 
 (heredoc_body
 ;; !haskell
   (heredoc_content) @haskell_injection
   ((heredoc_end) @lang
-    (#match? @lang "HASKELL"))
-)
+    (#match? @lang "HASKELL")))
 
 (heredoc_body
 ;; !html
   (heredoc_content) @html_injection
   ((heredoc_end) @lang
-    (#match? @lang "HTML"))
-)
+    (#match? @lang "HTML")))
 
 (heredoc_body
 ;; !javascript
   (heredoc_content) @javascript_injection
   ((heredoc_end) @lang
-    (#match? @lang "JAVASCRIPT"))
-)
+    (#match? @lang "JAVASCRIPT")))
 
 (heredoc_body
 ;; !json
   (heredoc_content) @json_injection
   ((heredoc_end) @lang
-    (#match? @lang "JSON"))
-)
+    (#match? @lang "JSON")))
 
 (heredoc_body
 ;; !lua
   (heredoc_content) @lua_injection
   ((heredoc_end) @lang
-    (#match? @lang "LUA"))
-)
+    (#match? @lang "LUA")))
 
 (heredoc_body
 ;; !make
   (heredoc_content) @make_injection
   ((heredoc_end) @lang
-    (#match? @lang "MAKE"))
-)
+    (#match? @lang "MAKE")))
 
 (heredoc_body
 ;; !python
   (heredoc_content) @python_injection
   ((heredoc_end) @lang
-    (#match? @lang "PYTHON"))
-)
+    (#match? @lang "PYTHON")))
 
 (heredoc_body
 ;; !ruby
   (heredoc_content) @ruby_injection
   ((heredoc_end) @lang
-    (#match? @lang "RUBY"))
-)
+    (#match? @lang "RUBY")))
 
 (heredoc_body
 ;; !rust
   (heredoc_content) @rust_injection
   ((heredoc_end) @lang
-    (#match? @lang "RUST"))
-)
+    (#match? @lang "RUST")))
 
 (heredoc_body
 ;; !diff
   (heredoc_content) @diff_injection
   ((heredoc_end) @lang
-    (#match? @lang "DIFF"))
-)
+    (#match? @lang "DIFF")))
 
 (heredoc_body
 ;; !embedded_template
   (heredoc_content) @embedded_template_injection
   ((heredoc_end) @lang
-    (#match? @lang "ERB"))
-)
+    (#match? @lang "ERB")))
 
 (heredoc_body
 ;; !gdscript
   (heredoc_content) @gdscript_injection
   ((heredoc_end) @lang
-    (#match? @lang "GDSCRIPT"))
-)
+    (#match? @lang "GDSCRIPT")))
 
 (heredoc_body
 ;; !gitattributes
   (heredoc_content) @gitattributes_injection
   ((heredoc_end) @lang
-    (#match? @lang "GITATTRIBUTES"))
-)
+    (#match? @lang "GITATTRIBUTES")))
 
 (heredoc_body
 ;; !gitignore
   (heredoc_content) @gitignore_injection
   ((heredoc_end) @lang
-    (#match? @lang "GITIGNORE"))
-)
+    (#match? @lang "GITIGNORE")))
 
 (heredoc_body
 ;; !gomod
   (heredoc_content) @gomod_injection
   ((heredoc_end) @lang
-    (#match? @lang "GOMOD"))
-)
+    (#match? @lang "GOMOD")))
 
 (heredoc_body
 ;; !ini
   (heredoc_content) @ini_injection
   ((heredoc_end) @lang
-    (#match? @lang "INI"))
-)
+    (#match? @lang "INI")))
 
 (heredoc_body
 ;; !markdown
   (heredoc_content) @markdown_injection
   ((heredoc_end) @lang
-    (#match? @lang "MARKDOWN"))
-)
+    (#match? @lang "MARKDOWN")))
 
 (heredoc_body
 ;; !nginx
   (heredoc_content) @nginx_injection
   ((heredoc_end) @lang
-    (#match? @lang "NGINX"))
-)
+    (#match? @lang "NGINX")))
 
 (heredoc_body
 ;; !php
   (heredoc_content) @php_injection
   ((heredoc_end) @lang
-    (#match? @lang "PHP"))
-)
+    (#match? @lang "PHP")))
 
 (heredoc_body
 ;; !query
   (heredoc_content) @query_injection
   ((heredoc_end) @lang
-    (#match? @lang "QUERY"))
-)
+    (#match? @lang "QUERY")))
 
 (heredoc_body
 ;; !regex
   (heredoc_content) @regex_injection
   ((heredoc_end) @lang
-    (#match? @lang "REGEX"))
-)
+    (#match? @lang "REGEX")))
 
 (heredoc_body
 ;; !sql
   (heredoc_content) @sql_injection
   ((heredoc_end) @lang
-    (#match? @lang "SQL"))
-)
+    (#match? @lang "SQL")))
 
 (heredoc_body
 ;; !toml
   (heredoc_content) @toml_injection
   ((heredoc_end) @lang
-    (#match? @lang "TOML"))
-)
+    (#match? @lang "TOML")))
 
 (heredoc_body
 ;; !yaml
   (heredoc_content) @yaml_injection
   ((heredoc_end) @lang
-    (#match? @lang "YAML"))
-)
+    (#match? @lang "YAML")))
 
 (heredoc_body
 ;; !cabal
   (heredoc_content) @cabal_injection
   ((heredoc_end) @lang
-    (#match? @lang "CABAL"))
-)
+    (#match? @lang "CABAL")))

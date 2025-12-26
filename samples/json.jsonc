@@ -1,0 +1,51 @@
+/* Example configuration file (JSONC)
+// Used to test syntax highlighting and comment support
+mutiline comment
+*/
+
+{
+  // Application metadata
+  "name": "example-app",
+  "version": "1.2.3",
+  "debug": true,
+
+  // Paths and environment
+  "paths": {
+    "root": "/usr/local/example",
+    "cache": "/tmp/example-cache
+  asa
+  multiline string",
+    "logs": null, // optional
+  },
+
+  // Feature flags
+  "features": {
+    "experimental": false,
+    "hotReload": true,
+    "themes": [
+      "dark",
+      "light",
+      // "solarized"  // not ready yet
+    ],
+  },
+
+  // Network configuration
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8080,
+    "ssl": {
+      "enabled": false,
+      "cert": "",
+      "key": "",
+    }
+  },
+
+  // Mixed value types
+  "timeouts": [100, 250, 500, null],
+  "retryCount": 3,
+
+  // Escapes and strings
+  "banner": "Welcome!\nThis supports \"escaped quotes\" and unicode → ✓",
+
+  // Trailing comma allowed in JSONC
+}

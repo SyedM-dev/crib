@@ -1,0 +1,70 @@
+/* === Basic selectors === */
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #121212;
+  color: #eee;
+}
+
+/* Class + ID + attribute */
+#main.container[data-theme="dark"] {
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Pseudo-classes & elements */
+a:hover,
+a:focus-visible {
+  color: hsl(210, 80%, 60%);
+  text-decoration: underline;
+}
+
+input::placeholder {
+  color: #999;
+}
+
+/* CSS variables */
+:root {
+  --accent: #4fc3f7;
+  --spacing: 1rem;
+}
+
+.button {
+  background: var(--accent);
+  padding: calc(var(--spacing) * 1.5);
+}
+
+/* Media query */
+@media (max-width: 768px) {
+  .container {
+    padding: 0.5rem;
+  }
+}
+
+/* Keyframes */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Animation usage */
+.modal {
+  animation: fade-in 250ms ease-out;
+}
+
+/* Complex selector */
+ul > li:not(:last-child)::after {
+  content: "•";
+  margin-left: 0.5em;
+}
+
+/* Edge cases */
+[data-value^="test"]::before {
+  content: attr(data-value);
+}

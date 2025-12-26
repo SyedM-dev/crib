@@ -1,0 +1,12 @@
+# Test gitignore file (to check syntax)
+
+*
+./!
+
+*.log
+
+!.gitignore[2]
+
+**/*.lo[s]g
+
+### Comment

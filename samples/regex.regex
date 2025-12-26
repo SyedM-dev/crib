@@ -1,0 +1,18 @@
+# Match email addresses with optional names
+(?P<name>[a-zA-Z0-9._%+-]+)?\s*<(?P<email>[a-zA-Z0-9.-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})>
+
+# Match dates in YYYY-MM-DD or DD/MM/YYYY
+(\d{4}-\d{2}-\d{2})|(\d{2}/\d{2}/\d{4})
+
+# Match hexadecimal colors
+# e.g., #FFF, #FFFFFF
+# Optional leading #
+# Case-insensitive
+# Flags inline
+(?i)#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})
+
+# Match words starting with vowels
+\b[aeiouAEIOU]\w*\b
+
+# Match simple URL
+https?://(?:www\.)?\w+\.\w+(?:/\S*)?

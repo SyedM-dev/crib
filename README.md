@@ -6,7 +6,7 @@ A TUI IDE.
 
 # TODO
 
-- [ ] Get all tree-sitter grammars needed and write down their scm files.
+- [ ] Get lsp warnings byte offsets/lengths and render them as background color.
 - [ ] Add support for LSP & autocomplete / snippets.
     - First research
         - `textDocument/documentHighlight` - for highlighting stuff (probably tree-sitter is enough)
@@ -28,6 +28,8 @@ A TUI IDE.
             2. One for stuff that only affects highlighting and styles . like symbol highlighting etc.
             3. One for Warnings/errors and inlay hints etc. (stuff that adds virtual text to the editor)
             4. One for fromatting and stuff like that. (stuff that edits the buffer text)
+- [ ] Make tree sitter spans truly incremental - or atleast make them pos based and not byte so minor changes only shifts inline
+    - And make inner trees incremental too
 - [ ] Use LSP to add inlay hints in order to test virtual text. then make an iterator over screen that mimics the renderer for scrolling functions.
 - [ ] Add codeium/copilot support for auto-completion (uses the VAI virtual text) as a test phase.
 - [ ] Add a whitespace highlighter (nerd font). for spaces and tabs at start/end of line. not as virtual but instead at render time.

@@ -1,0 +1,71 @@
+<%# app/views/users/show.html.erb %>
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title><%= @user.name %> — Profile</title>
+
+    <%# Inline Ruby expression %>
+    <meta name="description" content="<%= @user.bio %>">
+
+    <% if @dark_mode %>
+      <style>
+        body {
+          background-color: #111;
+          color: #eee;
+        }
+      </style>
+    <% end %>
+  </head>
+
+  <body>
+    <!-- HTML comment -->
+    <header>
+      <h1>Welcome, <%= @user.name %></h1>
+      <p class="subtitle">
+        Member since <%= @user.created_at.strftime("%Y") %>
+      </p>
+    </header>
+
+    <% if @user.admin? %>
+      <section class="admin-panel">
+        <h2>Admin Tools</h2>
+        <ul>
+          <% @tools.each do |tool| %>
+            <li><%= tool.title %></li>
+          <% end %>
+        </ul>
+      </section>
+    <% else %>
+      <p>You do not have admin privileges.</p>
+    <% end %>
+
+    <section class="posts">
+      <% @posts.each do |post| %>
+        <article class="post">
+          <h3><%= post.title %></h3>
+          <p><%= truncate(post.body, length: 140) %></p>
+
+          <%# Conditional rendering %>
+          <% if post.published? %>
+            <span class="status published">Published</span>
+          <% else %>
+            <span class="status draft">Draft</span>
+          <% end %>
+        </article>
+      <% end %>
+    </section>
+
+    <footer>
+      <p>&copy; <%= Time.now.year %> Example Corp</p>
+      <%= link_to "Privacy Policy", "/privacy" %>
+    </footer>
+
+    <script>
+      // JavaScript inside ERB
+      const userName = "<%= j @user.name %>";
+      console.log(`Loaded profile for ${userName}`);
+    </script>
+  </body>
+</html>

@@ -220,8 +220,13 @@ char *load_file(const char *path, uint32_t *out_len) {
 static std::string file_extension(const char *filename) {
   std::string name(filename);
   auto pos = name.find_last_of('.');
-  if (pos == std::string::npos)
-    return "";
+  if (pos == std::string::npos) {
+    auto pos2 = name.find_last_of('/');
+    if (pos2 != std::string::npos)
+      pos = pos2;
+    else
+      return "";
+  }
   std::string ext = name.substr(pos + 1);
   std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
   return ext;
@@ -245,6 +250,25 @@ char *detect_file_type(const char *filename) {
   return result;
 }
 
+Language language_for_file(const char *filename) {
+  std::string ext = file_extension(filename);
+  std::string lang_name;
+  if (!ext.empty()) {
+    auto it = kExtToLang.find(ext);
+    if (it != kExtToLang.end())
+      return kLanguages.find(it->second)->second;
+  }
+  char *mime = detect_file_type(filename);
+  if (mime) {
+    std::string mime_type(mime);
+    free(mime);
+    auto it = kMimeToLang.find(mime_type);
+    if (it != kMimeToLang.end())
+      return kLanguages.find(it->second)->second;
+  }
+  return {"unknown", nullptr};
+}
+
 int utf8_byte_offset_to_utf16(const char *s, size_t byte_pos) {
   int utf16_units = 0;
   size_t i = 0;
@@ -265,23 +289,4 @@ int utf8_byte_offset_to_utf16(const char *s, size_t byte_pos) {
     }
   }
   return utf16_units;
-}
-
-Language language_for_file(const char *filename) {
-  std::string ext = file_extension(filename);
-  std::string lang_name;
-  if (!ext.empty()) {
-    auto it = kExtToLang.find(ext);
-    if (it != kExtToLang.end())
-      return kLanguages.find(it->second)->second;
-  }
-  char *mime = detect_file_type(filename);
-  if (mime) {
-    std::string mime_type(mime);
-    free(mime);
-    auto it = kMimeToLang.find(mime_type);
-    if (it != kMimeToLang.end())
-      return kLanguages.find(it->second)->second;
-  }
-  return {"unknown", nullptr};
 }

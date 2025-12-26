@@ -37,6 +37,7 @@ static const std::unordered_map<std::string, Language> kLanguages = {
     {"make", {"make", LANG(make)}},
     {"python", {"python", LANG(python)}},
     {"ruby", {"ruby", LANG(ruby)}},
+    {"rust", {"rust", LANG(rust)}},
     {"diff", {"diff", LANG(diff)}},
     {"embedded_template", {"embedded_template", LANG(embedded_template)}},
     {"gdscript", {"gdscript", LANG(gdscript)}},
@@ -45,6 +46,7 @@ static const std::unordered_map<std::string, Language> kLanguages = {
     {"gomod", {"gomod", LANG(gomod)}},
     {"ini", {"ini", LANG(ini)}},
     {"markdown", {"markdown", LANG(markdown)}},
+    {"markdown_inline", {"markdown_inline", LANG(markdown_inline)}},
     {"nginx", {"nginx", LANG(nginx)}},
     {"php", {"php", LANG(php)}},
     {"query", {"query", LANG(query)}},
@@ -52,7 +54,6 @@ static const std::unordered_map<std::string, Language> kLanguages = {
     {"sql", {"sql", LANG(sql)}},
     {"toml", {"toml", LANG(toml)}},
     {"yaml", {"yaml", LANG(yaml)}},
-    {"cabal", {"cabal", LANG(cabal)}},
 };
 
 static const std::unordered_map<std::string, std::string> kExtToLang = {
@@ -73,13 +74,17 @@ static const std::unordered_map<std::string, std::string> kExtToLang = {
     {"html", "html"},
     {"htm", "html"},
     {"js", "javascript"},
+    {"jsx", "javascript"},
     {"json", "json"},
+    {"jsonc", "json"},
     {"lua", "lua"},
     {"mk", "make"},
     {"makefile", "make"},
     {"py", "python"},
     {"rb", "ruby"},
+    {"rs", "rust"},
     {"diff", "diff"},
+    {"patch", "diff"},
     {"erb", "embedded_template"},
     {"etlua", "embedded_template"},
     {"gd", "gdscript"},
@@ -87,6 +92,7 @@ static const std::unordered_map<std::string, std::string> kExtToLang = {
     {"gitignore", "gitignore"},
     {"mod", "gomod"},
     {"ini", "ini"},
+    {"gitmodules", "ini"},
     {"md", "markdown"},
     {"markdown", "markdown"},
     {"conf", "nginx"},
@@ -97,7 +103,6 @@ static const std::unordered_map<std::string, std::string> kExtToLang = {
     {"toml", "toml"},
     {"yaml", "yaml"},
     {"yml", "yaml"},
-    {"cabal", "cabal"},
 };
 
 static const std::unordered_map<std::string, std::string> kMimeToLang = {
@@ -112,6 +117,7 @@ static const std::unordered_map<std::string, std::string> kMimeToLang = {
     {"text/x-ruby", "ruby"},
     {"text/x-go", "go"},
     {"text/x-haskell", "haskell"},
+    {"text/x-rust", "rust"},
     {"text/x-lua", "lua"},
     {"text/x-diff", "diff"},
     {"text/x-embedded-template", "embedded_template"},
@@ -128,7 +134,6 @@ static const std::unordered_map<std::string, std::string> kMimeToLang = {
     {"text/x-sql", "sql"},
     {"text/x-toml", "toml"},
     {"text/x-yaml", "yaml"},
-    {"text/x-cabal", "cabal"},
 };
 
 #endif

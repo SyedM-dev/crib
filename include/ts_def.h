@@ -12,6 +12,7 @@ struct Language {
   uint8_t lsp_id = 0;
 };
 
+TS_DEF(ruby);
 TS_DEF(bash);
 TS_DEF(cpp);
 TS_DEF(css);
@@ -22,25 +23,24 @@ TS_DEF(html);
 TS_DEF(javascript);
 TS_DEF(json);
 TS_DEF(lua);
-TS_DEF(make);
-TS_DEF(python);
-TS_DEF(ruby);
-TS_DEF(rust);
-TS_DEF(diff);
+TS_DEF(regex);
+TS_DEF(query);
+TS_DEF(markdown);
+TS_DEF(markdown_inline);
 TS_DEF(embedded_template);
-TS_DEF(gdscript);
+TS_DEF(php);
+TS_DEF(python);
+TS_DEF(rust);
+TS_DEF(sql);
 TS_DEF(gitattributes);
 TS_DEF(gitignore);
 TS_DEF(gomod);
-TS_DEF(ini);
-TS_DEF(markdown);
 TS_DEF(nginx);
-TS_DEF(php);
-TS_DEF(query);
-TS_DEF(regex);
-TS_DEF(sql);
 TS_DEF(toml);
 TS_DEF(yaml);
-TS_DEF(cabal);
+TS_DEF(ini);
+TS_DEF(diff);
+TS_DEF(make);
+TS_DEF(gdscript);
 
 #endif

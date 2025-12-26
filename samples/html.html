@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Injection Test</title>
+
+    <!-- Comment -->
+    <!-- Another comment with spellcheck -->
+
+    <!-- CSS block -->
+    <style>
+      body {
+        background-color: #f0f0f0;
+      }
+      h1 {
+        color: blue;
+      }
+      .highlight {
+        font-weight: bold;
+      }
+    </style>
+
+    <!-- CSS block with type attribute -->
+    <style type="text/css">
+      p {
+        color: green;
+      }
+    </style>
+
+    <!-- Script block -->
+    <script>
+      console.log("Hello, world!");
+      function greet(name) {
+        alert(`Hello, ${name}`);
+      }
+    </script>
+
+    <!-- Script with type="module" -->
+    <script type="module">
+      import { something } from "./module.js";
+      something();
+    </script>
+
+    <!-- Script with type="importmap" -->
+    <script type="importmap">
+      {
+        "imports": {
+          "lodash": "/node_modules/lodash-es/lodash\n.js",
+          "key": 2
+        }
+      }
+    </script>
+
+    <!-- Script with type attribute custom -->
+    <script type="text/javascript">
+      console.log("Custom type");
+    </script>
+  </head>
+  <body>
+    <h1>Main Heading</h1>
+    <h2>Subheading H2</h2>
+
+    <p style="color: red; font-weight: bold">
+      This paragraph has an inline style
+    </p>
+
+    <p>
+      This is <strong>strong text</strong>, <b>bold also</b>,
+      <em>italic text</em>, <i>emphasized</i>, <u>underlined</u>,
+      <s>strikethrough</s>, <del>deleted text</del>, <code>inline code</code>,
+      <kbd>keyboard input</kbd>.
+    </p>
+    
+    <a href="https://hello.world"></a>
+
+    <!-- Lit-html / template interpolation -->
+    <button @click="${e => console.log(e)}">Click me</button>
+    <button @click="${e => console.log(e)}">Click me too</button>
+
+    <!-- Input pattern (regex) -->
+    <input type="text" pattern="[0-9]{3}" placeholder="Enter 3 digits" />
+
+    <!-- Event handlers -->
+    <button onclick="alert('Clicked!')">Event Handler</button>
+    <input onchange="console.log(this.value)" />
+  </body>
+</html>

@@ -1,0 +1,5 @@
+# Sample .gitattributes file for syntax highlighting tests
+
+*.c syntax=c
+*.h syntax=c
+*.py syntax=python

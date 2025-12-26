@@ -90,6 +90,8 @@ TSQuery *load_query(const char *query_path, TSSetBase *set) {
       auto it = kLanguages.find(mct.substr(4));
       if (it != kLanguages.end())
         c_lang = it->second;
+      else
+        c_lang = {"unknown", nullptr, 0};
     }
     offset = ovector[1];
   }
@@ -102,6 +104,9 @@ TSQuery *load_query(const char *query_path, TSSetBase *set) {
   TSQuery *q = ts_query_new(lang, highlight_query.c_str(),
                             (uint32_t)highlight_query.length(), &error_offset,
                             &error_type);
+  if (!q)
+    log("Failed to create TSQuery at offset %u, error type %d", error_offset,
+        (int)error_type);
   return q;
 }
 
@@ -228,103 +233,103 @@ void ts_collect_spans(Editor *editor) {
     ts_tree_delete(editor->ts.tree);
   editor->ts.tree = tree;
   copy = ts_tree_copy(tree);
-  TSQueryCursor *cursor = ts_query_cursor_new();
-  ts_query_cursor_exec(cursor, editor->ts.query, ts_tree_root_node(copy));
   std::vector<Span> new_spans;
   new_spans.reserve(4096);
   struct PendingRanges {
     std::vector<TSRange> ranges;
     TSSet *tsset = nullptr;
   };
-  std::unordered_map<std::string, PendingRanges> pending_injections;
-  TSQueryMatch match;
-  while (ts_query_cursor_next_match(cursor, &match)) {
-    if (!ts_predicate(editor->ts.query, match, editor->root))
-      continue;
-    for (uint32_t i = 0; i < match.capture_count; i++) {
-      TSQueryCapture cap = match.captures[i];
-      uint32_t start = ts_node_start_byte(cap.node);
-      uint32_t end = ts_node_end_byte(cap.node);
-      if (Highlight *hl = safe_get(editor->ts.query_map, cap.index))
-        new_spans.push_back({start, end, hl});
-      if (!injections_enabled)
-        continue;
-      if (Language *inj_lang = safe_get(editor->ts.injection_map, cap.index)) {
-        auto &pending = pending_injections[inj_lang->name];
-        TSSet &tsset =
-            editor->ts.injections.try_emplace(inj_lang->name).first->second;
-        if (!tsset.parser) {
-          tsset.lang = inj_lang->name;
-          tsset.parser = ts_parser_new();
-          ts_parser_set_language(tsset.parser, inj_lang->fn());
-          tsset.language = inj_lang->fn();
-          tsset.query_file =
-              get_exe_dir() + "/../grammar/" + inj_lang->name + ".scm";
-          tsset.query = load_query(tsset.query_file.c_str(), &tsset);
-        }
-        pending.tsset = &tsset;
-        pending.ranges.push_back(TSRange{
-            ts_node_start_point(cap.node),
-            ts_node_end_point(cap.node),
-            start,
-            end,
-        });
-      }
-    }
-  }
+  struct WorkItem {
+    TSSetBase *tsset;
+    TSTree *tree;
+    int depth;
+    TSSet *as_injection;
+  };
+  const int kMaxInjectionDepth = 4;
+  std::vector<WorkItem> work;
+  work.push_back(
+      {reinterpret_cast<TSSetBase *>(&editor->ts), copy, 0, nullptr});
   auto overlaps = [](const Span &s, const TSRange &r) {
     return !(s.end <= r.start_byte || s.start >= r.end_byte);
   };
-  if (injections_enabled) {
-    for (auto &[lang_name, pending] : pending_injections) {
-      TSSet *tsset = pending.tsset;
-      if (!tsset)
-        continue;
-      tsset->ranges = std::move(pending.ranges);
-      if (tsset->ranges.size() > 0)
-        new_spans.erase(std::remove_if(new_spans.begin(), new_spans.end(),
-                                       [&](const Span &sp) {
-                                         return std::any_of(
-                                             tsset->ranges.begin(),
-                                             tsset->ranges.end(),
-                                             [&](const TSRange &r) {
-                                               return overlaps(sp, r);
-                                             });
-                                       }),
-                        new_spans.end());
+  auto remove_overlapping_spans = [&](const std::vector<TSRange> &ranges) {
+    if (ranges.empty())
+      return;
+    new_spans.erase(
+        std::remove_if(new_spans.begin(), new_spans.end(),
+                       [&](const Span &sp) {
+                         return std::any_of(
+                             ranges.begin(), ranges.end(),
+                             [&](const TSRange &r) { return overlaps(sp, r); });
+                       }),
+        new_spans.end());
+  };
+  while (!work.empty()) {
+    WorkItem item = work.back();
+    work.pop_back();
+    TSQuery *q = item.tsset->query;
+    if (!q) {
+      ts_tree_delete(item.tree);
+      continue;
     }
-    for (auto &kv : editor->ts.injections) {
-      auto &inj = kv.second;
-      if (!inj.parser || !inj.query || inj.ranges.size() == 0)
+    TSQueryCursor *cursor = ts_query_cursor_new();
+    ts_query_cursor_exec(cursor, q, ts_tree_root_node(item.tree));
+    std::unordered_map<std::string, PendingRanges> pending_injections;
+    TSQueryMatch match;
+    while (ts_query_cursor_next_match(cursor, &match)) {
+      if (!ts_predicate(q, match, editor->root))
         continue;
-      ts_parser_set_included_ranges(inj.parser, inj.ranges.data(),
-                                    inj.ranges.size());
-      knot_mtx.lock();
-      std::pair<uint32_t, int64_t> span_edit;
-      while (editor->spans.edits.pop(span_edit))
-        apply_edit(new_spans, span_edit.first, span_edit.second);
-      TSTree *inj_tree = ts_parser_parse(inj.parser, nullptr, tsinput);
-      knot_mtx.unlock();
-      TSQueryCursor *inj_cursor = ts_query_cursor_new();
-      ts_query_cursor_exec(inj_cursor, inj.query, ts_tree_root_node(inj_tree));
-      TSQueryMatch inj_match;
-      while (ts_query_cursor_next_match(inj_cursor, &inj_match)) {
-        if (!ts_predicate(inj.query, inj_match, editor->root))
+      for (uint32_t i = 0; i < match.capture_count; i++) {
+        TSQueryCapture cap = match.captures[i];
+        uint32_t start = ts_node_start_byte(cap.node);
+        uint32_t end = ts_node_end_byte(cap.node);
+        if (Highlight *hl = safe_get(item.tsset->query_map, cap.index))
+          new_spans.push_back({start, end, hl});
+        if (!injections_enabled)
           continue;
-        for (uint32_t i = 0; i < inj_match.capture_count; i++) {
-          TSQueryCapture cap = inj_match.captures[i];
-          uint32_t start = ts_node_start_byte(cap.node);
-          uint32_t end = ts_node_end_byte(cap.node);
-          if (Highlight *hl = safe_get(inj.query_map, cap.index))
-            new_spans.push_back({start, end, hl});
+        if (Language *inj_lang =
+                safe_get(item.tsset->injection_map, cap.index)) {
+          auto &pending = pending_injections[inj_lang->name];
+          TSSet &tsset =
+              editor->ts.injections.try_emplace(inj_lang->name).first->second;
+          if (!tsset.parser) {
+            tsset.lang = inj_lang->name;
+            tsset.parser = ts_parser_new();
+            ts_parser_set_language(tsset.parser, inj_lang->fn());
+            tsset.language = inj_lang->fn();
+            tsset.query_file =
+                get_exe_dir() + "/../grammar/" + inj_lang->name + ".scm";
+            tsset.query = load_query(tsset.query_file.c_str(), &tsset);
+          }
+          pending.tsset = &tsset;
+          pending.ranges.push_back(TSRange{
+              ts_node_start_point(cap.node),
+              ts_node_end_point(cap.node),
+              start,
+              end,
+          });
         }
       }
-      ts_query_cursor_delete(inj_cursor);
-      ts_tree_delete(inj_tree);
     }
+    ts_query_cursor_delete(cursor);
+    if (injections_enabled && item.depth < kMaxInjectionDepth) {
+      for (auto &[lang_name, pending] : pending_injections) {
+        TSSet *tsset = pending.tsset;
+        if (!tsset || pending.ranges.empty() || !tsset->parser || !tsset->query)
+          continue;
+        tsset->ranges = std::move(pending.ranges);
+        remove_overlapping_spans(tsset->ranges);
+        ts_parser_set_included_ranges(tsset->parser, tsset->ranges.data(),
+                                      tsset->ranges.size());
+        lock.lock();
+        TSTree *inj_tree = ts_parser_parse(tsset->parser, nullptr, tsinput);
+        lock.unlock();
+        work.push_back({reinterpret_cast<TSSetBase *>(tsset), inj_tree,
+                        item.depth + 1, tsset});
+      }
+    }
+    ts_tree_delete(item.tree);
   }
-  ts_query_cursor_delete(cursor);
-  ts_tree_delete(copy);
   std::pair<uint32_t, int64_t> span_edit;
   while (editor->spans.edits.pop(span_edit))
     apply_edit(new_spans, span_edit.first, span_edit.second);
