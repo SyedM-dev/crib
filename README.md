@@ -6,14 +6,12 @@ A TUI IDE.
 
 # TODO
 
-- [ ] Get lsp warnings byte offsets/lengths and render them as background color.
 - [ ] Add support for LSP & autocomplete / snippets.
     - First research
         - `textDocument/documentHighlight` - for highlighting stuff (probably tree-sitter is enough)
         - `textDocument/selectionRange` //
         - `textDocument/completion` - Obviously
         - `textDocument/onTypeFormatting` - seems promising for auto formatting (indentation etc)
-        - `textDocument/inlayHint` & `textDocument/inlineHint` & `textDocument/codeLens`
         - `textDocument/formatting` & `textDocument/rangeFormatting`
         - `textDocument/semanticTokens/*` (probably tree-sitter is enough)
         - `textDocument/linkedEditingRange` - probably useful
@@ -28,9 +26,6 @@ A TUI IDE.
             2. One for stuff that only affects highlighting and styles . like symbol highlighting etc.
             3. One for Warnings/errors and inlay hints etc. (stuff that adds virtual text to the editor)
             4. One for fromatting and stuff like that. (stuff that edits the buffer text)
-- [ ] Make tree sitter spans truly incremental - or atleast make them pos based and not byte so minor changes only shifts inline
-    - And make inner trees incremental too
-- [ ] Use LSP to add inlay hints in order to test virtual text. then make an iterator over screen that mimics the renderer for scrolling functions.
 - [ ] Add codeium/copilot support for auto-completion (uses the VAI virtual text) as a test phase.
 - [ ] Add a whitespace highlighter (nerd font). for spaces and tabs at start/end of line. not as virtual but instead at render time.
 - [ ] Once renderer is proven to work well (i.e. redo this commit) merge `experimental` branch into `main`. commit `43f443e` on `experimental`.
@@ -42,7 +37,6 @@ A TUI IDE.
 - [ ] Add alt + click to set multiple cursors.
 - [ ] Add search / replace along with search / virtual cursors are searched pos.
 - [ ] Add support for undo/redo.
-- [ ] Add `.scm` files for all the supported languages. (2/14) Done.
 - [ ] Add splash screen / minigame jumping.
 - [ ] Normalize / validate unicode on file open.
 - [ ] Add git stuff.

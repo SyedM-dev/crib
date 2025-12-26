@@ -204,35 +204,40 @@ void ts_collect_spans(Editor *editor) {
       .encoding = TSInputEncodingUTF8,
       .decode = nullptr,
   };
-  TSTree *tree = nullptr;
-  TSTree *copy = nullptr;
-  std::unique_lock knot_mtx(editor->knot_mtx);
-  if (editor->ts.tree)
-    copy = ts_tree_copy(editor->ts.tree);
-  knot_mtx.unlock();
   std::vector<TSInputEdit> edits;
   TSInputEdit edit;
-  if (copy)
-    while (editor->edit_queue.pop(edit)) {
+  if (!editor->edit_queue.empty()) {
+    while (editor->edit_queue.pop(edit))
       edits.push_back(edit);
-      ts_tree_edit(copy, &edits.back());
+    if (editor->ts.tree) {
+      for (auto &e : edits)
+        ts_tree_edit(editor->ts.tree, &e);
     }
-  if (copy && edits.empty() && parse_counter < 64) {
+    for (auto &inj : editor->ts.injections) {
+      if (inj.second.tree) {
+        for (auto &e : edits) {
+          TSInputEdit inj_edit = e;
+          for (auto &r : inj.second.ranges) {
+            if (e.start_byte >= r.start_byte && e.start_byte <= r.end_byte) {
+              inj_edit.start_byte -= r.start_byte;
+              inj_edit.old_end_byte -= r.start_byte;
+              inj_edit.new_end_byte -= r.start_byte;
+            }
+          }
+          ts_tree_edit(inj.second.tree, &inj_edit);
+        }
+      }
+    }
+  } else if (editor->ts.tree && parse_counter < 64) {
     parse_counter++;
-    ts_tree_delete(copy);
     return;
   }
   parse_counter = 0;
   editor->spans.mid_parse = true;
   std::shared_lock lock(editor->knot_mtx);
-  tree = ts_parser_parse(editor->ts.parser, copy, tsinput);
+  editor->ts.tree =
+      ts_parser_parse(editor->ts.parser, editor->ts.tree, tsinput);
   lock.unlock();
-  if (copy)
-    ts_tree_delete(copy);
-  if (editor->ts.tree)
-    ts_tree_delete(editor->ts.tree);
-  editor->ts.tree = tree;
-  copy = ts_tree_copy(tree);
   std::vector<Span> new_spans;
   new_spans.reserve(4096);
   struct PendingRanges {
@@ -243,12 +248,11 @@ void ts_collect_spans(Editor *editor) {
     TSSetBase *tsset;
     TSTree *tree;
     int depth;
-    TSSet *as_injection;
   };
   const int kMaxInjectionDepth = 4;
   std::vector<WorkItem> work;
   work.push_back(
-      {reinterpret_cast<TSSetBase *>(&editor->ts), copy, 0, nullptr});
+      {reinterpret_cast<TSSetBase *>(&editor->ts), editor->ts.tree, 0});
   auto overlaps = [](const Span &s, const TSRange &r) {
     return !(s.end <= r.start_byte || s.start >= r.end_byte);
   };
@@ -268,12 +272,10 @@ void ts_collect_spans(Editor *editor) {
     WorkItem item = work.back();
     work.pop_back();
     TSQuery *q = item.tsset->query;
-    if (!q) {
-      ts_tree_delete(item.tree);
+    if (!q)
       continue;
-    }
     TSQueryCursor *cursor = ts_query_cursor_new();
-    ts_query_cursor_exec(cursor, q, ts_tree_root_node(item.tree));
+    ts_query_cursor_exec(cursor, q, ts_tree_root_node(item.tsset->tree));
     std::unordered_map<std::string, PendingRanges> pending_injections;
     TSQueryMatch match;
     while (ts_query_cursor_next_match(cursor, &match)) {
@@ -322,13 +324,12 @@ void ts_collect_spans(Editor *editor) {
         ts_parser_set_included_ranges(tsset->parser, tsset->ranges.data(),
                                       tsset->ranges.size());
         lock.lock();
-        TSTree *inj_tree = ts_parser_parse(tsset->parser, nullptr, tsinput);
+        tsset->tree = ts_parser_parse(tsset->parser, tsset->tree, tsinput);
         lock.unlock();
-        work.push_back({reinterpret_cast<TSSetBase *>(tsset), inj_tree,
-                        item.depth + 1, tsset});
+        work.push_back({reinterpret_cast<TSSetBase *>(tsset), tsset->tree,
+                        item.depth + 1});
       }
     }
-    ts_tree_delete(item.tree);
   }
   std::pair<uint32_t, int64_t> span_edit;
   while (editor->spans.edits.pop(span_edit))

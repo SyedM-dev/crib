@@ -253,6 +253,25 @@ void render_editor(Editor *editor) {
         if (editor->selection_active && absolute_byte_pos >= sel_start &&
             absolute_byte_pos < sel_end)
           bg = 0x555555;
+        for (const auto &w : line_warnings) {
+          if (w.start <= current_byte_offset + local_render_offset &&
+              current_byte_offset + local_render_offset < w.end) {
+            switch (w.type) {
+            case 1:
+              bg = 0x500000;
+              break;
+            case 2:
+              bg = 0x505000;
+              break;
+            case 3:
+              bg = 0x500050;
+              break;
+            case 4:
+              bg = 0x505050;
+              break;
+            }
+          }
+        }
         uint32_t cluster_len = grapheme_next_character_break_utf8(
             line + current_byte_offset + local_render_offset, line_left);
         std::string cluster(line + current_byte_offset + local_render_offset,

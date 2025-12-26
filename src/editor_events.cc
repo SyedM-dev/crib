@@ -611,6 +611,10 @@ void editor_lsp_handle(Editor *editor, json msg) {
       json d = diagnostics[i];
       VWarn w;
       w.line = d["range"]["start"]["line"];
+      w.start = d["range"]["start"]["character"];
+      uint32_t end = d["range"]["end"]["character"];
+      if (d["range"]["end"]["line"] == w.line)
+        w.end = end;
       std::string text = d["message"].get<std::string>();
       auto pos = text.find('\n');
       w.text = (pos == std::string::npos) ? text : text.substr(0, pos);

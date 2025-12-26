@@ -94,17 +94,12 @@ struct SpanCursor {
   }
 };
 
-struct VHint {
-  Coord pos;
-  std::string hint;
-
-  bool operator<(const VHint &other) const { return pos < other.pos; }
-};
-
 struct VWarn {
   uint32_t line;
   std::string text;
-  int8_t type; // For hl
+  int8_t type;
+  uint32_t start;
+  uint32_t end{UINT32_MAX};
 
   bool operator<(const VWarn &other) const { return line < other.line; }
 };
@@ -123,6 +118,7 @@ struct TSSetBase {
   TSParser *parser;
   std::string query_file;
   TSQuery *query;
+  TSTree *tree;
   std::map<uint16_t, Highlight> query_map;
   std::map<uint16_t, Language> injection_map;
   const TSLanguage *language;
@@ -133,7 +129,6 @@ struct TSSet : TSSetBase {
 };
 
 struct TSSetMain : TSSetBase {
-  TSTree *tree;
   std::unordered_map<std::string, TSSet> injections;
 };
 
@@ -158,7 +153,6 @@ struct Editor {
   uint32_t hooks[94];
   bool jumper_set;
   std::shared_mutex v_mtx;
-  std::vector<VHint> hints;
   std::vector<VWarn> warnings;
   VAI ai;
   std::shared_mutex lsp_mtx;

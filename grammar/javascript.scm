@@ -14,7 +14,7 @@
  (#match? @variable.builtin
   "^(arguments|console|window|document|globalThis|process|module|exports)$"))
 
-;; #59C2FF #000000 0 0 0 3
+;; #59C2FF #000000 0 0 0 1
 ((identifier) @constructor
  (#match? @constructor "^[A-Z][a-zA-Z0-9]*$"))
 
@@ -84,12 +84,11 @@
   key: (property_identifier) @name
   value: [(arrow_function) (function_expression)]) @definition.function
 
-;; #59C2FF #000000 0 0 0 2
+;; #59C2FF #000000 0 0 0 0
 (
   (call_expression
     function: (identifier) @name) @reference.call
-  (#not-match? @name "^(require)$")
-)
+  (#not-match? @name "^(require)$"))
 
 ;; #7dcfff #000000 0 0 0 2
 (new_expression
