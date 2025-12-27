@@ -30,6 +30,7 @@ struct LSPInstance {
   int stdin_fd{-1};
   int stdout_fd{-1};
   bool initialized = false;
+  bool incremental_sync = true;
   uint32_t last_id = 0;
   Queue<json> inbox;
   Queue<json> outbox;

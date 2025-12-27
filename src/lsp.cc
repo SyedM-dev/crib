@@ -13,6 +13,7 @@ std::unordered_map<uint8_t, LSPInstance *> active_lsps;
 Queue<LSPOpenRequest> lsp_open_queue;
 
 static bool init_lsp(LSPInstance *lsp) {
+  log("initializing %s\n", lsp->lsp->command);
   int in_pipe[2];
   int out_pipe[2];
   if (pipe(in_pipe) == -1 || pipe(out_pipe) == -1) {
@@ -59,23 +60,35 @@ LSPInstance *get_or_init_lsp(uint8_t lsp_id) {
       delete lsp;
       return nullptr;
     }
+    log("starting %s\n", lsp->lsp->command);
     LSPPending *pending = new LSPPending();
     pending->method = "initialize";
     pending->editor = nullptr;
-    pending->callback = [lsp](Editor *, std::string, json) {
+    pending->callback = [lsp](Editor *, std::string, json msg) {
+      if (msg.contains("result") && msg["result"].contains("capabilities")) {
+        auto &caps = msg["result"]["capabilities"];
+        if (caps.contains("textDocumentSync") &&
+            caps["textDocumentSync"].contains("change")) {
+          int change_type = caps["textDocumentSync"]["change"];
+          lsp->incremental_sync = (change_type == 2);
+        }
+      }
       lsp->initialized = true;
       json initialized = {{"jsonrpc", "2.0"},
                           {"method", "initialized"},
                           {"params", json::object()}};
       lsp_send(lsp, initialized, nullptr);
+      log("initialized %s\n", lsp->lsp->command);
     };
     json init_message = {
         {"jsonrpc", "2.0"},
         {"method", "initialize"},
         {"params",
          {{"processId", getpid()},
-          {"rootUri", "file://" + std::filesystem::current_path().string()},
-          {"capabilities", json::object()}}}};
+          {"rootUri", "file://" + percent_encode(path_abs("."))},
+          {"capabilities",
+           {{"textDocument",
+             {{"publishDiagnostics", {{"relatedInformation", true}}}}}}}}}};
     lsp_send(lsp, init_message, pending);
     active_lsps[lsp_id] = lsp;
     return lsp;
@@ -160,6 +173,7 @@ static std::optional<json> read_lsp_message(int fd) {
       return std::nullopt;
     got += n;
   }
+  log("%s\n", body.c_str());
   return json::parse(body);
 }
 
@@ -249,6 +263,7 @@ void lsp_worker() {
 }
 
 void request_add_to_lsp(Language language, Editor *editor) {
+  log("request_add_to_lsp %d\n", language.lsp_id);
   lsp_open_queue.push({language, editor});
 }
 

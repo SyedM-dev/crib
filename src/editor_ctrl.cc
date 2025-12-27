@@ -394,15 +394,29 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
       editor->edit_queue.push(edit);
     }
     if (do_lsp) {
-      json message = {
-          {"jsonrpc", "2.0"},
-          {"method", "textDocument/didChange"},
-          {"params",
-           {{"textDocument",
-             {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
-            {"contentChanges",
-             json::array({{{"range", lsp_range}, {"text", ""}}})}}}};
-      lsp_send(editor->lsp, message, nullptr);
+      if (editor->lsp->incremental_sync) {
+        json message = {
+            {"jsonrpc", "2.0"},
+            {"method", "textDocument/didChange"},
+            {"params",
+             {{"textDocument",
+               {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
+              {"contentChanges",
+               json::array({{{"range", lsp_range}, {"text", ""}}})}}}};
+        lsp_send(editor->lsp, message, nullptr);
+      } else {
+        char *buf = read(editor->root, 0, editor->root->char_count);
+        std::string text(buf);
+        free(buf);
+        json message = {
+            {"jsonrpc", "2.0"},
+            {"method", "textDocument/didChange"},
+            {"params",
+             {{"textDocument",
+               {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
+              {"contentChanges", json::array({{{"text", text}}})}}}};
+        lsp_send(editor->lsp, message, nullptr);
+      }
     }
     std::unique_lock lock_3(editor->spans.mtx);
     apply_edit(editor->spans.spans, start, start - byte_pos);
@@ -469,15 +483,29 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
       editor->edit_queue.push(edit);
     }
     if (do_lsp) {
-      json message = {
-          {"jsonrpc", "2.0"},
-          {"method", "textDocument/didChange"},
-          {"params",
-           {{"textDocument",
-             {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
-            {"contentChanges",
-             json::array({{{"range", lsp_range}, {"text", ""}}})}}}};
-      lsp_send(editor->lsp, message, nullptr);
+      if (editor->lsp->incremental_sync) {
+        json message = {
+            {"jsonrpc", "2.0"},
+            {"method", "textDocument/didChange"},
+            {"params",
+             {{"textDocument",
+               {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
+              {"contentChanges",
+               json::array({{{"range", lsp_range}, {"text", ""}}})}}}};
+        lsp_send(editor->lsp, message, nullptr);
+      } else {
+        char *buf = read(editor->root, 0, editor->root->char_count);
+        std::string text(buf);
+        free(buf);
+        json message = {
+            {"jsonrpc", "2.0"},
+            {"method", "textDocument/didChange"},
+            {"params",
+             {{"textDocument",
+               {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
+              {"contentChanges", json::array({{{"text", text}}})}}}};
+        lsp_send(editor->lsp, message, nullptr);
+      }
     }
     std::unique_lock lock_3(editor->spans.mtx);
     apply_edit(editor->spans.spans, byte_pos, byte_pos - end);
@@ -530,28 +558,42 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
     editor->edit_queue.push(edit);
   }
   if (editor->lsp) {
-    lock_1.lock();
-    LineIterator *it = begin_l_iter(editor->root, pos.row);
-    char *line = next_line(it, nullptr);
-    int utf16_col = 0;
-    if (line)
-      utf16_col = utf8_byte_offset_to_utf16(line, pos.col);
-    free(it->buffer);
-    free(it);
-    lock_1.unlock();
-    json message = {
-        {"jsonrpc", "2.0"},
-        {"method", "textDocument/didChange"},
-        {"params",
-         {{"textDocument",
-           {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
-          {"contentChanges",
-           json::array(
-               {{{"range",
-                  {{"start", {{"line", pos.row}, {"character", utf16_col}}},
-                   {"end", {{"line", pos.row}, {"character", utf16_col}}}}},
-                 {"text", std::string(data, len)}}})}}}};
-    lsp_send(editor->lsp, message, nullptr);
+    if (editor->lsp->incremental_sync) {
+      lock_1.lock();
+      LineIterator *it = begin_l_iter(editor->root, pos.row);
+      char *line = next_line(it, nullptr);
+      int utf16_col = 0;
+      if (line)
+        utf16_col = utf8_byte_offset_to_utf16(line, pos.col);
+      free(it->buffer);
+      free(it);
+      lock_1.unlock();
+      json message = {
+          {"jsonrpc", "2.0"},
+          {"method", "textDocument/didChange"},
+          {"params",
+           {{"textDocument",
+             {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
+            {"contentChanges",
+             json::array(
+                 {{{"range",
+                    {{"start", {{"line", pos.row}, {"character", utf16_col}}},
+                     {"end", {{"line", pos.row}, {"character", utf16_col}}}}},
+                   {"text", std::string(data, len)}}})}}}};
+      lsp_send(editor->lsp, message, nullptr);
+    } else {
+      char *buf = read(editor->root, 0, editor->root->char_count);
+      std::string text(buf);
+      free(buf);
+      json message = {
+          {"jsonrpc", "2.0"},
+          {"method", "textDocument/didChange"},
+          {"params",
+           {{"textDocument",
+             {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
+            {"contentChanges", json::array({{{"text", text}}})}}}};
+      lsp_send(editor->lsp, message, nullptr);
+    }
   }
   std::unique_lock lock_3(editor->spans.mtx);
   apply_edit(editor->spans.spans, byte_pos, len);

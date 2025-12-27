@@ -235,8 +235,12 @@ void ts_collect_spans(Editor *editor) {
   parse_counter = 0;
   editor->spans.mid_parse = true;
   std::shared_lock lock(editor->knot_mtx);
-  editor->ts.tree =
-      ts_parser_parse(editor->ts.parser, editor->ts.tree, tsinput);
+  TSTree *tree = ts_parser_parse(editor->ts.parser, editor->ts.tree, tsinput);
+  if (!tree)
+    return;
+  if (editor->ts.tree)
+    ts_tree_delete(editor->ts.tree);
+  editor->ts.tree = tree;
   lock.unlock();
   std::vector<Span> new_spans;
   new_spans.reserve(4096);
@@ -324,7 +328,12 @@ void ts_collect_spans(Editor *editor) {
         ts_parser_set_included_ranges(tsset->parser, tsset->ranges.data(),
                                       tsset->ranges.size());
         lock.lock();
-        tsset->tree = ts_parser_parse(tsset->parser, tsset->tree, tsinput);
+        TSTree *tree = ts_parser_parse(tsset->parser, tsset->tree, tsinput);
+        if (!tree)
+          continue;
+        if (tsset->tree)
+          ts_tree_delete(tsset->tree);
+        tsset->tree = tree;
         lock.unlock();
         work.push_back({reinterpret_cast<TSSetBase *>(tsset), tsset->tree,
                         item.depth + 1});

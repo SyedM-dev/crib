@@ -27,6 +27,7 @@ A TUI IDE.
             3. One for Warnings/errors and inlay hints etc. (stuff that adds virtual text to the editor)
             4. One for fromatting and stuff like that. (stuff that edits the buffer text)
 - [ ] Add codeium/copilot support for auto-completion (uses the VAI virtual text) as a test phase.
+- [ ] Redo cpp/c/h scm file . also pretty much all of them do manually
 - [ ] Add a whitespace highlighter (nerd font). for spaces and tabs at start/end of line. not as virtual but instead at render time.
 - [ ] Once renderer is proven to work well (i.e. redo this commit) merge `experimental` branch into `main`. commit `43f443e` on `experimental`.
 - [ ] Add snippets from wherever i get them. (like luasnip or vsnip)
@@ -38,7 +39,7 @@ A TUI IDE.
 - [ ] Add search / replace along with search / virtual cursors are searched pos.
 - [ ] Add support for undo/redo.
 - [ ] Add splash screen / minigame jumping.
-- [ ] Normalize / validate unicode on file open.
+- [ ] Normalize / validate unicode on file open. so use utf8 purely and fix other types of files
 - [ ] Add git stuff.
 - [ ] Add SQL support. (viewer and basic editor)
 - [ ] Add color picker/palette for hex or other css colors.

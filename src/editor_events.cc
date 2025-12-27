@@ -610,6 +610,8 @@ void editor_lsp_handle(Editor *editor, json msg) {
     for (size_t i = 0; i < diagnostics.size(); i++) {
       json d = diagnostics[i];
       VWarn w;
+      // HACK: convert back to utf-8 but as this is only visually affecting it
+      //       is not worth the performance hit
       w.line = d["range"]["start"]["line"];
       w.start = d["range"]["start"]["character"];
       uint32_t end = d["range"]["end"]["character"];

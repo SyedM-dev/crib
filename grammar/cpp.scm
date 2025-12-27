@@ -221,21 +221,6 @@
   _ @type.builtin
   type: _?)
 
-;; #C4B5FF #000000 0 0 0 2
-(type_definition declarator: (type_identifier) @name) @definition.type
-
-;; #C4B5FF #000000 0 0 0 2
-(enum_specifier name: (type_identifier) @name) @definition.type
-
-;; #C4B5FF #000000 0 0 0 2
-(class_specifier name: (type_identifier) @name) @definition.class
-
-;; #C4B5FF #000000 0 0 0 2
-(struct_specifier name: (type_identifier) @name body:(_)) @definition.class
-
-;; #C4B5FF #000000 0 0 0 2
-(declaration type: (union_specifier name: (type_identifier) @name)) @definition.class
-
 ;; #9AD4FF #000000 0 0 0 2
 (namespace_identifier) @module
 

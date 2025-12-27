@@ -29,6 +29,8 @@ Editor *new_editor(const char *filename_arg, Coord position, Coord size) {
     editor->ts.parser = ts_parser_new();
     editor->ts.language = language.fn();
     ts_parser_set_language(editor->ts.parser, editor->ts.language);
+    log("set language %s\n", language.name.c_str());
+    log("lsp_id: %d\n", language.lsp_id);
     editor->ts.query_file =
         get_exe_dir() + "/../grammar/" + language.name + ".scm";
     request_add_to_lsp(language, editor);
@@ -48,6 +50,8 @@ void free_tsset(TSSetMain *set) {
       ts_parser_delete(inj.second.parser);
     if (inj.second.query)
       ts_query_delete(inj.second.query);
+    if (inj.second.tree)
+      ts_tree_delete(inj.second.tree);
   }
 }
 
@@ -67,6 +71,11 @@ void save_file(Editor *editor) {
   std::ofstream out(editor->filename);
   out.write(str, editor->root->char_count);
   free(str);
+  json msg = {{"jsonrpc", "2.0"},
+              {"method", "textDocument/didSave"},
+              {"params", {{"textDocument", {{"uri", editor->uri}}}}}};
+  if (editor->lsp)
+    lsp_send(editor->lsp, msg, nullptr);
 }
 
 void render_editor(Editor *editor) {
@@ -83,6 +92,7 @@ void render_editor(Editor *editor) {
   auto hook_it = v.begin();
   while (hook_it != v.end() && hook_it->first <= editor->scroll.row)
     ++hook_it;
+  std::unique_lock warn_lock(editor->v_mtx);
   auto warn_it = editor->warnings.begin();
   while (warn_it != editor->warnings.end() &&
          warn_it->line < editor->scroll.row)
@@ -147,7 +157,6 @@ void render_editor(Editor *editor) {
   uint32_t global_byte_offset = line_to_byte(editor->root, line_index, nullptr);
   span_cursor.sync(global_byte_offset);
   def_span_cursor.sync(global_byte_offset);
-  std::shared_lock v_lock(editor->v_mtx);
   while (rendered_rows < editor->size.row) {
     const Fold *fold = fold_for_line(editor->folds, line_index);
     if (fold) {
@@ -370,6 +379,9 @@ void render_editor(Editor *editor) {
                  cluster.c_str(), fg_color, color, 0);
           col += width;
           warn_idx += cluster_len;
+          while (width-- > 1)
+            update(editor->position.row + rendered_rows, render_x + col - width,
+                   "\x1b", fg_color, color, 0);
         }
       }
       while (col < render_width) {

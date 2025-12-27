@@ -298,18 +298,18 @@
 ; JSX
 ; ============================================================
 
-;; #59C2FF #000000 0 0 0 2
-(jsx_opening_element (identifier) @tag (#match? @tag "^[a-z][^.]*$"))
-(jsx_closing_element (identifier) @tag (#match? @tag "^[a-z][^.]*$"))
-(jsx_self_closing_element (identifier) @tag (#match? @tag "^[a-z][^.]*$"))
+;; #59C2FF #000000 0 0 0 4
+(jsx_opening_element (identifier) @tag2)
+(jsx_closing_element (identifier) @tag2)
+(jsx_self_closing_element (identifier) @tag2)
 
-;; #F07178 #000000 0 0 0 1
-(jsx_attribute (property_identifier) @attribute)
+;; #F07178 #000000 0 0 0 3
+(jsx_attribute (property_identifier) @attribute2)
 
-;; #BFBDB6 #000000 0 0 0 1
-(jsx_opening_element (["<" ">"]) @punctuation.bracket)
-(jsx_closing_element (["</" ">"]) @punctuation.bracket)
-(jsx_self_closing_element (["<" "/>"]) @punctuation.bracket)
+;; #BFBDB6 #000000 0 0 0 3
+(jsx_opening_element (["<" ">"]) @punctuation.bracket2)
+(jsx_closing_element (["</" ">"]) @punctuation.bracket2)
+(jsx_self_closing_element (["<" "/>"]) @punctuation.bracket2)
 
 ; Injections
 

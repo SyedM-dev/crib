@@ -5,7 +5,7 @@ extern "C" {
 #include "../include/maps.h"
 #include "../include/utils.h"
 
-static std::string percent_encode(const std::string &s) {
+std::string percent_encode(const std::string &s) {
   static const char *hex = "0123456789ABCDEF";
   std::string out;
   for (unsigned char c : s) {

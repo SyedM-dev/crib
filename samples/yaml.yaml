@@ -1,0 +1,66 @@
+# ============================================================
+# Basic types
+# ============================================================
+
+title: "Example YAML Configuration"
+enabled: true
+count: 42
+pi: 3.14159
+empty: ""
+
+# ============================================================
+# Arrays / Lists
+# ============================================================
+fruits:
+  - apple
+  - banana
+  - cherry
+
+numbers:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+
+matrix:
+  - [1, 2]
+  - [3, 4]
+
+# ============================================================
+# Nested objects / maps
+# ============================================================
+owner:
+  name: Alice
+  dob: 1979-05-27T07:32:00Z
+
+database:
+  server: 192.168.1.1
+  ports:
+    - 8001
+    - 8001
+    - 8002
+  connection_max: 5000
+  enabled: true
+
+servers:
+  alpha:
+    ip: 10.0.0.1
+    dc: east
+  beta:
+    ip: 10.0.0.2
+    dc: west
+
+# ============================================================
+# Multiline string
+# ============================================================
+description: |
+  This is a YAML file
+  used for testing syntax highlighting.
+  It supports multiple lines.
+
+# ============================================================
+# Special characters
+# ============================================================
+regex_pattern: "^[A-Za-z0-9_]+$"
+path: "C:\\Users\\Alice\\Documents"
