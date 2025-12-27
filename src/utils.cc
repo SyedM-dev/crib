@@ -186,6 +186,7 @@ uint32_t count_clusters(const char *line, size_t len, size_t from, size_t to) {
 }
 
 void log(const char *fmt, ...) {
+#if defined(__GNUC__) && !defined(__clang__)
   FILE *fp = fopen("/tmp/log.txt", "a");
   if (!fp)
     return;
@@ -195,6 +196,7 @@ void log(const char *fmt, ...) {
   va_end(args);
   fputc('\n', fp);
   fclose(fp);
+#endif
 }
 
 char *load_file(const char *path, uint32_t *out_len) {

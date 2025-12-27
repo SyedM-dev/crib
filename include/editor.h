@@ -156,7 +156,7 @@ struct Editor {
   std::vector<VWarn> warnings;
   VAI ai;
   std::shared_mutex lsp_mtx;
-  struct LSPInstance *lsp;
+  std::shared_ptr<struct LSPInstance> lsp;
   int lsp_version = 1;
 };
 

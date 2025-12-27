@@ -1,5 +1,6 @@
 #include "../include/lsp.h"
 #include "../include/maps.h"
+#include <cmath>
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/poll.h>
@@ -8,11 +9,11 @@
 #include <unistd.h>
 
 std::shared_mutex active_lsps_mtx;
-std::unordered_map<uint8_t, LSPInstance *> active_lsps;
+std::unordered_map<uint8_t, std::shared_ptr<LSPInstance>> active_lsps;
 
 Queue<LSPOpenRequest> lsp_open_queue;
 
-static bool init_lsp(LSPInstance *lsp) {
+static bool init_lsp(std::shared_ptr<LSPInstance> lsp) {
   log("initializing %s\n", lsp->lsp->command);
   int in_pipe[2];
   int out_pipe[2];
@@ -47,19 +48,17 @@ static bool init_lsp(LSPInstance *lsp) {
   return true;
 }
 
-LSPInstance *get_or_init_lsp(uint8_t lsp_id) {
+std::shared_ptr<LSPInstance> get_or_init_lsp(uint8_t lsp_id) {
   std::unique_lock lock(active_lsps_mtx);
   auto it = active_lsps.find(lsp_id);
   if (it == active_lsps.end()) {
     auto map_it = kLsps.find(lsp_id);
     if (map_it == kLsps.end())
       return nullptr;
-    LSPInstance *lsp = new LSPInstance();
+    std::shared_ptr<LSPInstance> lsp = std::make_shared<LSPInstance>();
     lsp->lsp = &map_it->second;
-    if (!init_lsp(lsp)) {
-      delete lsp;
+    if (!init_lsp(lsp))
       return nullptr;
-    }
     log("starting %s\n", lsp->lsp->command);
     LSPPending *pending = new LSPPending();
     pending->method = "initialize";
@@ -67,18 +66,29 @@ LSPInstance *get_or_init_lsp(uint8_t lsp_id) {
     pending->callback = [lsp](Editor *, std::string, json msg) {
       if (msg.contains("result") && msg["result"].contains("capabilities")) {
         auto &caps = msg["result"]["capabilities"];
-        if (caps.contains("textDocumentSync") &&
-            caps["textDocumentSync"].contains("change")) {
-          int change_type = caps["textDocumentSync"]["change"];
-          lsp->incremental_sync = (change_type == 2);
+        if (caps.contains("textDocumentSync")) {
+          auto &sync = caps["textDocumentSync"];
+          if (sync.is_number()) {
+            int change_type = sync.get<int>();
+            lsp->incremental_sync = (change_type == 2);
+          } else if (sync.is_object() && sync.contains("change")) {
+            int change_type = sync["change"].get<int>();
+            lsp->incremental_sync = (change_type == 2);
+          }
         }
       }
+      log("incremental_sync %d\n", lsp->incremental_sync);
       lsp->initialized = true;
       json initialized = {{"jsonrpc", "2.0"},
                           {"method", "initialized"},
                           {"params", json::object()}};
       lsp_send(lsp, initialized, nullptr);
       log("initialized %s\n", lsp->lsp->command);
+      while (!lsp->open_queue.empty()) {
+        std::pair<Language, Editor *> request;
+        lsp->open_queue.pop(request);
+        open_editor(lsp, request);
+      }
     };
     json init_message = {
         {"jsonrpc", "2.0"},
@@ -96,7 +106,8 @@ LSPInstance *get_or_init_lsp(uint8_t lsp_id) {
   return it->second;
 }
 
-void lsp_send(LSPInstance *lsp, json message, LSPPending *pending) {
+void lsp_send(std::shared_ptr<LSPInstance> lsp, json message,
+              LSPPending *pending) {
   if (!lsp || lsp->stdin_fd == -1)
     return;
   std::unique_lock lock(lsp->mtx);
@@ -113,8 +124,10 @@ void close_lsp(uint8_t lsp_id) {
   auto it = active_lsps.find(lsp_id);
   if (it == active_lsps.end())
     return;
-  LSPInstance *lsp = it->second;
+  std::shared_ptr<LSPInstance> lsp = it->second;
   active_lsps_lock.unlock();
+  lsp->exited = true;
+  lsp->initialized = false;
   LSPPending *shutdown_pending = new LSPPending();
   shutdown_pending->method = "shutdown";
   shutdown_pending->callback = [lsp, lsp_id](Editor *, std::string, json) {
@@ -127,18 +140,17 @@ void close_lsp(uint8_t lsp_id) {
     std::this_thread::sleep_for(100ms);
     std::unique_lock active_lsps_lock(active_lsps_mtx);
     std::unique_lock lock(lsp->mtx);
-    if (kill(lsp->pid, 0) == 0)
+    if (lsp->pid != -1 && kill(lsp->pid, 0) == 0)
       kill(lsp->pid, SIGKILL);
     waitpid(lsp->pid, nullptr, 0);
     close(lsp->stdin_fd);
     close(lsp->stdout_fd);
-    while (!lsp->outbox.empty())
-      lsp->outbox.pop();
-    while (!lsp->inbox.empty())
-      lsp->inbox.pop();
     for (auto &kv : lsp->pending)
       delete kv.second;
-    delete lsp;
+    for (auto &editor : lsp->editors) {
+      std::unique_lock editor_lock(editor->lsp_mtx);
+      editor->lsp = nullptr;
+    }
     active_lsps.erase(lsp_id);
   });
   t.detach();
@@ -177,7 +189,8 @@ static std::optional<json> read_lsp_message(int fd) {
   return json::parse(body);
 }
 
-static Editor *editor_for_uri(LSPInstance *lsp, std::string uri) {
+static Editor *editor_for_uri(std::shared_ptr<LSPInstance> lsp,
+                              std::string uri) {
   if (uri.empty())
     return nullptr;
   for (auto &editor : lsp->editors)
@@ -186,20 +199,45 @@ static Editor *editor_for_uri(LSPInstance *lsp, std::string uri) {
   return nullptr;
 }
 
+static void clean_lsp(std::shared_ptr<LSPInstance> lsp, uint8_t lsp_id) {
+  log("cleaning up lsp %d\n", lsp_id);
+  for (auto &kv : lsp->pending)
+    delete kv.second;
+  lsp->pid = -1;
+  close(lsp->stdin_fd);
+  close(lsp->stdout_fd);
+  for (auto &editor : lsp->editors) {
+    std::unique_lock editor_lock(editor->lsp_mtx);
+    editor->lsp = nullptr;
+  }
+  active_lsps.erase(lsp_id);
+}
+
 void lsp_worker() {
   LSPOpenRequest request;
   while (lsp_open_queue.pop(request))
     add_to_lsp(request.language, request.editor);
-  std::shared_lock active_lsps_lock(active_lsps_mtx);
+  std::unique_lock active_lsps_lock(active_lsps_mtx);
   for (auto &kv : active_lsps) {
-    LSPInstance *lsp = kv.second;
+    std::shared_ptr<LSPInstance> lsp = kv.second;
     std::unique_lock lock(lsp->mtx);
+    int status;
+    pid_t res = waitpid(lsp->pid, &status, WNOHANG);
+    if (res == lsp->pid) {
+      clean_lsp(lsp, kv.first);
+      return;
+    }
     while (!lsp->outbox.empty()) {
-      json message;
-      message = lsp->outbox.front();
+      json message = lsp->outbox.front();
+      std::string m = message.value("method", "");
+      if (lsp->exited) {
+        if (m != "exit" && m != "shutdown") {
+          lsp->outbox.pop(message);
+          continue;
+        }
+      }
       if (!lsp->initialized) {
-        std::string m = message.value("method", "");
-        if (m != "initialize")
+        if (m != "initialize" && m != "exit" && m != "shutdown")
           break;
       }
       lsp->outbox.pop(message);
@@ -210,6 +248,12 @@ void lsp_worker() {
       const char *ptr = out.data();
       size_t remaining = out.size();
       while (remaining > 0) {
+        int status;
+        pid_t res = waitpid(lsp->pid, &status, WNOHANG);
+        if (res == lsp->pid) {
+          clean_lsp(lsp, kv.first);
+          return;
+        }
         ssize_t written = write(lsp->stdin_fd, ptr, remaining);
         if (written == 0)
           break;
@@ -217,15 +261,25 @@ void lsp_worker() {
           if (errno == EINTR)
             continue;
           perror("write");
-          break;
+          clean_lsp(lsp, kv.first);
+          return;
         } else {
           ptr += written;
           remaining -= written;
         }
       }
     }
-    pollfd pfd{lsp->stdout_fd, POLLIN, 0};
-    while (poll(&pfd, 1, 0) > 0) {
+    pollfd pfd{lsp->stdout_fd, POLLIN | POLLHUP | POLLERR, 0};
+    int r = poll(&pfd, 1, 0);
+    if (r > 0 && pfd.revents & (POLLHUP | POLLERR)) {
+      clean_lsp(lsp, kv.first);
+      return;
+    }
+    while ((r = poll(&pfd, 1, 0) > 0)) {
+      if (r > 0 && pfd.revents & (POLLHUP | POLLERR)) {
+        clean_lsp(lsp, kv.first);
+        return;
+      }
       auto msg = read_lsp_message(lsp->stdout_fd);
       if (!msg)
         break;
@@ -268,14 +322,21 @@ void request_add_to_lsp(Language language, Editor *editor) {
 }
 
 void add_to_lsp(Language language, Editor *editor) {
-  LSPInstance *lsp = get_or_init_lsp(language.lsp_id);
+  std::shared_ptr<LSPInstance> lsp = get_or_init_lsp(language.lsp_id);
   if (!lsp)
     return;
   std::unique_lock lock(lsp->mtx);
   if (editor->lsp == lsp)
     return;
   lsp->editors.push_back(editor);
+  lsp->open_queue.push({language, editor});
   lock.unlock();
+}
+
+void open_editor(std::shared_ptr<LSPInstance> lsp,
+                 std::pair<Language, Editor *> entry) {
+  Language language = entry.first;
+  Editor *editor = entry.second;
   std::unique_lock lock2(editor->lsp_mtx);
   editor->lsp = lsp;
   lock2.unlock();
@@ -295,7 +356,7 @@ void add_to_lsp(Language language, Editor *editor) {
   lsp_send(lsp, message, nullptr);
 }
 
-static uint8_t find_lsp_id(LSPInstance *needle) {
+static uint8_t find_lsp_id(std::shared_ptr<LSPInstance> needle) {
   for (const auto &[id, lsp] : active_lsps)
     if (lsp == needle)
       return id;
@@ -323,7 +384,7 @@ void remove_from_lsp(Editor *editor) {
     close_lsp(lsp_id);
 }
 
-void lsp_handle(LSPInstance *, json message) {
+void lsp_handle(std::shared_ptr<LSPInstance>, json message) {
   std::string method = message.value("method", "");
   if (method == "window/showMessage") {
     if (message.contains("params")) {

@@ -155,6 +155,15 @@ static const std::unordered_map<uint8_t, LSP> kLsps = {
           "make-language-server",
           nullptr,
       }}},
+    {22,
+     {"sql-language-server",
+      {
+          "sql-language-server",
+          "up",
+          "--method",
+          "stdio",
+          nullptr,
+      }}},
 };
 
 static const std::unordered_map<std::string, Language> kLanguages = {
@@ -170,6 +179,7 @@ static const std::unordered_map<std::string, Language> kLanguages = {
     {"html", {"html", LANG(html), 10}},
     {"javascript", {"javascript", LANG(javascript), 11}},
     {"json", {"json", LANG(json), 6}},
+    {"jsonc", {"jsonc", LANG(json), 6}},
     {"erb", {"erb", LANG(embedded_template), 10}},
     {"ruby", {"ruby", LANG(ruby), 3}},
     {"lua", {"lua", LANG(lua), 12}},
@@ -181,7 +191,8 @@ static const std::unordered_map<std::string, Language> kLanguages = {
     {"nginx", {"nginx", LANG(nginx), 17}},
     {"toml", {"toml", LANG(toml), 18}},
     {"yaml", {"yaml", LANG(yaml), 19}},
-    {"sql", {"sql", LANG(sql), 20}},
+    {"sql", {"sql", LANG(sql), 20}}, // Can use `22` for more accuracy but need
+                                     // config to connect to database
     {"make", {"make", LANG(make), 21}},
     {"gdscript", {"gdscript", LANG(gdscript)}}, // TODO: connect to godot
     {"diff", {"diff", LANG(diff)}},
@@ -212,7 +223,7 @@ static const std::unordered_map<std::string, std::string> kExtToLang = {
     {"js", "javascript"},
     {"jsx", "javascript"},
     {"json", "json"},
-    {"jsonc", "json"},
+    {"jsonc", "jsonc"},
     {"lua", "lua"},
     {"mk", "make"},
     {"makefile", "make"},

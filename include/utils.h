@@ -12,8 +12,9 @@ template <typename T> struct Queue {
     std::lock_guard<std::mutex> lock(m);
     q.push(val);
   }
-  T front() {
-    std::lock_guard<std::mutex> lock(m);
+  std::optional<T> front() {
+    if (q.empty())
+      return std::nullopt;
     return q.front();
   }
   bool pop(T &val) {
