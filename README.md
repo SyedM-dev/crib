@@ -6,6 +6,9 @@ A TUI IDE.
 
 # TODO
 
+- [ ] Fix indentation logic
+- [ ] For `"insertTextFormat": 2` in `clangd` and similar use only the last word in the signature when replacing
+- [ ] Keep a list of words in the current buffer. (for auto completion) (maybe?)
 - [ ] Add ecma to js and make tsx
 - [ ] Add support for LSP & autocomplete / snippets.
     - First research
@@ -27,7 +30,6 @@ A TUI IDE.
             3. One for Warnings/errors and inlay hints etc. (stuff that adds virtual text to the editor)
             4. One for fromatting and stuff like that. (stuff that edits the buffer text)
 - [ ] Add codeium/copilot support for auto-completion (uses the VAI virtual text) as a test phase.
-- [ ] Redo cpp/c/h scm file . also pretty much all of them do manually
 - [ ] Add a whitespace highlighter (nerd font). for spaces and tabs at start/end of line. not as virtual but instead at render time.
 - [ ] Once renderer is proven to work well (i.e. redo this commit) merge `experimental` branch into `main`. commit `43f443e` on `experimental`.
 - [ ] Add snippets from wherever i get them. (like luasnip or vsnip)
@@ -50,6 +52,8 @@ A TUI IDE.
 - [ ] Add the highlight of block edges when cursor is on a bracket (or in). (prolly from lsp)
 - [ ] Add this thing where selection double click on a bracket selects whole block.
     - (only on the first time) and sets mode to `WORD`.
+- [ ] Redo cpp/c/h scm file . also pretty much all of them do manually
+- [ ] Try making `lua-typed` and man pages `tree-sitter` grammar.
 - [ ] Redo folding system and its relation to move_line_* functions. (Currently its a mess)
 - [ ] Make whole thing event driven and not clock driven.
 

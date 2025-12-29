@@ -33,6 +33,8 @@ struct LSPInstance {
   std::atomic<bool> exited = false;
   bool incremental_sync = false;
   bool allow_hover = false;
+  bool allow_completion = false;
+  std::string trigger_chars;
   uint32_t last_id = 0;
   Queue<json> inbox;
   Queue<json> outbox;

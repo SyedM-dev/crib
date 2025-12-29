@@ -125,6 +125,12 @@
 
 (fenced_code_block
   (info_string
+    (language) @injection.language (#match? @injection.language "^objective-cpp$"))
+;; !cpp
+  (code_fence_content) @injection.cpp)
+
+(fenced_code_block
+  (info_string
     (language) @injection.language (#match? @injection.language "^h$"))
 ;; !h
   (code_fence_content) @injection.h)

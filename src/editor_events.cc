@@ -264,7 +264,6 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
           pending->editor = editor;
           pending->method = "textDocument/hover";
           pending->callback = [](Editor *editor, std::string, json hover) {
-            log("%s\n", hover.dump().c_str());
             if (hover.contains("result") && !hover["result"].is_null()) {
               auto &contents = hover["result"]["contents"];
               std::string hover_text = "";
@@ -366,6 +365,45 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
         break;
       case CTRL('s'):
         save_file(editor);
+        break;
+      case CTRL(' '):
+        if (editor->lsp) {
+          json msg = {
+              {"jsonrpc", "2.0"},
+              {"method", "textDocument/completion"},
+              {
+                  "params",
+                  {
+                      {
+                          "textDocument",
+                          {
+                              {"uri", editor->uri},
+                          },
+                      },
+                      {
+                          "position",
+                          {
+                              {"line", editor->cursor.row},
+                              {"character", editor->cursor.col},
+                          },
+                      },
+                      {
+                          "context",
+                          {
+                              {"triggerKind", 1},
+                          },
+                      },
+                  },
+              },
+          };
+          LSPPending *pending = new LSPPending();
+          pending->editor = editor;
+          pending->method = "textDocument/completion";
+          pending->callback = [](Editor *editor, std::string, json completion) {
+            log("%s\n", completion.dump().c_str());
+          };
+          lsp_send(editor->lsp, msg, pending);
+        }
         break;
       case 'p':
         uint32_t len;
@@ -652,7 +690,7 @@ void hover_diagnostic(Editor *editor) {
   editor->diagnostics_active = true;
 }
 
-static Highlight HL_UNDERLINE = {0, 0, 1 << 2, 100};
+static Highlight HL_UNDERLINE = {0, 0, CF_UNDERLINE, UINT8_MAX - 1};
 
 void editor_worker(Editor *editor) {
   if (!editor || !editor->root)
@@ -665,17 +703,18 @@ void editor_worker(Editor *editor) {
     ts_collect_spans(editor);
   uint32_t prev_col, next_col;
   word_boundaries_exclusive(editor, editor->cursor, &prev_col, &next_col);
+  std::unique_lock lock(editor->def_spans.mtx);
+  editor->def_spans.spans.clear();
   if (next_col - prev_col > 0 && next_col - prev_col < 256 - 4) {
-    std::shared_lock lock(editor->knot_mtx);
+    std::shared_lock lockk(editor->knot_mtx);
     uint32_t offset = line_to_byte(editor->root, editor->cursor.row, nullptr);
     char *word = read(editor->root, offset + prev_col, next_col - prev_col);
+    lockk.unlock();
     if (word) {
       char buf[256];
       snprintf(buf, sizeof(buf), "\\b%s\\b", word);
       std::vector<std::pair<size_t, size_t>> results =
           search_rope(editor->root, buf);
-      std::unique_lock lock(editor->def_spans.mtx);
-      editor->def_spans.spans.clear();
       for (const auto &match : results) {
         Span s;
         s.start = match.first;
@@ -683,15 +722,35 @@ void editor_worker(Editor *editor) {
         s.hl = &HL_UNDERLINE;
         editor->def_spans.spans.push_back(s);
       }
-      std::sort(editor->def_spans.spans.begin(), editor->def_spans.spans.end());
-      lock.unlock();
       free(word);
     }
-  } else {
-    std::unique_lock lock(editor->def_spans.mtx);
-    editor->def_spans.spans.clear();
-    lock.unlock();
   }
+  uint8_t top = 0;
+  static Highlight *hl_s = (Highlight *)calloc(200, sizeof(Highlight));
+  if (!hl_s)
+    exit(ENOMEM);
+  std::vector<std::pair<size_t, size_t>> results =
+      search_rope(editor->root, "(0x|#)[0-9a-fA-F]{6}");
+  std::shared_lock lockk(editor->knot_mtx);
+  for (int i = 0; i < results.size() && top < 200; i++) {
+    Span s;
+    s.start = results[i].first;
+    s.end = results[i].first + results[i].second;
+    char *buf = read(editor->root, s.start, s.end - s.start);
+    int x = buf[0] == '#' ? 1 : 2;
+    uint32_t bg = HEX(buf + x);
+    free(buf);
+    uint8_t r = bg >> 16, g = (bg >> 8) & 0xFF, b = bg & 0xFF;
+    double luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+    uint32_t fg = (luminance > 128) ? 0x010101 : 0xFEFEFE;
+    hl_s[top] = {fg, bg, CF_BOLD, UINT8_MAX};
+    s.hl = &hl_s[top];
+    editor->def_spans.spans.push_back(s);
+    top++;
+  }
+  std::sort(editor->def_spans.spans.begin(), editor->def_spans.spans.end());
+  lock.unlock();
+  lockk.unlock();
   hover_diagnostic(editor);
 }
 

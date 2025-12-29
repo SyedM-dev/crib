@@ -3,7 +3,6 @@
 
 #include "./pch.h"
 #include "./utils.h"
-#include <cstdint>
 
 #define KEY_CHAR 0
 #define KEY_SPECIAL 1

@@ -62,6 +62,7 @@ void update(uint32_t row, uint32_t col, std::string utf8, uint32_t fg,
   screen[idx].fg = fg;
   screen[idx].bg = bg;
   screen[idx].flags = flags;
+  screen[idx].ul_color = 0;
 }
 
 void update(uint32_t row, uint32_t col, const char *utf8, uint32_t fg,
@@ -77,6 +78,7 @@ void update(uint32_t row, uint32_t col, const char *utf8, uint32_t fg,
   screen[idx].fg = fg;
   screen[idx].bg = bg;
   screen[idx].flags = flags;
+  screen[idx].ul_color = 0;
 }
 
 void update(uint32_t row, uint32_t col, std::string utf8, uint32_t fg,

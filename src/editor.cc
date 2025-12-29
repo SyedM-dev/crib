@@ -1,3 +1,4 @@
+#include <cstdint>
 extern "C" {
 #include "../libs/libgrapheme/grapheme.h"
 }
@@ -206,6 +207,14 @@ void render_editor(Editor *editor) {
       break;
     if (line_len > 0 && line[line_len - 1] == '\n')
       line_len--;
+    uint32_t content_end = line_len;
+    while (content_end > 0 &&
+           (line[content_end - 1] == ' ' || line[content_end - 1] == '\t'))
+      content_end--;
+    uint32_t content_start = 0;
+    while (content_start < line_len &&
+           (line[content_start] == ' ' || line[content_start] == '\t'))
+      content_start++;
     std::vector<VWarn> line_warnings;
     while (warn_it != editor->warnings.end() && warn_it->line == line_index) {
       line_warnings.push_back(*warn_it);
@@ -258,9 +267,9 @@ void render_editor(Editor *editor) {
         uint8_t fl = hl ? hl->flags : 0;
         if (def_hl) {
           if (def_hl->fg != 0)
-            fg |= def_hl->fg;
+            fg = def_hl->fg;
           if (def_hl->bg != 0)
-            bg |= def_hl->bg;
+            bg = def_hl->bg;
           fl |= def_hl->flags;
         }
         if (editor->selection_active && absolute_byte_pos >= sel_start &&
@@ -297,8 +306,19 @@ void render_editor(Editor *editor) {
         int width = display_width(cluster.c_str(), cluster_len);
         if (col + width > render_width)
           break;
-        update(editor->position.row + rendered_rows, render_x + col,
-               cluster.c_str(), fg, bg | color, fl, u_color);
+        if (current_byte_offset + local_render_offset >= content_start &&
+            current_byte_offset + local_render_offset < content_end) {
+          update(editor->position.row + rendered_rows, render_x + col,
+                 cluster.c_str(), fg, bg | color, fl, u_color);
+        } else {
+          if (cluster[0] == ' ') {
+            update(editor->position.row + rendered_rows, render_x + col, "·",
+                   0x282828, bg | color, fl, u_color);
+          } else {
+            update(editor->position.row + rendered_rows, render_x + col, "->  ",
+                   0x282828, bg | color, (fl & ~CF_BOLD) | CF_ITALIC, u_color);
+          }
+        }
         local_render_offset += cluster_len;
         line_left -= cluster_len;
         col += width;

@@ -84,11 +84,12 @@ std::shared_ptr<LSPInstance> get_or_init_lsp(uint8_t lsp_id) {
             lsp->incremental_sync = (change_type == 2);
           }
         }
-        if (caps.contains("hoverProvider")) {
+        if (caps.contains("hoverProvider"))
           lsp->allow_hover = caps["hoverProvider"].get<bool>();
-        } else {
+        else
           lsp->allow_hover = false;
-        }
+        if (caps.contains("completionProvider"))
+          lsp->allow_completion = true;
       }
       lsp->initialized = true;
       json initialized = {{"jsonrpc", "2.0"},
@@ -110,7 +111,20 @@ std::shared_ptr<LSPInstance> get_or_init_lsp(uint8_t lsp_id) {
           {"capabilities",
            {{"textDocument",
              {{"publishDiagnostics", {{"relatedInformation", true}}},
-              {"hover", {{"contentFormat", {"markdown", "plaintext"}}}}}}}}}}};
+              {"hover", {{"contentFormat", {"markdown", "plaintext"}}}},
+              {"completion",
+               {{"completionItem",
+                 {{"snippetSupport", true},
+                  {"documentationFormat", {"markdown", "plaintext"}},
+                  {"resolveSupport",
+                   {{"properties", {"documentation", "detail"}}}},
+                  {"insertReplaceSupport", true},
+                  {"labelDetailsSupport", true},
+                  {"insertTextModeSupport", {{"valueSet", json::array({1})}}}}},
+                {"completionItemKind",
+                 {{"valueSet", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}}}},
+                {"contextSupport", true},
+                {"insertTextMode", 1}}}}}}}}}};
     lsp_send(lsp, init_message, pending);
     active_lsps[lsp_id] = lsp;
     return lsp;
