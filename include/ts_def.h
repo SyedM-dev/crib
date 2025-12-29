@@ -12,6 +12,32 @@ struct Language {
   uint8_t lsp_id = 0;
 };
 
+struct Highlight {
+  uint32_t fg;
+  uint32_t bg;
+  uint32_t flags;
+  uint8_t priority;
+};
+
+struct TSSetBase {
+  std::string lang;
+  TSParser *parser;
+  std::string query_file;
+  TSQuery *query;
+  TSTree *tree;
+  std::map<uint16_t, Highlight> query_map;
+  std::map<uint16_t, Language> injection_map;
+  const TSLanguage *language;
+};
+
+struct TSSet : TSSetBase {
+  std::vector<TSRange> ranges;
+};
+
+struct TSSetMain : TSSetBase {
+  std::unordered_map<std::string, TSSet> injections;
+};
+
 TS_DEF(ruby);
 TS_DEF(bash);
 TS_DEF(cpp);
@@ -21,6 +47,8 @@ TS_DEF(go);
 TS_DEF(haskell);
 TS_DEF(html);
 TS_DEF(javascript);
+TS_DEF(tsx);
+TS_DEF(man);
 TS_DEF(json);
 TS_DEF(lua);
 TS_DEF(regex);

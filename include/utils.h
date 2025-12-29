@@ -53,7 +53,17 @@ struct Coord {
   bool operator>=(const Coord &other) const { return !(*this < other); }
 };
 
+struct Match {
+  size_t start;
+  size_t end;
+  std::string text;
+};
+
+std::vector<Match> find_all_matches(const std::string &subject,
+                                    const std::string &pattern);
+std::string clean_text(const std::string &input);
 std::string percent_encode(const std::string &s);
+std::string percent_decode(const std::string &s);
 std::string path_abs(const std::string &path_str);
 std::string path_to_file_uri(const std::string &path_str);
 int display_width(const char *str, size_t len);
@@ -70,6 +80,7 @@ Language language_for_file(const char *filename);
 void copy_to_clipboard(const char *text, size_t len);
 char *get_from_clipboard(uint32_t *out_len);
 uint32_t count_clusters(const char *line, size_t len, size_t from, size_t to);
+std::string trim(const std::string &s);
 
 template <typename Func, typename... Args>
 auto throttle(std::chrono::milliseconds min_duration, Func &&func,

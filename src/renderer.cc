@@ -1,4 +1,5 @@
 #include "../include/ui.h"
+#include "../include/utils.h"
 
 uint32_t rows, cols;
 bool show_cursor = 0;
@@ -55,6 +56,9 @@ void update(uint32_t row, uint32_t col, std::string utf8, uint32_t fg,
   uint32_t idx = row * cols + col;
   std::lock_guard<std::mutex> lock(screen_mutex);
   screen[idx].utf8 = utf8 != "" ? utf8 : "";
+  if (utf8 == "")
+    return;
+  screen[idx].width = display_width(utf8.c_str(), utf8.size());
   screen[idx].fg = fg;
   screen[idx].bg = bg;
   screen[idx].flags = flags;
@@ -67,15 +71,55 @@ void update(uint32_t row, uint32_t col, const char *utf8, uint32_t fg,
   uint32_t idx = row * cols + col;
   std::lock_guard<std::mutex> lock(screen_mutex);
   screen[idx].utf8 = utf8 ? utf8 : "";
+  if (utf8 == nullptr)
+    return;
+  screen[idx].width = display_width(utf8, strlen(utf8));
   screen[idx].fg = fg;
   screen[idx].bg = bg;
   screen[idx].flags = flags;
+}
+
+void update(uint32_t row, uint32_t col, std::string utf8, uint32_t fg,
+            uint32_t bg, uint8_t flags, uint32_t ul_color) {
+  if (row >= rows || col >= cols)
+    return;
+  uint32_t idx = row * cols + col;
+  std::lock_guard<std::mutex> lock(screen_mutex);
+  screen[idx].utf8 = utf8 != "" ? utf8 : "";
+  if (utf8 == "")
+    return;
+  screen[idx].width = display_width(utf8.c_str(), utf8.size());
+  screen[idx].fg = fg;
+  screen[idx].bg = bg;
+  screen[idx].flags = flags;
+  screen[idx].ul_color = ul_color;
+}
+
+void update(uint32_t row, uint32_t col, const char *utf8, uint32_t fg,
+            uint32_t bg, uint8_t flags, uint32_t ul_color) {
+  if (row >= rows || col >= cols)
+    return;
+  uint32_t idx = row * cols + col;
+  std::lock_guard<std::mutex> lock(screen_mutex);
+  screen[idx].utf8 = utf8 ? utf8 : "";
+  if (utf8 == nullptr)
+    return;
+  screen[idx].width = display_width(utf8, strlen(utf8));
+  screen[idx].fg = fg;
+  screen[idx].bg = bg;
+  screen[idx].flags = flags;
+  screen[idx].ul_color = ul_color;
+}
+
+inline bool is_empty_cell(const ScreenCell &c) {
+  return c.utf8.empty() || c.utf8 == " " || c.utf8 == "\x1b";
 }
 
 void render() {
   static bool first_render = true;
   uint32_t current_fg = 0;
   uint32_t current_bg = 0;
+  uint32_t current_ul_color = 0;
   bool current_italic = false;
   bool current_bold = false;
   bool current_underline = false;
@@ -94,15 +138,25 @@ void render() {
       uint32_t idx = row * cols + col;
       ScreenCell &old_cell = old_screen[idx];
       ScreenCell &new_cell = screen[idx];
-      bool content_changed = old_cell.utf8 != new_cell.utf8;
-      bool style_changed =
-          (old_cell.fg != new_cell.fg) || (old_cell.bg != new_cell.bg) ||
-          ((old_cell.flags & CF_ITALIC) != (new_cell.flags & CF_ITALIC)) ||
-          ((old_cell.flags & CF_BOLD) != (new_cell.flags & CF_BOLD)) ||
-          ((old_cell.flags & CF_UNDERLINE) != (new_cell.flags & CF_UNDERLINE));
-      if (content_changed || style_changed) {
-        if (first_change_col == -1)
+      bool content_changed =
+          old_cell.utf8 != new_cell.utf8 || old_cell.fg != new_cell.fg ||
+          old_cell.bg != new_cell.bg || old_cell.flags != new_cell.flags ||
+          old_cell.ul_color != new_cell.ul_color;
+      if (content_changed) {
+        if (first_change_col == -1) {
           first_change_col = col;
+          if (first_change_col > 0) {
+            for (int back = 1; back <= 3 && first_change_col - back >= 0;
+                 ++back) {
+              ScreenCell &prev_cell =
+                  screen[row * cols + (first_change_col - back)];
+              if (prev_cell.width > 1) {
+                first_change_col -= back;
+                break;
+              }
+            }
+          }
+        }
         last_change_col = col;
       }
     }
@@ -115,6 +169,20 @@ void render() {
       int idx = row * cols + col;
       ScreenCell &old_cell = old_screen[idx];
       ScreenCell &new_cell = screen[idx];
+      int width = new_cell.width > 0 ? new_cell.width : 1;
+      bool overlap = false;
+      if (width > 1) {
+        for (int i = 1; i < width; ++i) {
+          int next_col = col + i;
+          if (next_col >= cols)
+            break;
+          const ScreenCell &next = screen[row * cols + next_col];
+          if (!is_empty_cell(next)) {
+            overlap = true;
+            break;
+          }
+        }
+      }
       if (current_fg != new_cell.fg) {
         if (new_cell.fg) {
           char fb[64];
@@ -150,24 +218,43 @@ void render() {
         current_bold = bold;
       }
       bool underline = (new_cell.flags & CF_UNDERLINE) != 0;
+      if (underline) {
+        if (new_cell.ul_color != current_ul_color) {
+          if (new_cell.ul_color) {
+            char ubuf[64];
+            snprintf(ubuf, sizeof(ubuf), "\x1b[58;2;%d;%d;%dm",
+                     (new_cell.ul_color >> 16) & 0xFF,
+                     (new_cell.ul_color >> 8) & 0xFF,
+                     (new_cell.ul_color >> 0) & 0xFF);
+            out.append(ubuf);
+          } else {
+            out += "\x1b[59m";
+          }
+          current_ul_color = new_cell.ul_color;
+        }
+      }
       if (underline != current_underline) {
         out += underline ? "\x1b[4m" : "\x1b[24m";
         current_underline = underline;
       }
-      if (!new_cell.utf8.empty()) {
-        if (new_cell.utf8[0] == '\t')
-          out.append("    ");
-        else if (new_cell.utf8[0] == '\x1b')
-          out.append("");
-        else
-          out.append(new_cell.utf8);
+      if (width > 1 && overlap) {
+        for (int i = 1; i < width; ++i)
+          out.push_back(' ');
       } else {
-        out.append(1, ' ');
+        if (!new_cell.utf8.empty()) {
+          if (new_cell.utf8[0] == '\t')
+            out.append("    ");
+          else if (new_cell.utf8[0] != '\x1b')
+            out.append(new_cell.utf8);
+        } else {
+          out.push_back(' ');
+        }
       }
       old_cell.utf8 = new_cell.utf8;
       old_cell.fg = new_cell.fg;
       old_cell.bg = new_cell.bg;
       old_cell.flags = new_cell.flags;
+      old_cell.width = new_cell.width;
     }
   }
   out += "\x1b[0m";

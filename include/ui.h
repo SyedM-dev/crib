@@ -3,6 +3,7 @@
 
 #include "./pch.h"
 #include "./utils.h"
+#include <cstdint>
 
 #define KEY_CHAR 0
 #define KEY_SPECIAL 1
@@ -48,14 +49,16 @@ enum CellFlags : uint8_t {
   CF_NONE = 0,
   CF_ITALIC = 1 << 0,
   CF_BOLD = 1 << 1,
-  CF_UNDERLINE = 1 << 2,
+  CF_UNDERLINE = 1 << 2
 };
 
 struct ScreenCell {
   std::string utf8 = std::string("");
+  uint8_t width = 1;
   uint32_t fg = 0;
   uint32_t bg = 0;
   uint8_t flags = CF_NONE;
+  uint32_t ul_color = 0;
 };
 
 struct KeyEvent {
@@ -86,6 +89,10 @@ void update(uint32_t row, uint32_t col, std::string utf8, uint32_t fg,
             uint32_t bg, uint8_t flags);
 void update(uint32_t row, uint32_t col, const char *utf8, uint32_t fg,
             uint32_t bg, uint8_t flags);
+void update(uint32_t row, uint32_t col, std::string utf8, uint32_t fg,
+            uint32_t bg, uint8_t flags, uint32_t ul_color);
+void update(uint32_t row, uint32_t col, const char *utf8, uint32_t fg,
+            uint32_t bg, uint8_t flags, uint32_t ul_color);
 void set_cursor(int row, int col, int type, bool show_cursor_param);
 void render();
 Coord get_size();

@@ -1,4 +1,5 @@
 #include "../include/editor.h"
+#include "../include/lsp.h"
 #include "../include/main.h"
 #include "../include/ts.h"
 #include <cstdint>
@@ -9,6 +10,9 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
       std::chrono::steady_clock::now();
   static uint32_t click_count = 0;
   static Coord last_click_pos = {UINT32_MAX, UINT32_MAX};
+  Coord start = editor->cursor;
+  if (editor->hover_active)
+    editor->hover_active = false;
   if (event.key_type == KEY_MOUSE) {
     auto now = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -205,7 +209,6 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
   switch (mode) {
   case NORMAL:
     if (event.key_type == KEY_CHAR && event.len == 1) {
-      Coord start = editor->cursor;
       switch (event.c[0]) {
       case 'u':
         if (editor->root->line_count > 0) {
@@ -228,6 +231,72 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
           editor->selection_active = true;
           editor->selection = {0, 0};
           editor->selection_type = LINE;
+        }
+        break;
+      case CTRL('h'):
+        editor->hover.scroll(-1);
+        editor->hover_active = true;
+        break;
+      case CTRL('l'):
+        editor->hover.scroll(1);
+        editor->hover_active = true;
+        break;
+      case 'h':
+        if (editor->lsp && editor->lsp->allow_hover) {
+          LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
+          char *line = next_line(it, nullptr);
+          if (!line) {
+            free(it->buffer);
+            free(it);
+            break;
+          }
+          uint32_t col = utf8_byte_offset_to_utf16(line, editor->cursor.col);
+          free(it->buffer);
+          free(it);
+          json hover_request = {
+              {"jsonrpc", "2.0"},
+              {"method", "textDocument/hover"},
+              {"params",
+               {{"textDocument", {{"uri", editor->uri}}},
+                {"position",
+                 {{"line", editor->cursor.row}, {"character", col}}}}}};
+          LSPPending *pending = new LSPPending();
+          pending->editor = editor;
+          pending->method = "textDocument/hover";
+          pending->callback = [](Editor *editor, std::string, json hover) {
+            log("%s\n", hover.dump().c_str());
+            if (hover.contains("result") && !hover["result"].is_null()) {
+              auto &contents = hover["result"]["contents"];
+              std::string hover_text = "";
+              bool is_markup = false;
+              if (contents.is_object()) {
+                hover_text += contents["value"].get<std::string>();
+                is_markup = (contents["kind"].get<std::string>() == "markdown");
+              } else if (contents.is_array()) {
+                for (auto &block : contents) {
+                  if (block.is_string()) {
+                    hover_text += block.get<std::string>() + "\n";
+                  } else if (block.is_object() && block.contains("language") &&
+                             block.contains("value")) {
+                    std::string lang = block["language"].get<std::string>();
+                    std::string val = block["value"].get<std::string>();
+                    is_markup = true;
+                    hover_text += "```" + lang + "\n" + val + "\n```\n";
+                  }
+                }
+              } else if (contents.is_string()) {
+                hover_text += contents.get<std::string>();
+              }
+              if (!hover_text.empty()) {
+                editor->hover.clear();
+                editor->hover.text = clean_text(hover_text);
+                editor->hover.is_markup = is_markup;
+                editor->hover.render_first();
+                editor->hover_active = true;
+              }
+            }
+          };
+          lsp_send(editor->lsp, hover_request, pending);
         }
         break;
       case 'a':
@@ -559,6 +628,30 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
     free(event.c);
 }
 
+void hover_diagnostic(Editor *editor) {
+  std::shared_lock lock(editor->v_mtx);
+  static uint32_t last_line = UINT32_MAX;
+  if (last_line == editor->cursor.row && !editor->warnings_dirty)
+    return;
+  VWarn dummy;
+  dummy.line = editor->cursor.row;
+  editor->warnings_dirty = false;
+  last_line = editor->cursor.row;
+  auto first =
+      std::lower_bound(editor->warnings.begin(), editor->warnings.end(), dummy);
+  auto last =
+      std::upper_bound(editor->warnings.begin(), editor->warnings.end(), dummy);
+  std::vector<VWarn> warnings_at_line(first, last);
+  if (warnings_at_line.size() == 0) {
+    editor->diagnostics_active = false;
+    return;
+  }
+  editor->diagnostics.clear();
+  editor->diagnostics.warnings.swap(warnings_at_line);
+  editor->diagnostics.render_first();
+  editor->diagnostics_active = true;
+}
+
 static Highlight HL_UNDERLINE = {0, 0, 1 << 2, 100};
 
 void editor_worker(Editor *editor) {
@@ -599,6 +692,7 @@ void editor_worker(Editor *editor) {
     editor->def_spans.spans.clear();
     lock.unlock();
   }
+  hover_diagnostic(editor);
 }
 
 void editor_lsp_handle(Editor *editor, json msg) {
@@ -611,18 +705,54 @@ void editor_lsp_handle(Editor *editor, json msg) {
       json d = diagnostics[i];
       VWarn w;
       // HACK: convert back to utf-8 but as this is only visually affecting it
-      //       is not worth the performance hit
+      //       is not worth getting the line string from the rope.
       w.line = d["range"]["start"]["line"];
       w.start = d["range"]["start"]["character"];
       uint32_t end = d["range"]["end"]["character"];
       if (d["range"]["end"]["line"] == w.line)
         w.end = end;
-      std::string text = d["message"].get<std::string>();
+      std::string text = trim(d["message"].get<std::string>());
+      w.text_full = text;
       auto pos = text.find('\n');
       w.text = (pos == std::string::npos) ? text : text.substr(0, pos);
-      w.type = d["severity"].get<int>();
+      if (d.contains("source"))
+        w.source = d["source"].get<std::string>();
+      if (d.contains("code")) {
+        w.code = "[";
+        if (d["code"].is_string())
+          w.code += d["code"].get<std::string>() + "] ";
+        else if (d["code"].is_number())
+          w.code += std::to_string(d["code"].get<int>()) + "] ";
+        else
+          w.code.clear();
+        if (d.contains("codeDescription") &&
+            d["codeDescription"].contains("href"))
+          w.code += d["codeDescription"]["href"].get<std::string>();
+      }
+      if (d.contains("relatedInformation")) {
+        json related = d["relatedInformation"];
+        for (size_t j = 0; j < related.size(); j++) {
+          json rel = related[j];
+          std::string message = rel["message"].get<std::string>();
+          auto pos = message.find('\n');
+          message =
+              (pos == std::string::npos) ? message : message.substr(0, pos);
+          std::string uri =
+              percent_decode(rel["location"]["uri"].get<std::string>());
+          auto pos2 = uri.find_last_of('/');
+          if (pos2 != std::string::npos)
+            uri = uri.substr(pos2 + 1);
+          std::string row = std::to_string(
+              rel["location"]["range"]["start"]["line"].get<int>());
+          w.see_also.push_back(uri + ":" + row + ": " + message);
+        }
+      }
+      w.type = 1;
+      if (d.contains("severity"))
+        w.type = d["severity"].get<int>();
       editor->warnings.push_back(w);
     }
     std::sort(editor->warnings.begin(), editor->warnings.end());
+    editor->warnings_dirty = true;
   }
 }

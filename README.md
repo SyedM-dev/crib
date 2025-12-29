@@ -6,6 +6,7 @@ A TUI IDE.
 
 # TODO
 
+- [ ] Add ecma to js and make tsx
 - [ ] Add support for LSP & autocomplete / snippets.
     - First research
         - `textDocument/documentHighlight` - for highlighting stuff (probably tree-sitter is enough)
@@ -51,3 +52,5 @@ A TUI IDE.
     - (only on the first time) and sets mode to `WORD`.
 - [ ] Redo folding system and its relation to move_line_* functions. (Currently its a mess)
 - [ ] Make whole thing event driven and not clock driven.
+
+- [ ] Fix in kutu.rb such that windows arent focused on hover . they are only when they are true windows and not just popups . also popus are focused even without hover when they open.

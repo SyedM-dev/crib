@@ -12,4 +12,6 @@ samples/t_*
 build
 bin
 
+grammar/.*.scm
+
 __old__

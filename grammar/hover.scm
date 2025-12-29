@@ -180,7 +180,8 @@
 (fenced_code_block
   (info_string
     (language) @injection.language (#match? @injection.language "^lua$"))
-;; !lua
+; - lua format in hover boxes is typed making it unparsable as normal lua
+; - TODO: add a lua grammar with typing or remove this injection
   (code_fence_content) @injection.lua)
 
 (fenced_code_block

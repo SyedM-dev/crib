@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <fstream>
+#include <functional>
 #include <string>
 #include <unordered_map>
 
@@ -118,24 +119,21 @@ static inline const TSNode *find_capture_node(const TSQueryMatch &match,
   return nullptr;
 }
 
-static inline std::string node_text(const TSNode &node, Knot *source) {
-  uint32_t start = ts_node_start_byte(node);
-  uint32_t end = ts_node_end_byte(node);
+static inline std::string node_text(uint32_t start, uint32_t end,
+                                    Knot *source) {
   char *text = read(source, start, end - start);
   std::string final = std::string(text, end - start);
   free(text);
   return final;
 }
 
-static inline bool ts_predicate(TSQuery *query, const TSQueryMatch &match,
-                                Knot *source) {
+bool ts_predicate(TSQuery *query, const TSQueryMatch &match,
+                  std::function<std::string(const TSNode *)> subject_fn) {
   uint32_t step_count;
   const TSQueryPredicateStep *steps =
       ts_query_predicates_for_pattern(query, match.pattern_index, &step_count);
   if (!steps || step_count != 4)
     return true;
-  if (source->char_count >= (1024 * 64))
-    return false;
   std::string command;
   std::string regex_txt;
   uint32_t subject_id = 0;
@@ -163,8 +161,8 @@ static inline bool ts_predicate(TSQuery *query, const TSQueryMatch &match,
     }
   }
   const TSNode *node = find_capture_node(match, subject_id);
-  std::string subject = node_text(*node, source);
   pcre2_code *re = get_re(regex_txt);
+  std::string subject = subject_fn(node);
   pcre2_match_data *md = pcre2_match_data_create_from_pattern(re, nullptr);
   int rc = pcre2_match(re, (PCRE2_SPTR)subject.c_str(), subject.size(), 0, 0,
                        md, nullptr);
@@ -181,14 +179,6 @@ const char *read_ts(void *payload, uint32_t byte_index, TSPoint,
     return "";
   }
   return leaf_from_offset(editor->root, byte_index, bytes_read);
-}
-
-template <typename T>
-static inline T *safe_get(std::map<uint16_t, T> &m, uint16_t key) {
-  auto it = m.find(key);
-  if (it == m.end())
-    return nullptr;
-  return &it->second;
 }
 
 void ts_collect_spans(Editor *editor) {
@@ -283,7 +273,12 @@ void ts_collect_spans(Editor *editor) {
     std::unordered_map<std::string, PendingRanges> pending_injections;
     TSQueryMatch match;
     while (ts_query_cursor_next_match(cursor, &match)) {
-      if (!ts_predicate(q, match, editor->root))
+      auto subject_fn = [&](const TSNode *node) -> std::string {
+        uint32_t start = ts_node_start_byte(*node);
+        uint32_t end = ts_node_end_byte(*node);
+        return node_text(start, end, editor->root);
+      };
+      if (!ts_predicate(q, match, subject_fn))
         continue;
       for (uint32_t i = 0; i < match.capture_count; i++) {
         TSQueryCapture cap = match.captures[i];

@@ -13,7 +13,7 @@ local name = "Lua"
 print(self)
 
 -- Functions
-function greet(user)
+local function greet(user)
 	print("Hello, " .. user)
 end
 

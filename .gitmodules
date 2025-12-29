@@ -130,3 +130,11 @@
 	path = libs/tree-sitter-markdown
 	url = https://github.com/tree-sitter-grammars/tree-sitter-markdown.git
   ignore = dirty
+[submodule "libs/tree-sitter-typescript"]
+	path = libs/tree-sitter-typescript
+  url = https://github.com/tree-sitter/tree-sitter-typescript.git
+  ignore = dirty
+[submodule "libs/tree-sitter-man"]
+	path = libs/tree-sitter-man
+  url = https://github.com/ribru17/tree-sitter-man.git
+  ignore = dirty

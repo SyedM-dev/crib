@@ -14,7 +14,6 @@ std::unordered_map<uint8_t, std::shared_ptr<LSPInstance>> active_lsps;
 Queue<LSPOpenRequest> lsp_open_queue;
 
 static bool init_lsp(std::shared_ptr<LSPInstance> lsp) {
-  log("initializing %s\n", lsp->lsp->command);
   int in_pipe[2];
   int out_pipe[2];
   if (pipe(in_pipe) == -1 || pipe(out_pipe) == -1) {
@@ -29,16 +28,26 @@ static bool init_lsp(std::shared_ptr<LSPInstance> lsp) {
   if (pid == 0) {
     dup2(in_pipe[0], STDIN_FILENO);
     dup2(out_pipe[1], STDOUT_FILENO);
+#ifdef __clang__
     int devnull = open("/dev/null", O_WRONLY);
     if (devnull >= 0) {
       dup2(devnull, STDERR_FILENO);
       close(devnull);
     }
+#else
+    int log = open("/tmp/lsp.log", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (log >= 0) {
+      dup2(log, STDERR_FILENO);
+      close(log);
+    }
+#endif
+    close(in_pipe[0]);
     close(in_pipe[1]);
     close(out_pipe[0]);
+    close(out_pipe[1]);
     execvp(lsp->lsp->command, (char *const *)(lsp->lsp->args.data()));
     perror("execvp");
-    return false;
+    _exit(127);
   }
   lsp->pid = pid;
   lsp->stdin_fd = in_pipe[1];
@@ -59,7 +68,6 @@ std::shared_ptr<LSPInstance> get_or_init_lsp(uint8_t lsp_id) {
     lsp->lsp = &map_it->second;
     if (!init_lsp(lsp))
       return nullptr;
-    log("starting %s\n", lsp->lsp->command);
     LSPPending *pending = new LSPPending();
     pending->method = "initialize";
     pending->editor = nullptr;
@@ -76,14 +84,17 @@ std::shared_ptr<LSPInstance> get_or_init_lsp(uint8_t lsp_id) {
             lsp->incremental_sync = (change_type == 2);
           }
         }
+        if (caps.contains("hoverProvider")) {
+          lsp->allow_hover = caps["hoverProvider"].get<bool>();
+        } else {
+          lsp->allow_hover = false;
+        }
       }
-      log("incremental_sync %d\n", lsp->incremental_sync);
       lsp->initialized = true;
       json initialized = {{"jsonrpc", "2.0"},
                           {"method", "initialized"},
                           {"params", json::object()}};
       lsp_send(lsp, initialized, nullptr);
-      log("initialized %s\n", lsp->lsp->command);
       while (!lsp->open_queue.empty()) {
         std::pair<Language, Editor *> request;
         lsp->open_queue.pop(request);
@@ -98,7 +109,8 @@ std::shared_ptr<LSPInstance> get_or_init_lsp(uint8_t lsp_id) {
           {"rootUri", "file://" + percent_encode(path_abs("."))},
           {"capabilities",
            {{"textDocument",
-             {{"publishDiagnostics", {{"relatedInformation", true}}}}}}}}}};
+             {{"publishDiagnostics", {{"relatedInformation", true}}},
+              {"hover", {{"contentFormat", {"markdown", "plaintext"}}}}}}}}}}};
     lsp_send(lsp, init_message, pending);
     active_lsps[lsp_id] = lsp;
     return lsp;
@@ -185,7 +197,6 @@ static std::optional<json> read_lsp_message(int fd) {
       return std::nullopt;
     got += n;
   }
-  log("%s\n", body.c_str());
   return json::parse(body);
 }
 
@@ -200,7 +211,6 @@ static Editor *editor_for_uri(std::shared_ptr<LSPInstance> lsp,
 }
 
 static void clean_lsp(std::shared_ptr<LSPInstance> lsp, uint8_t lsp_id) {
-  log("cleaning up lsp %d\n", lsp_id);
   for (auto &kv : lsp->pending)
     delete kv.second;
   lsp->pid = -1;
@@ -317,7 +327,6 @@ void lsp_worker() {
 }
 
 void request_add_to_lsp(Language language, Editor *editor) {
-  log("request_add_to_lsp %d\n", language.lsp_id);
   lsp_open_queue.push({language, editor});
 }
 

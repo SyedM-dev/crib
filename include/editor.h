@@ -1,13 +1,13 @@
 #ifndef EDITOR_H
 #define EDITOR_H
 
+#include "./hover.h"
 #include "./knot.h"
 #include "./pch.h"
+#include "./spans.h"
+#include "./ts_def.h"
 #include "./ui.h"
 #include "./utils.h"
-#include "ts_def.h"
-#include <cstdint>
-#include <shared_mutex>
 
 #define CHAR 0
 #define WORD 1
@@ -15,122 +15,6 @@
 
 #define EXTRA_META 4
 #define INDENT_WIDTH 2
-
-struct Highlight {
-  uint32_t fg;
-  uint32_t bg;
-  uint32_t flags;
-  uint8_t priority;
-};
-
-struct Span {
-  uint32_t start;
-  uint32_t end;
-  Highlight *hl;
-
-  bool operator<(const Span &other) const { return start < other.start; }
-};
-
-struct Spans {
-  std::vector<Span> spans;
-  Queue<std::pair<uint32_t, int64_t>> edits;
-  bool mid_parse = false;
-  std::shared_mutex mtx;
-};
-
-struct Fold {
-  uint32_t start;
-  uint32_t end;
-
-  bool contains(uint32_t line) const { return line >= start && line <= end; }
-  bool operator<(const Fold &other) const { return start < other.start; }
-};
-
-struct SpanCursor {
-  Spans &spans;
-  size_t index = 0;
-  std::vector<Span *> active;
-  std::shared_lock<std::shared_mutex> lock;
-
-  SpanCursor(Spans &s) : spans(s) {}
-  Highlight *get_highlight(uint32_t byte_offset) {
-    for (int i = (int)active.size() - 1; i >= 0; i--)
-      if (active[i]->end <= byte_offset)
-        active.erase(active.begin() + i);
-    while (index < spans.spans.size() &&
-           spans.spans[index].start <= byte_offset) {
-      if (spans.spans[index].end > byte_offset)
-        active.push_back(const_cast<Span *>(&spans.spans[index]));
-      index++;
-    }
-    Highlight *best = nullptr;
-    int max_prio = -1;
-    for (auto *s : active)
-      if (s->hl->priority > max_prio) {
-        max_prio = s->hl->priority;
-        best = s->hl;
-      }
-    return best;
-  }
-  void sync(uint32_t byte_offset) {
-    lock = std::shared_lock(spans.mtx);
-    active.clear();
-    size_t left = 0, right = spans.spans.size();
-    while (left < right) {
-      size_t mid = (left + right) / 2;
-      if (spans.spans[mid].start <= byte_offset)
-        left = mid + 1;
-      else
-        right = mid;
-    }
-    index = left;
-    while (left > 0) {
-      left--;
-      if (spans.spans[left].end > byte_offset)
-        active.push_back(const_cast<Span *>(&spans.spans[left]));
-      else if (byte_offset - spans.spans[left].end > 1000)
-        break;
-    }
-  }
-};
-
-struct VWarn {
-  uint32_t line;
-  std::string text;
-  int8_t type;
-  uint32_t start;
-  uint32_t end{UINT32_MAX};
-
-  bool operator<(const VWarn &other) const { return line < other.line; }
-};
-
-struct VAI {
-  Coord pos;
-  char *text;
-  uint32_t len;
-  uint32_t lines; // number of \n in text for speed .. the ai part will not
-                  // line wrap but multiline ones need to have its own lines
-                  // after the first one
-};
-
-struct TSSetBase {
-  std::string lang;
-  TSParser *parser;
-  std::string query_file;
-  TSQuery *query;
-  TSTree *tree;
-  std::map<uint16_t, Highlight> query_map;
-  std::map<uint16_t, Language> injection_map;
-  const TSLanguage *language;
-};
-
-struct TSSet : TSSetBase {
-  std::vector<TSRange> ranges;
-};
-
-struct TSSetMain : TSSetBase {
-  std::unordered_map<std::string, TSSet> injections;
-};
 
 struct Editor {
   std::string filename;
@@ -154,9 +38,14 @@ struct Editor {
   bool jumper_set;
   std::shared_mutex v_mtx;
   std::vector<VWarn> warnings;
+  bool warnings_dirty;
   VAI ai;
   std::shared_mutex lsp_mtx;
   std::shared_ptr<struct LSPInstance> lsp;
+  bool hover_active;
+  HoverBox hover;
+  bool diagnostics_active;
+  DiagnosticBox diagnostics;
   int lsp_version = 1;
 };
 
@@ -219,6 +108,7 @@ void apply_hook_deletion(Editor *editor, uint32_t removal_start,
                          uint32_t removal_end);
 Editor *new_editor(const char *filename_arg, Coord position, Coord size);
 void save_file(Editor *editor);
+void hover_diagnostic(Editor *editor);
 void free_editor(Editor *editor);
 void render_editor(Editor *editor);
 void fold(Editor *editor, uint32_t start_line, uint32_t end_line);

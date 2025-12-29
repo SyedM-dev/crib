@@ -31,9 +31,10 @@ This is a paragraph with **bold text**, *italic text*, ~~strikethrough~~, and `i
 
 `Inline code` example and a fenced code block:
 
-```python
-def hello_world():
-    print("Hello, world!")
+```lua
+local s2 = [[Long
+multi-line
+string]]
 ```
 
 ![Image](https://example.com/image.jpg)

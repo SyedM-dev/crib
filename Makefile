@@ -34,12 +34,17 @@ TREE_SITTER_LIBS := $(wildcard libs/tree-sitter-*/libtree-sitter*.a)
 
 PHP_LIB := libs/tree-sitter-php/php/libtree-sitter-php.a
 
+TSX_LIB := libs/tree-sitter-typescript/tsx/libtree-sitter-tsx.a
+
 NGINX_OBJ_PARSER := libs/tree-sitter-nginx/build/Release/obj.target/tree_sitter_nginx_binding/src/parser.o
 
 GITIGNORE_OBJ_PARSER := libs/tree-sitter-gitignore/build/Release/obj.target/tree_sitter_ignore_binding/src/parser.o
 
 FISH_OBJ_PARSER := libs/tree-sitter-fish/build/Release/obj.target/tree_sitter_fish_binding/src/parser.o
 FISH_OBJ_SCANNER := libs/tree-sitter-fish/build/Release/obj.target/tree_sitter_fish_binding/src/scanner.o
+
+MAN_OBJ_PARSER := libs/tree-sitter-man/build/Release/obj.target/tree_sitter_man_binding/src/parser.o
+MAN_OBJ_SCANNER := libs/tree-sitter-man/build/Release/obj.target/tree_sitter_man_binding/src/scanner.o
 
 MD_OBJ_PARSER := libs/tree-sitter-markdown/build/Release/obj.target/tree_sitter_markdown_binding/tree-sitter-markdown/src/parser.o
 MD_OBJ_SCANNER := libs/tree-sitter-markdown/build/Release/obj.target/tree_sitter_markdown_binding/tree-sitter-markdown/src/scanner.o
@@ -52,10 +57,13 @@ LIBS := \
 	libs/tree-sitter/libtree-sitter.a \
 	$(TREE_SITTER_LIBS) \
 	$(PHP_LIB) \
+	$(TSX_LIB) \
 	$(NGINX_OBJ_PARSER) \
 	$(GITIGNORE_OBJ_PARSER) \
 	$(FISH_OBJ_PARSER) \
 	$(FISH_OBJ_SCANNER) \
+	$(MAN_OBJ_PARSER) \
+	$(MAN_OBJ_SCANNER) \
 	$(MD_OBJ_PARSER) \
 	$(MD_OBJ_SCANNER) \
 	$(MD_I_OBJ_PARSER) \

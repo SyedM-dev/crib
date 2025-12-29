@@ -22,6 +22,12 @@ Editor *new_editor(const char *filename_arg, Coord position, Coord size) {
   editor->position = position;
   editor->size = size;
   editor->cursor_preffered = UINT32_MAX;
+  if (len == 0) {
+    free(str);
+    str = (char *)malloc(1);
+    *str = '\n';
+    len = 1;
+  }
   editor->root = load(str, len, optimal_chunk_size(len));
   free(str);
   Language language = language_for_file(filename.c_str());
@@ -29,8 +35,6 @@ Editor *new_editor(const char *filename_arg, Coord position, Coord size) {
     editor->ts.parser = ts_parser_new();
     editor->ts.language = language.fn();
     ts_parser_set_language(editor->ts.parser, editor->ts.language);
-    log("set language %s\n", language.name.c_str());
-    log("lsp_id: %d\n", language.lsp_id);
     editor->ts.query_file =
         get_exe_dir() + "/../grammar/" + language.name + ".scm";
     request_add_to_lsp(language, editor);
@@ -254,29 +258,34 @@ void render_editor(Editor *editor) {
         uint8_t fl = hl ? hl->flags : 0;
         if (def_hl) {
           if (def_hl->fg != 0)
-            fg = def_hl->fg;
+            fg |= def_hl->fg;
           if (def_hl->bg != 0)
-            bg = def_hl->bg;
+            bg |= def_hl->bg;
           fl |= def_hl->flags;
         }
         if (editor->selection_active && absolute_byte_pos >= sel_start &&
             absolute_byte_pos < sel_end)
           bg = 0x555555;
+        uint32_t u_color = 0;
         for (const auto &w : line_warnings) {
           if (w.start <= current_byte_offset + local_render_offset &&
               current_byte_offset + local_render_offset < w.end) {
             switch (w.type) {
             case 1:
-              bg = 0x500000;
+              u_color = 0xff0000;
+              fl |= CF_UNDERLINE;
               break;
             case 2:
-              bg = 0x505000;
+              u_color = 0xffff00;
+              fl |= CF_UNDERLINE;
               break;
             case 3:
-              bg = 0x500050;
+              u_color = 0xff00ff;
+              fl |= CF_UNDERLINE;
               break;
             case 4:
-              bg = 0x505050;
+              u_color = 0xA0A0A0;
+              fl |= CF_UNDERLINE;
               break;
             }
           }
@@ -289,7 +298,7 @@ void render_editor(Editor *editor) {
         if (col + width > render_width)
           break;
         update(editor->position.row + rendered_rows, render_x + col,
-               cluster.c_str(), fg, bg | color, fl);
+               cluster.c_str(), fg, bg | color, fl, u_color);
         local_render_offset += cluster_len;
         line_left -= cluster_len;
         col += width;
@@ -383,6 +392,7 @@ void render_editor(Editor *editor) {
             update(editor->position.row + rendered_rows, render_x + col - width,
                    "\x1b", fg_color, color, 0);
         }
+        line_warnings.clear();
       }
       while (col < render_width) {
         update(editor->position.row + rendered_rows, render_x + col, " ", 0,
@@ -424,6 +434,81 @@ void render_editor(Editor *editor) {
                0x555555 | color, 0);
         col++;
       }
+      if (!line_warnings.empty()) {
+        VWarn warn = line_warnings.front();
+        update(editor->position.row + rendered_rows, render_x + col, " ", 0,
+               color, 0);
+        col++;
+        for (size_t i = 0; i < line_warnings.size(); i++) {
+          if (line_warnings[i].type < warn.type)
+            warn = line_warnings[i];
+          std::string err_sym = " ";
+          uint32_t fg_color = 0;
+          switch (line_warnings[i].type) {
+          case 1:
+            err_sym = "";
+            fg_color = 0xFF0000;
+            goto final2;
+          case 2:
+            err_sym = "";
+            fg_color = 0xFFFF00;
+            goto final2;
+          case 3:
+            err_sym = "";
+            fg_color = 0xFF00FF;
+            goto final2;
+          case 4:
+            err_sym = "";
+            fg_color = 0xAAAAAA;
+            goto final2;
+          final2:
+            if (col < render_width) {
+              update(editor->position.row + rendered_rows, render_x + col,
+                     err_sym, fg_color, color, 0);
+              col++;
+              update(editor->position.row + rendered_rows, render_x + col, " ",
+                     fg_color, color, 0);
+              col++;
+            }
+          }
+        }
+        if (col < render_width) {
+          update(editor->position.row + rendered_rows, render_x + col, " ", 0,
+                 0 | color, 0);
+          col++;
+        }
+        size_t warn_idx = 0;
+        uint32_t fg_color = 0;
+        switch (warn.type) {
+        case 1:
+          fg_color = 0xFF0000;
+          break;
+        case 2:
+          fg_color = 0xFFFF00;
+          break;
+        case 3:
+          fg_color = 0xFF00FF;
+          break;
+        case 4:
+          fg_color = 0xAAAAAA;
+          break;
+        }
+        while (col < render_width && warn_idx < warn.text.length()) {
+          uint32_t cluster_len = grapheme_next_character_break_utf8(
+              warn.text.c_str() + warn_idx, warn.text.length() - warn_idx);
+          std::string cluster = warn.text.substr(warn_idx, cluster_len);
+          int width = display_width(cluster.c_str(), cluster_len);
+          if (col + width > render_width)
+            break;
+          update(editor->position.row + rendered_rows, render_x + col,
+                 cluster.c_str(), fg_color, color, 0);
+          col += width;
+          warn_idx += cluster_len;
+          while (width-- > 1)
+            update(editor->position.row + rendered_rows, render_x + col - width,
+                   "\x1b", fg_color, color, 0);
+        }
+      }
       while (col < render_width) {
         update(editor->position.row + rendered_rows, render_x + col, " ", 0,
                0 | color, 0);
@@ -449,6 +534,10 @@ void render_editor(Editor *editor) {
       break;
     }
     set_cursor(cursor.row, cursor.col, type, true);
+    if (editor->hover_active)
+      editor->hover.render(cursor);
+    else if (editor->diagnostics_active)
+      editor->diagnostics.render(cursor);
   }
   while (rendered_rows < editor->size.row) {
     for (uint32_t col = 0; col < editor->size.col; col++)

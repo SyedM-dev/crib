@@ -507,3 +507,9 @@
   (heredoc_content) @cabal_injection
   ((heredoc_end) @lang
     (#match? @lang "CABAL")))
+
+(heredoc_body
+;; !man
+  (heredoc_content) @man_injection
+  ((heredoc_end) @lang
+    (#match? @lang "MAN")))

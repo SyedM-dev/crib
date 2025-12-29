@@ -178,6 +178,7 @@ static const std::unordered_map<std::string, Language> kLanguages = {
     {"haskell", {"haskell", LANG(haskell), 9}},
     {"html", {"html", LANG(html), 10}},
     {"javascript", {"javascript", LANG(javascript), 11}},
+    {"typescript", {"typescript", LANG(tsx), 11}},
     {"json", {"json", LANG(json), 6}},
     {"jsonc", {"jsonc", LANG(json), 6}},
     {"erb", {"erb", LANG(embedded_template), 10}},
@@ -195,6 +196,7 @@ static const std::unordered_map<std::string, Language> kLanguages = {
                                      // config to connect to database
     {"make", {"make", LANG(make), 21}},
     {"gdscript", {"gdscript", LANG(gdscript)}}, // TODO: connect to godot
+    {"man", {"man", LANG(man)}},
     {"diff", {"diff", LANG(diff)}},
     {"gitattributes", {"gitattributes", LANG(gitattributes)}},
     {"gitignore", {"gitignore", LANG(gitignore)}},
@@ -222,11 +224,15 @@ static const std::unordered_map<std::string, std::string> kExtToLang = {
     {"htm", "html"},
     {"js", "javascript"},
     {"jsx", "javascript"},
+    {"ts", "typescript"},
+    {"tsx", "typescript"},
     {"json", "json"},
     {"jsonc", "jsonc"},
     {"lua", "lua"},
+    {"make", "make"},
     {"mk", "make"},
     {"makefile", "make"},
+    {"man", "man"},
     {"py", "python"},
     {"rb", "ruby"},
     {"rs", "rust"},
@@ -279,6 +285,7 @@ static const std::unordered_map<std::string, std::string> kMimeToLang = {
     {"text/x-sql", "sql"},
     {"text/x-toml", "toml"},
     {"text/x-yaml", "yaml"},
+    {"text/x-man", "man"},
 };
 
 #endif
