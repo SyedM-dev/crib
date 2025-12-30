@@ -1,6 +1,7 @@
 #include "editor/editor.h"
 #include "editor/folds.h"
 #include "main.h"
+#include "ts/decl.h"
 
 void render_editor(Editor *editor) {
   uint32_t sel_start = 0, sel_end = 0;
@@ -73,14 +74,16 @@ void render_editor(Editor *editor) {
   Coord cursor = {UINT32_MAX, UINT32_MAX};
   uint32_t line_index = editor->scroll.row;
   SpanCursor span_cursor(editor->spans);
-  SpanCursor def_span_cursor(editor->def_spans);
+  SpanCursor word_span_cursor(editor->word_spans);
+  SpanCursor hex_span_cursor(editor->hex_color_spans);
   LineIterator *it = begin_l_iter(editor->root, line_index);
   if (!it)
     return;
   uint32_t rendered_rows = 0;
   uint32_t global_byte_offset = line_to_byte(editor->root, line_index, nullptr);
   span_cursor.sync(global_byte_offset);
-  def_span_cursor.sync(global_byte_offset);
+  word_span_cursor.sync(global_byte_offset);
+  hex_span_cursor.sync(global_byte_offset);
   while (rendered_rows < editor->size.row) {
     const Fold *fold = fold_for_line(editor->folds, line_index);
     if (fold) {
@@ -180,16 +183,23 @@ void render_editor(Editor *editor) {
         uint32_t absolute_byte_pos =
             global_byte_offset + current_byte_offset + local_render_offset;
         Highlight *hl = span_cursor.get_highlight(absolute_byte_pos);
-        Highlight *def_hl = def_span_cursor.get_highlight(absolute_byte_pos);
+        Highlight *word_hl = word_span_cursor.get_highlight(absolute_byte_pos);
+        Highlight *hex_hl = hex_span_cursor.get_highlight(absolute_byte_pos);
         uint32_t fg = hl ? hl->fg : 0xFFFFFF;
         uint32_t bg = hl ? hl->bg : 0;
         uint8_t fl = hl ? hl->flags : 0;
-        if (def_hl) {
-          if (def_hl->fg != 0)
-            fg = def_hl->fg;
-          if (def_hl->bg != 0)
-            bg = def_hl->bg;
-          fl |= def_hl->flags;
+        if (hex_hl) {
+          if (hex_hl->fg != 0)
+            fg = hex_hl->fg;
+          if (hex_hl->bg != 0)
+            bg = hex_hl->bg;
+          fl |= hex_hl->flags;
+        } else if (word_hl) {
+          if (word_hl->fg != 0)
+            fg |= word_hl->fg;
+          if (word_hl->bg != 0)
+            bg |= word_hl->bg;
+          fl |= word_hl->flags;
         }
         if (editor->selection_active && absolute_byte_pos >= sel_start &&
             absolute_byte_pos < sel_end)

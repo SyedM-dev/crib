@@ -38,19 +38,30 @@ char *load_file(const char *path, uint32_t *out_len) {
   if (!file.is_open())
     return nullptr;
   std::streamsize len = file.tellg();
-  if (len < 0 || (std::uint32_t)len > 0xFFFFFFFF)
+  if (len < 0 || static_cast<uint32_t>(len) > 0xFFFFFFFF)
     return nullptr;
   file.seekg(0, std::ios::beg);
-  char *buf = (char *)malloc(static_cast<std::uint32_t>(len));
+  bool add_newline = false;
+  if (len > 0) {
+    file.seekg(-1, std::ios::end);
+    char last_char;
+    file.read(&last_char, 1);
+    if (last_char != '\n')
+      add_newline = true;
+  }
+  file.seekg(0, std::ios::beg);
+  uint32_t alloc_size = static_cast<uint32_t>(len) + (add_newline ? 1 : 0);
+  char *buf = (char *)malloc(alloc_size);
   if (!buf)
     return nullptr;
-  if (file.read(buf, len)) {
-    *out_len = static_cast<uint32_t>(len);
-    return buf;
-  } else {
+  if (!file.read(buf, len)) {
     free(buf);
     return nullptr;
   }
+  if (add_newline)
+    buf[len++] = '\n';
+  *out_len = static_cast<uint32_t>(len);
+  return buf;
 }
 
 static std::string file_extension(const char *filename) {

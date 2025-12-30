@@ -7,7 +7,7 @@
 struct Spans {
   std::vector<Span> spans;
   Queue<std::pair<uint32_t, int64_t>> edits;
-  bool mid_parse = false;
+  std::atomic<bool> mid_parse = false;
   std::shared_mutex mtx;
 };
 

@@ -788,8 +788,8 @@ char *leaf_from_offset(Knot *root, uint32_t start_offset, uint32_t *out_len) {
   return nullptr;
 }
 
-std::vector<std::pair<size_t, size_t>> search_rope(Knot *root,
-                                                   const char *pattern) {
+std::vector<std::pair<size_t, size_t>> search_rope_dfa(Knot *root,
+                                                       const char *pattern) {
   std::vector<std::pair<size_t, size_t>> results;
   int errorcode;
   PCRE2_SIZE erroffset;
@@ -807,15 +807,17 @@ std::vector<std::pair<size_t, size_t>> search_rope(Knot *root,
     pcre2_match_data_free(mdata);
     return results;
   }
+  size_t limit = 256;
+  results.reserve(limit);
   size_t chunk_abs_offset = 0;
   size_t saved_match_start = 0;
   bool match_in_progress = false;
   int flags = PCRE2_PARTIAL_SOFT;
   while (1) {
-    const char *chunk_start = next_leaf(it, nullptr);
+    uint32_t chunk_len;
+    const char *chunk_start = next_leaf(it, &chunk_len);
     if (!chunk_start)
       break;
-    size_t chunk_len = strlen(chunk_start);
     const char *current_ptr = chunk_start;
     size_t remaining_len = chunk_len;
     while (remaining_len > 0) {
@@ -837,6 +839,10 @@ std::vector<std::pair<size_t, size_t>> search_rope(Knot *root,
               chunk_abs_offset + (current_ptr - chunk_start) + ov[1];
         }
         size_t total_len = match_end_abs - match_start_abs;
+        if (results.size() >= limit) {
+          limit *= 2;
+          results.reserve(limit);
+        }
         results.push_back(std::make_pair(match_start_abs, total_len));
         size_t consumed = ov[1];
         if (consumed == 0)
@@ -868,7 +874,6 @@ std::vector<std::pair<size_t, size_t>> search_rope(Knot *root,
         } else {
           break;
         }
-        // if (rc != PCRE2_ERROR_NOMATCH) {} // handle error
       }
     }
     chunk_abs_offset += chunk_len;
@@ -881,125 +886,69 @@ std::vector<std::pair<size_t, size_t>> search_rope(Knot *root,
   return results;
 }
 
-// TODO: Optimize and make it actually utilize capture groups etc.
-//
-// static const size_t MAX_OVERLAP = 1024;
-//
-// std::vector<std::pair<size_t, size_t>> search_rope_new(Knot *root,
-//                                                        const char *pattern) {
-//   std::vector<std::pair<size_t, size_t>> results;
-//   int errorcode;
-//   PCRE2_SIZE erroffset;
-//
-//   // 1. Compile (Standard compilation)
-//   pcre2_code *re = pcre2_compile((PCRE2_SPTR)pattern, PCRE2_ZERO_TERMINATED,
-//   0,
-//                                  &errorcode, &erroffset, nullptr);
-//   if (!re) {
-//     fprintf(stderr, "PCRE2 compile error: %d\n", errorcode);
-//     return results;
-//   }
-//
-//   pcre2_match_data *mdata = pcre2_match_data_create_from_pattern(re,
-//   nullptr);
-//
-//   LeafIterator *it = begin_k_iter(root, 0);
-//   if (!it) {
-//     pcre2_code_free(re);
-//     pcre2_match_data_free(mdata);
-//     return results;
-//   }
-//
-//   // Buffer to hold (Last X chars) + (Current Chunk)
-//   std::string buffer;
-//
-//   // Tracks where the *start* of the current buffer is located relative to
-//   the
-//   // whole rope
-//   size_t buffer_abs_offset = 0;
-//
-//   // Tracks the absolute offset up to which we have already "cleared"
-//   matches.
-//   // This prevents reporting a match twice if it sits inside the overlap
-//   region. size_t processed_up_to_abs = 0;
-//
-//   while (1) {
-//     // 2. Get next chunk
-//     const char *chunk_start = next_leaf(it, nullptr);
-//     if (!chunk_start)
-//       break;
-//
-//     // 3. Update Buffer: Append new data
-//     size_t chunk_len = strlen(chunk_start);
-//     buffer.append(chunk_start, chunk_len);
-//
-//     PCRE2_SPTR subject = (PCRE2_SPTR)buffer.c_str();
-//     size_t subject_len = buffer.length();
-//     size_t start_offset = 0;
-//
-//     // 4. Run pcre2_match loop on the current window
-//     while (true) {
-//       int rc = pcre2_match(re, subject, subject_len, start_offset,
-//                            0, // Default options
-//                            mdata, nullptr);
-//
-//       if (rc < 0) {
-//         // No match (or error) in the rest of this buffer
-//         break;
-//       }
-//
-//       PCRE2_SIZE *ovector = pcre2_get_ovector_pointer(mdata);
-//       size_t match_local_start = ovector[0];
-//       size_t match_local_end = ovector[1];
-//
-//       // Calculate Absolute Coordinates
-//       size_t match_abs_start = buffer_abs_offset + match_local_start;
-//       size_t match_len = match_local_end - match_local_start;
-//
-//       // 5. Deduplication Check
-//       // If we find a match that starts *before* where we finished processing
-//       // the previous chunk, it means this match is entirely inside the
-//       // overlap region and was reported in the previous iteration.
-//       if (match_abs_start >= processed_up_to_abs) {
-//         results.push_back(std::make_pair(match_abs_start, match_len));
-//         // Update processed marker so we don't report this again
-//         // (Using start + 1 ensures we allow overlapping matches if regex
-//         // allows, but strictly prevents the exact same start index being
-//         // reported twice)
-//         processed_up_to_abs = match_abs_start + 1;
-//       }
-//
-//       // Prepare for next match in this buffer
-//       start_offset = match_local_end;
-//
-//       // Handle empty matches (e.g. "a*" matching empty string) to prevent
-//       // infinite loop
-//       if (match_local_end == match_local_start) {
-//         if (start_offset < subject_len) {
-//           start_offset++;
-//         } else {
-//           break; // End of buffer
-//         }
-//       }
-//     }
-//
-//     // 6. Maintenance: Shrink buffer to keep only the last MAX_OVERLAP
-//     // characters
-//     if (buffer.length() > MAX_OVERLAP) {
-//       size_t to_remove = buffer.length() - MAX_OVERLAP;
-//
-//       // Remove from the beginning of the string
-//       buffer.erase(0, to_remove);
-//
-//       // The buffer's start has now moved forward in absolute terms
-//       buffer_abs_offset += to_remove;
-//     }
-//   }
-//
-//   // Cleanup
-//   pcre2_match_data_free(mdata);
-//   pcre2_code_free(re);
-//   free(it); // Assuming iter needs free based on original code usage
-//
-//   return results;
-// }
+static const size_t MAX_OVERLAP = 1024;
+
+std::vector<Match> search_rope(Knot *root, const char *pattern) {
+  std::vector<Match> results;
+  int errorcode;
+  PCRE2_SIZE erroffset;
+  pcre2_code *re = pcre2_compile((PCRE2_SPTR)pattern, PCRE2_ZERO_TERMINATED, 0,
+                                 &errorcode, &erroffset, nullptr);
+  if (!re)
+    return results;
+  pcre2_match_data *mdata = pcre2_match_data_create_from_pattern(re, nullptr);
+  LeafIterator *it = begin_k_iter(root, 0);
+  if (!it) {
+    pcre2_match_data_free(mdata);
+    pcre2_code_free(re);
+    return results;
+  }
+  size_t limit = 256;
+  results.reserve(limit);
+  std::string buffer;
+  buffer.reserve(MAX_OVERLAP * 2);
+  size_t buffer_abs_offset = 0;
+  size_t processed_up_to = 0;
+  while (true) {
+    uint32_t chunk_len;
+    const char *chunk = next_leaf(it, &chunk_len);
+    if (!chunk)
+      break;
+    buffer.append(chunk, chunk_len);
+    PCRE2_SPTR subject = (PCRE2_SPTR)buffer.data();
+    size_t subject_len = buffer.size();
+    size_t start_offset = 0;
+    while (true) {
+      int rc = pcre2_match(re, subject, subject_len, start_offset, 0, mdata,
+                           nullptr);
+      if (rc < 0)
+        break;
+      PCRE2_SIZE *ov = pcre2_get_ovector_pointer(mdata);
+      size_t local_start = ov[0];
+      size_t local_end = ov[1];
+      size_t abs_start = buffer_abs_offset + local_start;
+      if (abs_start >= processed_up_to) {
+        if (results.size() >= limit) {
+          limit *= 2;
+          results.reserve(limit);
+        }
+        results.push_back({abs_start, abs_start + local_end - local_start,
+                           std::string(buffer.data() + local_start,
+                                       local_end - local_start)});
+        processed_up_to = abs_start + 1;
+      }
+      start_offset = (local_end > local_start) ? local_end : local_start + 1;
+      if (start_offset >= subject_len)
+        break;
+    }
+    if (buffer.size() > MAX_OVERLAP) {
+      size_t trim = buffer.size() - MAX_OVERLAP;
+      buffer.erase(0, trim);
+      buffer_abs_offset += trim;
+    }
+  }
+  pcre2_match_data_free(mdata);
+  pcre2_code_free(re);
+  free(it);
+  return results;
+}

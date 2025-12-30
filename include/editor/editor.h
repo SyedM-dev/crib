@@ -33,9 +33,8 @@ struct Editor {
   Queue<TSInputEdit> edit_queue;
   std::vector<Fold> folds;
   Spans spans;
-  // TODO: Split into 2 groups to have their own mutex's . one for word hl and
-  //       one for hex colors
-  Spans def_spans;
+  Spans word_spans;
+  Spans hex_color_spans;
   uint32_t hooks[94];
   bool jumper_set;
   std::shared_mutex v_mtx;

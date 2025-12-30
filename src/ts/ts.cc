@@ -13,10 +13,10 @@ const char *read_ts(void *payload, uint32_t byte_index, TSPoint,
 }
 
 void ts_collect_spans(Editor *editor) {
-  static int parse_counter = 0;
+  static int parse_counter = 64;
   if (!editor->ts.parser || !editor->root || !editor->ts.query)
     return;
-  const bool injections_enabled = editor->root->char_count < (1024 * 32);
+  const bool injections_enabled = editor->root->char_count < (1024 * 20);
   for (auto &inj : editor->ts.injections)
     inj.second.ranges.clear();
   TSInput tsinput{
@@ -30,32 +30,19 @@ void ts_collect_spans(Editor *editor) {
   if (!editor->edit_queue.empty()) {
     while (editor->edit_queue.pop(edit))
       edits.push_back(edit);
-    if (editor->ts.tree) {
+    if (editor->ts.tree)
       for (auto &e : edits)
         ts_tree_edit(editor->ts.tree, &e);
-    }
-    for (auto &inj : editor->ts.injections) {
-      if (inj.second.tree) {
-        for (auto &e : edits) {
-          TSInputEdit inj_edit = e;
-          for (auto &r : inj.second.ranges) {
-            if (e.start_byte >= r.start_byte && e.start_byte <= r.end_byte) {
-              inj_edit.start_byte -= r.start_byte;
-              inj_edit.old_end_byte -= r.start_byte;
-              inj_edit.new_end_byte -= r.start_byte;
-            }
-          }
-          ts_tree_edit(inj.second.tree, &inj_edit);
-        }
-      }
-    }
-  } else if (editor->ts.tree && parse_counter < 64) {
-    parse_counter++;
+    for (auto &inj : editor->ts.injections)
+      if (inj.second.tree)
+        for (auto &e : edits)
+          ts_tree_edit(inj.second.tree, &e);
+  } else if (editor->ts.tree && parse_counter++ < 64) {
     return;
   }
   parse_counter = 0;
-  editor->spans.mid_parse = true;
   std::shared_lock lock(editor->knot_mtx);
+  editor->spans.mid_parse = true;
   TSTree *tree = ts_parser_parse(editor->ts.parser, editor->ts.tree, tsinput);
   if (!tree)
     return;
@@ -169,11 +156,12 @@ void ts_collect_spans(Editor *editor) {
       }
     }
   }
+  lock.lock();
   std::pair<uint32_t, int64_t> span_edit;
   while (editor->spans.edits.pop(span_edit))
     apply_edit(new_spans, span_edit.first, span_edit.second);
   std::sort(new_spans.begin(), new_spans.end());
-  std::unique_lock span_mtx(editor->spans.mtx);
   editor->spans.mid_parse = false;
+  std::unique_lock span_mtx(editor->spans.mtx);
   editor->spans.spans.swap(new_spans);
 }

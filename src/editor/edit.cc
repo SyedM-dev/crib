@@ -51,7 +51,6 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     apply_hook_deletion(editor, start_row + 1, end_row);
     std::unique_lock lock_2(editor->knot_mtx);
     editor->root = erase(editor->root, start, byte_pos - start);
-    lock_2.unlock();
     if (editor->ts.tree) {
       TSInputEdit edit = {
           .start_byte = start,
@@ -63,6 +62,15 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
       };
       editor->edit_queue.push(edit);
     }
+    std::unique_lock lock_3(editor->spans.mtx);
+    apply_edit(editor->spans.spans, start, start - byte_pos);
+    if (editor->spans.mid_parse)
+      editor->spans.edits.push({start, start - byte_pos});
+    lock_3.unlock();
+    lock_2.unlock();
+    std::unique_lock lock_4(editor->hex_color_spans.mtx);
+    apply_edit(editor->hex_color_spans.spans, byte_pos, start - byte_pos);
+    lock_4.unlock();
     if (do_lsp) {
       if (editor->lsp->incremental_sync) {
         json message = {
@@ -88,12 +96,6 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
         lsp_send(editor->lsp, message, nullptr);
       }
     }
-    std::unique_lock lock_3(editor->spans.mtx);
-    apply_edit(editor->spans.spans, start, start - byte_pos);
-    if (editor->spans.mid_parse)
-      editor->spans.edits.push({start, start - byte_pos});
-    std::unique_lock lock_4(editor->def_spans.mtx);
-    apply_edit(editor->def_spans.spans, byte_pos, start - byte_pos);
   } else {
     std::shared_lock lock_1(editor->knot_mtx);
     uint32_t cursor_original =
@@ -140,7 +142,6 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     apply_hook_deletion(editor, start_row + 1, end_row);
     std::unique_lock lock_2(editor->knot_mtx);
     editor->root = erase(editor->root, byte_pos, end - byte_pos);
-    lock_2.unlock();
     if (editor->ts.tree) {
       TSInputEdit edit = {
           .start_byte = byte_pos,
@@ -152,6 +153,15 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
       };
       editor->edit_queue.push(edit);
     }
+    std::unique_lock lock_3(editor->spans.mtx);
+    apply_edit(editor->spans.spans, byte_pos, byte_pos - end);
+    if (editor->spans.mid_parse)
+      editor->spans.edits.push({byte_pos, byte_pos - end});
+    lock_3.unlock();
+    lock_2.unlock();
+    std::unique_lock lock_4(editor->hex_color_spans.mtx);
+    apply_edit(editor->hex_color_spans.spans, byte_pos, byte_pos - end);
+    lock_4.unlock();
     if (do_lsp) {
       if (editor->lsp->incremental_sync) {
         json message = {
@@ -177,12 +187,6 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
         lsp_send(editor->lsp, message, nullptr);
       }
     }
-    std::unique_lock lock_3(editor->spans.mtx);
-    apply_edit(editor->spans.spans, byte_pos, byte_pos - end);
-    if (editor->spans.mid_parse)
-      editor->spans.edits.push({byte_pos, byte_pos - end});
-    std::unique_lock lock_4(editor->def_spans.mtx);
-    apply_edit(editor->def_spans.spans, byte_pos, byte_pos - end);
   }
 }
 
@@ -202,7 +206,6 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
   lock_1.unlock();
   std::unique_lock lock_2(editor->knot_mtx);
   editor->root = insert(editor->root, byte_pos, data, len);
-  lock_2.unlock();
   uint32_t cols = 0;
   uint32_t rows = 0;
   for (uint32_t i = 0; i < len; i++) {
@@ -227,6 +230,15 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
     };
     editor->edit_queue.push(edit);
   }
+  std::unique_lock lock_3(editor->spans.mtx);
+  apply_edit(editor->spans.spans, byte_pos, len);
+  if (editor->spans.mid_parse)
+    editor->spans.edits.push({byte_pos, len});
+  lock_3.unlock();
+  lock_2.unlock();
+  std::unique_lock lock_4(editor->hex_color_spans.mtx);
+  apply_edit(editor->hex_color_spans.spans, byte_pos, len);
+  lock_4.unlock();
   if (editor->lsp) {
     if (editor->lsp->incremental_sync) {
       lock_1.lock();
@@ -265,10 +277,4 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
       lsp_send(editor->lsp, message, nullptr);
     }
   }
-  std::unique_lock lock_3(editor->spans.mtx);
-  apply_edit(editor->spans.spans, byte_pos, len);
-  if (editor->spans.mid_parse)
-    editor->spans.edits.push({byte_pos, len});
-  std::unique_lock lock_4(editor->def_spans.mtx);
-  apply_edit(editor->def_spans.spans, byte_pos, len);
 }

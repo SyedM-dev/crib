@@ -33,8 +33,9 @@ Editor *new_editor(const char *filename_arg, Coord position, Coord size) {
     ts_parser_set_language(editor->ts.parser, editor->ts.language);
     editor->ts.query_file =
         get_exe_dir() + "/../grammar/" + language.name + ".scm";
-    request_add_to_lsp(language, editor);
   }
+  if (len <= (1024 * 28))
+    request_add_to_lsp(language, editor);
   return editor;
 }
 

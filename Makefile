@@ -13,15 +13,21 @@ CCACHE := ccache
 CXX_DEBUG := $(CCACHE) g++
 CXX_RELEASE := $(CCACHE) clang++
 
-CFLAGS_DEBUG := -std=c++20 -Wall -Wextra -O0 -fno-inline -gsplit-dwarf -g -fsanitize=address -fno-omit-frame-pointer -I./include -I./libs
-CFLAGS_RELEASE := -std=c++20 -O3 -march=native -flto=thin \
-	-fno-exceptions -fno-rtti -fstrict-aliasing \
-	-ffast-math -funroll-loops \
-	-fvisibility=hidden \
-	-fomit-frame-pointer -DNDEBUG -s \
-	-mllvm -vectorize-loops \
-	-fno-unwind-tables -fno-asynchronous-unwind-tables\
-	-I./include -I./libs
+CFLAGS_DEBUG := -std=c++20 -Wall -Wextra \
+								-O0 -fno-inline -gsplit-dwarf\
+								-g -fsanitize=address -fno-omit-frame-pointer\
+								-Wno-unused-command-line-argument \
+								-I./include -I./libs
+CFLAGS_RELEASE := -std=c++20 -O3 -march=native \
+									-fno-exceptions -fno-rtti -fstrict-aliasing \
+									-ffast-math \
+									-fvisibility=hidden -fuse-ld=lld \
+									-flto=thin -Wl,--thinlto-cache-dir=.thinlto-cache \
+									-fomit-frame-pointer -DNDEBUG -s \
+									-mllvm -vectorize-loops \
+									-fno-unwind-tables -fno-asynchronous-unwind-tables\
+									-Wno-unused-command-line-argument \
+									-I./include -I./libs
 
 PCH_CFLAGS_DEBUG := $(CFLAGS_DEBUG) -x c++-header
 PCH_CFLAGS_RELEASE := $(CFLAGS_RELEASE) -x c++-header

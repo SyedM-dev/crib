@@ -159,8 +159,10 @@ char *leaf_from_offset(Knot *root, uint32_t start_offset, uint32_t *out_len);
 // compliant) I.e some forms of backtracking etc. are not supported
 // root is the root of the rope to be searched
 // Returns a vector of pairs of start and length offsets (in bytes)
-std::vector<std::pair<size_t, size_t>> search_rope(Knot *root,
-                                                   const char *pattern);
+std::vector<std::pair<size_t, size_t>> search_rope_dfa(Knot *root,
+                                                       const char *pattern);
+
+std::vector<Match> search_rope(Knot *root, const char *pattern);
 
 // Helper function to free the rope
 // root is the root of the rope
