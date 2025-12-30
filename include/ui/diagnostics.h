@@ -1,8 +1,8 @@
-#ifndef BOXES_DIAGNOSTICS_H
-#define BOXES_DIAGNOSTICS_H
+#ifndef UI_DIAGNOSTICS_H
+#define UI_DIAGNOSTICS_H
 
 #include "editor/decl.h"
-#include "io/ui.h"
+#include "io/sysio.h"
 #include "pch.h"
 #include "utils/utils.h"
 

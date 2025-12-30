@@ -83,6 +83,10 @@ extern std::vector<ScreenCell> screen;
 extern std::vector<ScreenCell> old_screen;
 extern std::mutex screen_mutex;
 
+inline bool is_empty_cell(const ScreenCell &c) {
+  return c.utf8.empty() || c.utf8 == " " || c.utf8 == "\x1b";
+}
+
 Coord start_screen();
 void end_screen();
 void update(uint32_t row, uint32_t col, std::string utf8, uint32_t fg,

@@ -1,11 +1,11 @@
 #ifndef EDITOR_H
 #define EDITOR_H
 
-#include "boxes/diagnostics.h"
-#include "boxes/hover.h"
+#include "ui/diagnostics.h"
+#include "ui/hover.h"
 #include "editor/spans.h"
 #include "io/knot.h"
-#include "io/ui.h"
+#include "io/sysio.h"
 #include "ts/decl.h"
 #include "utils/utils.h"
 

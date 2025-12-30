@@ -1,5 +1,5 @@
 #include "config.h"
-#include "io/ui.h"
+#include "io/sysio.h"
 #include "ts/ts.h"
 
 std::unordered_map<std::string, pcre2_code *> regex_cache;

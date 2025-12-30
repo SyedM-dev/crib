@@ -1,6 +1,6 @@
 #include "main.h"
 #include "editor/editor.h"
-#include "io/ui.h"
+#include "io/sysio.h"
 #include "lsp/lsp.h"
 #include "ts/ts.h"
 

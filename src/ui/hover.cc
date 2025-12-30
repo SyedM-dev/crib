@@ -1,4 +1,4 @@
-#include "boxes/hover.h"
+#include "ui/hover.h"
 #include "ts/ts.h"
 
 void HoverBox::clear() {

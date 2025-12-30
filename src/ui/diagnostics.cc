@@ -1,4 +1,4 @@
-#include "boxes/diagnostics.h"
+#include "ui/diagnostics.h"
 
 void DiagnosticBox::clear() {
   warnings.clear();

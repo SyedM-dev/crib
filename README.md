@@ -7,6 +7,7 @@ A TUI IDE.
 # TODO
 
 - [ ] Add status bar & RUNNER mode
+- [ ] Maybe hide boxes in !`normal` mode
 - [ ] Fix indentation logic
 - [ ] Fix bug where closing immediately while lsp is loading hangs and then segfaults.
 - [ ] For `"insertTextFormat": 2` in `clangd` and similar use only the last word in the signature when replacing
@@ -41,6 +42,8 @@ A TUI IDE.
 - [ ] Add support for virtual cursor where edits apply at all the places.
 - [ ] Add alt + click to set multiple cursors.
 - [ ] Add search / replace along with search / virtual cursors are searched pos.
+    - Allow using perl directly for replace maybe? and others with my dfa?
+    - or add searcher that supports $1 $2 etc. (capture groups)
 - [ ] Add support for undo/redo.
 - [ ] Add splash screen / minigame jumping.
 - [ ] Normalize / validate unicode on file open. so use utf8 purely and fix other types of files

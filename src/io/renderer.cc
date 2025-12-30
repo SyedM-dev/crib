@@ -1,4 +1,4 @@
-#include "io/ui.h"
+#include "io/sysio.h"
 
 uint32_t rows, cols;
 bool show_cursor = 0;
@@ -110,10 +110,6 @@ void update(uint32_t row, uint32_t col, const char *utf8, uint32_t fg,
   screen[idx].bg = bg;
   screen[idx].flags = flags;
   screen[idx].ul_color = ul_color;
-}
-
-inline bool is_empty_cell(const ScreenCell &c) {
-  return c.utf8.empty() || c.utf8 == " " || c.utf8 == "\x1b";
 }
 
 void render() {
