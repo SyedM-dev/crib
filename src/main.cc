@@ -1,12 +1,8 @@
-#include "../include/main.h"
-#include "../include/editor.h"
-#include "../include/lsp.h"
-#include "../include/ts.h"
-#include "../include/ui.h"
-#include <atomic>
-#include <cstdint>
-#include <sys/ioctl.h>
-#include <thread>
+#include "main.h"
+#include "editor/editor.h"
+#include "io/ui.h"
+#include "lsp/lsp.h"
+#include "ts/ts.h"
 
 std::atomic<bool> running{true};
 Queue<KeyEvent> event_queue;

@@ -13,14 +13,15 @@ CCACHE := ccache
 CXX_DEBUG := $(CCACHE) g++
 CXX_RELEASE := $(CCACHE) clang++
 
-CFLAGS_DEBUG := -std=c++20 -Wall -Wextra -O0 -fno-inline -gsplit-dwarf -g -fsanitize=address -fno-omit-frame-pointer
+CFLAGS_DEBUG := -std=c++20 -Wall -Wextra -O0 -fno-inline -gsplit-dwarf -g -fsanitize=address -fno-omit-frame-pointer -I./include -I./libs
 CFLAGS_RELEASE := -std=c++20 -O3 -march=native -flto=thin \
 	-fno-exceptions -fno-rtti -fstrict-aliasing \
 	-ffast-math -funroll-loops \
 	-fvisibility=hidden \
 	-fomit-frame-pointer -DNDEBUG -s \
 	-mllvm -vectorize-loops \
-	-fno-unwind-tables -fno-asynchronous-unwind-tables
+	-fno-unwind-tables -fno-asynchronous-unwind-tables\
+	-I./include -I./libs
 
 PCH_CFLAGS_DEBUG := $(CFLAGS_DEBUG) -x c++-header
 PCH_CFLAGS_RELEASE := $(CFLAGS_RELEASE) -x c++-header
@@ -70,7 +71,7 @@ LIBS := \
 	$(MD_I_OBJ_SCANNER) \
 	-lpcre2-8 -lmagic
 
-SRC := $(wildcard $(SRC_DIR)/*.cc)
+SRC := $(wildcard $(SRC_DIR)/**/*.cc) $(wildcard $(SRC_DIR)/*.cc)
 OBJ_DEBUG := $(patsubst $(SRC_DIR)/%.cc,$(OBJ_DIR)/debug/%.o,$(SRC))
 OBJ_RELEASE := $(patsubst $(SRC_DIR)/%.cc,$(OBJ_DIR)/release/%.o,$(SRC))
 

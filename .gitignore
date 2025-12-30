@@ -7,7 +7,7 @@
 
 .vscode
 
-samples/t_*
+samples/tmp*
 
 build
 bin

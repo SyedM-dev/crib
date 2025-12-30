@@ -6,7 +6,13 @@ A TUI IDE.
 
 # TODO
 
+- [ ] Locking knot while getting hex is not good idea . make knot true knot so i can copy it super fast with refcount on a pool of nodes.
+    - also edits are somehow still leaking . as in they are not applying properly for very quick edits.
+    - Look into ts_collect_spans and edit_insert (on large files)
+- [ ] Add strikethrough support
+- [ ] Add status bar & RUNNER mode
 - [ ] Fix indentation logic
+- [ ] Fix bug where closing immediately while lsp is loading hangs and then segfaults.
 - [ ] For `"insertTextFormat": 2` in `clangd` and similar use only the last word in the signature when replacing
 - [ ] Keep a list of words in the current buffer. (for auto completion) (maybe?)
 - [ ] Add ecma to js and make tsx

@@ -293,7 +293,7 @@
 (pair
   ":" @punctuation.delimiter)
 
-;; #BFBDB6 #000000 0 0 0 1
+;; #BFBDB6 #000000 0 0 0 3
 [
   "("
   ")"

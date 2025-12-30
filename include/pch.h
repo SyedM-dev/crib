@@ -4,17 +4,23 @@
 #define PCRE2_CODE_UNIT_WIDTH 8
 #define PCRE_WORKSPACE_SIZE 512
 
-#include "../libs/tree-sitter/lib/include/tree_sitter/api.h"
+extern "C" {
+#include "libgrapheme/grapheme.h"
+#include "unicode_width/unicode_width.h"
+}
+#include "tree-sitter/lib/include/tree_sitter/api.h"
 #include <algorithm>
 #include <atomic>
 #include <cctype>
 #include <chrono>
+#include <cmath>
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <deque>
+#include <fcntl.h>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -27,9 +33,13 @@
 #include <pcre2.h>
 #include <queue>
 #include <shared_mutex>
+#include <signal.h>
 #include <string.h>
 #include <string>
 #include <sys/ioctl.h>
+#include <sys/poll.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <termios.h>
 #include <thread>
 #include <unistd.h>

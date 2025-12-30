@@ -1,7 +1,7 @@
 #ifndef MAIN_H
 #define MAIN_H
 
-#include "./pch.h"
+#include "pch.h"
 
 #define NORMAL 0
 #define INSERT 1
