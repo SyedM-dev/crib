@@ -1,8 +1,8 @@
-;; #D2A6FF #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 0 1
 (object_reference
   name: (identifier) @type)
 
-;; #7dcfff #000000 0 0 0 2
+;; #7dcfff #000000 0 0 0 0 2
 (invocation
   (object_reference
     name: (identifier) @function.call))
@@ -23,41 +23,41 @@
   (keyword_object_id)
 ] @function.call
 
-;; #D2A6FF #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 0 1
 (relation
   alias: (identifier) @variable)
 
 (term
   alias: (identifier) @variable)
 
-;; #7dcfff #000000 0 0 0 2
+;; #7dcfff #000000 0 0 0 0 2
 (field
   name: (identifier) @field)
 
-;; #FF8F40 #000000 0 0 0 2
+;; #FF8F40 #000000 0 0 0 0 2
 ((literal) @number
    (#match? @number "^[-+0-9]+$"))
 
-;; #F29668 #000000 0 0 0 2
+;; #F29668 #000000 0 0 0 0 2
 ((literal) @float
   (#match? @float "^[-+0-9]+\\.[0-9]+$"))
 
-;; #AAD94C #000000 0 0 0 0
+;; #AAD94C #000000 0 0 0 0 0
 (literal) @string
 
-;; #99ADBF #000000 0 1 0 1
+;; #99ADBF #000000 0 1 0 0 1
 (comment) @comment @spell
 (marginalia) @comment
 
 (parameter) @parameter
 
-;; #F29668 #000000 0 0 0 1
+;; #F29668 #000000 0 0 0 0 1
 [
  (keyword_true)
  (keyword_false)
 ] @boolean
 
-;; #F07178 #000000 0 0 0 1
+;; #F07178 #000000 0 0 0 0 1
 [
  (keyword_asc)
  (keyword_desc)
@@ -88,7 +88,7 @@
  (keyword_strict)
 ] @attribute
 
-;; #7dcfff #000000 0 0 0 2
+;; #7dcfff #000000 0 0 0 0 2
 [
  (keyword_materialized)
  (keyword_recursive)
@@ -107,7 +107,7 @@
  (keyword_volatile)
 ] @storageclass
 
-;; #F29668 #000000 0 0 0 1
+;; #F29668 #000000 0 0 0 0 1
 [
  (keyword_case)
  (keyword_when)
@@ -115,7 +115,7 @@
  (keyword_else)
 ] @conditional
 
-;; #D2A6FF #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 0 1
 [
   (keyword_select)
   (keyword_from)
@@ -340,7 +340,7 @@
   (keyword_while)
 ] @keyword
 
-;; #F07178 #000000 0 0 0 1
+;; #F07178 #000000 0 0 0 0 1
 [
  (keyword_restrict)
  (keyword_unbounded)
@@ -367,7 +367,7 @@
  (keyword_minvalue)
 ] @type.qualifier
 
-;; #7dcfff #000000 0 0 0 2
+;; #7dcfff #000000 0 0 0 0 2
 [
   (keyword_int)
   (keyword_null)
@@ -421,7 +421,7 @@
   (keyword_interval)
 ] @type.builtin
 
-;; #F29668 #000000 0 0 0 1
+;; #F29668 #000000 0 0 0 0 1
 [
   (keyword_in)
   (keyword_and)
@@ -435,7 +435,7 @@
   (keyword_intersect)
 ] @keyword.operator
 
-;; #F29668 #000000 0 1 0 1
+;; #F29668 #000000 0 1 0 0 1
 [
   "+"
   "-"
@@ -455,13 +455,13 @@
   (op_unary_other)
 ] @operator
 
-;; #888888 #000000 0 0 0 1
+;; #888888 #000000 0 0 0 0 1
 [
   "("
   ")"
 ] @punctuation.bracket
 
-;; #888888 #000000 0 1 0 1
+;; #888888 #000000 0 1 0 0 1
 [
   ";"
   ","

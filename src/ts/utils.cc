@@ -1,4 +1,5 @@
 #include "config.h"
+#include "io/ui.h"
 #include "ts/ts.h"
 
 std::unordered_map<std::string, pcre2_code *> regex_cache;
@@ -40,7 +41,7 @@ TSQuery *load_query(const char *query_path, TSSetBase *set) {
   int errornumber = 0;
   PCRE2_SIZE erroroffset = 0;
   pcre2_code *re = pcre2_compile(
-      (PCRE2_SPTR) R"((@[A-Za-z0-9_.]+)|(;; \#[0-9a-fA-F]{6} \#[0-9a-fA-F]{6} [01] [01] [01] \d+)|(;; !(\w+)))",
+      (PCRE2_SPTR) R"((@[A-Za-z0-9_.]+)|(;; \#[0-9a-fA-F]{6} \#[0-9a-fA-F]{6} [01] [01] [01] [01] \d+)|(;; !(\w+)))",
       PCRE2_ZERO_TERMINATED, 0, &errornumber, &erroroffset, nullptr);
   if (!re)
     return nullptr;
@@ -84,9 +85,11 @@ TSQuery *load_query(const char *query_path, TSSetBase *set) {
       int bold = std::stoi(mct.substr(19, 1));
       int italic = std::stoi(mct.substr(21, 1));
       int underline = std::stoi(mct.substr(23, 1));
-      c_hl->priority = std::stoi(mct.substr(25));
+      int strike = std::stoi(mct.substr(25, 1));
+      c_hl->priority = std::stoi(mct.substr(27));
       c_hl->flags = (bold ? CF_BOLD : 0) | (italic ? CF_ITALIC : 0) |
-                    (underline ? CF_UNDERLINE : 0);
+                    (underline ? CF_UNDERLINE : 0) |
+                    (strike ? CF_STRIKETHROUGH : 0);
     } else if (mct.substr(0, 4) == ";; !") {
       auto it = kLanguages.find(mct.substr(4));
       if (it != kLanguages.end())

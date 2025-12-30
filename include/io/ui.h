@@ -48,7 +48,8 @@ enum CellFlags : uint8_t {
   CF_NONE = 0,
   CF_ITALIC = 1 << 0,
   CF_BOLD = 1 << 1,
-  CF_UNDERLINE = 1 << 2
+  CF_UNDERLINE = 1 << 2,
+  CF_STRIKETHROUGH = 1 << 3
 };
 
 struct ScreenCell {

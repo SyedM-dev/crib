@@ -1,10 +1,10 @@
-;; #FFFFFF #000000 0 0 0 1
+;; #FFFFFF #000000 0 0 0 0 1
 [
   (identifier)
   (global_variable)
 ] @variable
 
-;; #FF8F40 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 0 1
 [
   "alias"
   "begin"
@@ -16,17 +16,17 @@
   "then"
 ] @keyword
 
-;; #FF8F40 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 0 1
 "class" @keyword.type
 
 
-;; #FF8F40 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 0 1
 [
   "return"
   "yield"
 ] @keyword.return
 
-;; #F29668 #000000 0 0 0 1
+;; #F29668 #000000 0 0 0 0 1
 [
   "and"
   "or"
@@ -34,7 +34,7 @@
   "not"
 ] @keyword.operator
 
-;; #FF8F40 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 0 1
 [
   "def"
   "undef"
@@ -44,7 +44,7 @@
   "end" @keyword.function)
 
 
-;; #FF8F40 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 0 1
 [
   "case"
   "else"
@@ -58,7 +58,7 @@
 (if
   "end" @keyword.conditional)
 
-;; #FF8F40 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 0 1
 [
   "for"
   "until"
@@ -69,28 +69,28 @@
   "next"
 ] @keyword.repeat
 
-;; #D2A6FF #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 0 1
 (constant) @constant
 
-;; #FF8F40 #000000 0 0 0 1
+;; #FF8F40 #000000 0 0 0 0 1
 [
   "rescue"
   "ensure"
 ] @keyword.exception
 
-;; #FFB454 #000000 0 0 0 3
+;; #FFB454 #000000 0 0 0 0 3
 "defined?" @function
 
-;; #FFB454 #000000 0 0 0 3
+;; #FFB454 #000000 0 0 0 0 3
 (call
   receiver: (constant)? @type
   method: [
     (identifier)
     (constant)
-;; #FFB454 #000000 0 0 0 2
+;; #FFB454 #000000 0 0 0 0 2
   ] @function.call)
 
-;; #FFB454 #000000 0 0 0 2
+;; #FFB454 #000000 0 0 0 0 2
 (alias
   (identifier) @function)
 
@@ -109,7 +109,7 @@
     (constant) @type
   ])
 
-;; #59C2FF #000000 0 0 0 2
+;; #59C2FF #000000 0 0 0 0 2
 (class
   name: (constant) @type)
 
@@ -119,27 +119,27 @@
 (superclass
   (constant) @type)
 
-;; #F07178 #000000 0 0 0 2
+;; #F07178 #000000 0 0 0 0 2
 [
   (class_variable)
   (instance_variable)
 ] @variable.member
 
-;; #FF8F40 #000000 0 0 0 2
+;; #FF8F40 #000000 0 0 0 0 2
 ((identifier) @keyword.modifier
   (#match? @keyword.modifier "^(private|protected|public)$" ))
 
-;; #FF8F40 #000000 0 0 0 3
+;; #FF8F40 #000000 0 0 0 0 3
 (program
   (call
     (identifier) @keyword.import)
   (#match? @keyword.import "^(require|require_relative|load)$"))
 
-;; #D2A6FF #000000 0 0 0 4
+;; #D2A6FF #000000 0 0 0 0 4
 ((identifier) @constant.builtin
   (#match? @constant.builtin "^(__callee__|__dir__|__id__|__method__|__send__|__ENCODING__|__FILE__|__LINE__)$" ))
 
-;; #FFB454 #000000 0 0 0 3
+;; #FFB454 #000000 0 0 0 0 3
 ((identifier) @function.builtin
   (#match? @function.builtin "^(attr_reader|attr_writer|attr_accessor|module_function)$" ))
 
@@ -148,17 +148,17 @@
   method: (identifier) @function.builtin)
   (#match? @function.builtin "^(include|extend|prepend|refine|using)$"))
 
-;; #FF8F40 #000000 0 0 0 3
+;; #FF8F40 #000000 0 0 0 0 3
 ((identifier) @keyword.exception
   (#match? @keyword.exception "^(raise|fail|catch|throw)$" ))
 
-;; #F07178 #000000 0 0 0 1
+;; #F07178 #000000 0 0 0 0 1
 [
   (self)
   (super)
 ] @variable.builtin
 
-;; #D2A6FF #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 0 1
 (method_parameters
   (identifier) @variable.parameter)
 
@@ -186,7 +186,7 @@
 (keyword_parameter
   (identifier) @variable.parameter)
 
-;; #AAD94C #000000 0 0 0 1
+;; #AAD94C #000000 0 0 0 0 1
 [
   (string_content)
   (heredoc_content)
@@ -194,13 +194,13 @@
   "`"
 ] @string
 
-;; #E6C08A #000000 0 0 0 1
+;; #E6C08A #000000 0 0 0 0 1
 [
   (heredoc_beginning)
   (heredoc_end)
 ] @label
 
-;; #39BAE6 #000000 0 0 0 2
+;; #39BAE6 #000000 0 0 0 0 2
 [
   (bare_symbol)
   (simple_symbol)
@@ -208,34 +208,34 @@
   (hash_key_symbol)
 ] @string.special.symbol
 
-;; #95E6CB #000000 0 0 0 2
+;; #95E6CB #000000 0 0 0 0 2
 (escape_sequence) @string.escape
 
-;; #D2A6FF #000000 0 0 0 2
+;; #D2A6FF #000000 0 0 0 0 2
 (integer) @number
 
-;; #D2A6FF #000000 0 0 0 2
+;; #D2A6FF #000000 0 0 0 0 2
 (float) @number.float
 
-;; #D2A6FF #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 0 1
 (true) @boolean.true
 
-;; #D2A6FF #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 0 1
 (false) @boolean.false
 
-;; #D2A6FF #000000 0 0 0 1
+;; #D2A6FF #000000 0 0 0 0 1
 (nil) @constant.nil
 
-;; #99ADBF #000000 0 1 0 1
+;; #99ADBF #000000 0 1 0 0 1
 (comment) @comment
 
-;; #AAD94C #000000 0 0 0 3
+;; #AAD94C #000000 0 0 0 0 3
 ((program
   .
   (comment) @shebang @nospell)
   (#match? @shebang "^#!/"))
 
-;; #F29668 #000000 0 0 0 1
+;; #F29668 #000000 0 0 0 0 1
 [
   "!"
   "="
@@ -263,7 +263,7 @@
   ":"
 ] @operator
 
-;; #F29668 #000000 0 1 0 1
+;; #F29668 #000000 0 1 0 0 1
 [
   "=="
   "==="
@@ -281,7 +281,7 @@
   "..."
 ] @operator.ligature
 
-;; #BFBDB6 #000000 0 0 0 1
+;; #BFBDB6 #000000 0 0 0 0 1
 [
   ","
   ";"
@@ -293,7 +293,7 @@
 (pair
   ":" @punctuation.delimiter)
 
-;; #BFBDB6 #000000 0 0 0 3
+;; #BFBDB6 #000000 0 0 0 0 3
 [
   "("
   ")"
@@ -311,7 +311,7 @@
 (block_parameters
   "|" @punctuation.bracket)
 
-;; #7dcfff #000000 0 0 0 2
+;; #7dcfff #000000 0 0 0 0 2
 (interpolation
   "#{" @punctuation.special
   "}" @punctuation.special)

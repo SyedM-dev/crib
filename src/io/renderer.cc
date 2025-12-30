@@ -123,6 +123,7 @@ void render() {
   uint32_t current_ul_color = 0;
   bool current_italic = false;
   bool current_bold = false;
+  bool current_strikethrough = false;
   bool current_underline = false;
   std::lock_guard<std::mutex> lock(screen_mutex);
   std::string out;
@@ -217,6 +218,11 @@ void render() {
       if (bold != current_bold) {
         out += bold ? "\x1b[1m" : "\x1b[22m";
         current_bold = bold;
+      }
+      bool strikethrough = (new_cell.flags & CF_STRIKETHROUGH) != 0;
+      if (strikethrough != current_strikethrough) {
+        out += strikethrough ? "\x1b[9m" : "\x1b[29m";
+        current_strikethrough = strikethrough;
       }
       bool underline = (new_cell.flags & CF_UNDERLINE) != 0;
       if (underline) {

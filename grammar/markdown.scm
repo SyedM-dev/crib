@@ -1,9 +1,9 @@
-;; #82AAFF #000000 1 0 1 4
+;; #82AAFF #000000 1 0 1 0 4
 (setext_heading
   (paragraph) @markup.heading.1
   (setext_h1_underline) @markup.heading.1)
 
-;; #82AAFF #000000 1 0 1 4
+;; #82AAFF #000000 1 0 1 0 4
 (setext_heading
   (paragraph) @markup.heading.2
   (setext_h2_underline) @markup.heading.2)
@@ -14,30 +14,30 @@
 (atx_heading
   (atx_h2_marker)) @markup.heading.2
 
-;; #82AAFF #000000 1 0 0 4
+;; #82AAFF #000000 1 0 0 0 4
 (atx_heading
   (atx_h3_marker)) @markup.heading.3
 
-;; #82AAFF #000000 1 0 0 4
+;; #82AAFF #000000 1 0 0 0 4
 (atx_heading
   (atx_h4_marker)) @markup.heading.4
 
-;; #82AAFF #000000 1 0 0 4
+;; #82AAFF #000000 1 0 0 0 4
 (atx_heading
   (atx_h5_marker)) @markup.heading.5
 
-;; #82AAFF #000000 1 0 0 4
+;; #82AAFF #000000 1 0 0 0 4
 (atx_heading
   (atx_h6_marker)) @markup.heading.6
 
-;; #82AAFF #000000 0 0 0 4
+;; #82AAFF #000000 0 0 0 0 4
 (info_string) @label
 
-;; #FF6347 #000000 0 0 0 4
+;; #FF6347 #000000 0 0 0 0 4
 (pipe_table_header
   (pipe_table_cell) @markup.heading)
 
-;; #FF8F40 #000000 0 0 0 4
+;; #FF8F40 #000000 0 0 0 0 4
 (pipe_table_header
   "|" @punctuation.special)
 
@@ -49,7 +49,7 @@
 
 (pipe_table_delimiter_cell) @punctuation.special
 
-;; #AAD94C #000000 0 0 0 2
+;; #AAD94C #000000 0 0 0 0 2
 (indented_code_block) @markup.raw.block
 
 (fenced_code_block) @markup.raw.block
@@ -61,21 +61,21 @@
   (info_string
     (language) @label))
 
-;; #7dcfff #000000 0 0 1 6
+;; #7dcfff #000000 0 0 1 0 6
 (link_destination) @markup.link.url
 
-;; #7dcfff #000000 0 0 1 6
+;; #7dcfff #000000 0 0 1 0 6
 [
   (link_title)
   (link_label)
 ] @markup.link.label
 
-;; #FF8F40 #000000 0 0 0 4
+;; #FF8F40 #000000 0 0 0 0 4
 ((link_label)
   .
   ":" @punctuation.delimiter)
 
-;; #9ADE7A #000000 0 0 0 4
+;; #9ADE7A #000000 0 0 0 0 4
 [
   (list_marker_plus)
   (list_marker_minus)
@@ -86,10 +86,10 @@
 
 (thematic_break) @punctuation.special
 
-;; #FF8F40 #000000 0 0 0 4
+;; #FF8F40 #000000 0 0 0 0 4
 (task_list_marker_unchecked) @markup.list.unchecked
 
-;; #AAD94C #000000 0 0 0 4
+;; #AAD94C #000000 0 0 0 0 4
 (task_list_marker_checked) @markup.list.checked
 
 [
@@ -102,7 +102,7 @@
   (block_quote_marker)
 ] @punctuation.special
 
-;; #AAD94C #000000 0 0 0 6
+;; #AAD94C #000000 0 0 0 0 6
 (backslash_escape) @string.escape
 
 (fenced_code_block
