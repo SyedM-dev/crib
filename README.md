@@ -6,9 +6,15 @@ A TUI IDE.
 
 # TODO
 
+- [ ] Finish autocomplete box.
 - [ ] Add status bar & RUNNER mode
+- [ ] Get code context from tree-sitter
 - [ ] Maybe hide boxes in !`normal` mode
+- [ ] expand color regex to match css colors if in css file
 - [ ] Fix indentation logic
+    - Make it work by one getting the identation used in a file by first checking if it has any line with 2 or more spaces then the least one is set to be the indent or if it is tabs then tabs but if there are none then use a table of file type to its indentation or use 2 spaces as default. store this info as `1 = tab` and `2 or more = those many spaces`.
+    - Use this when indenting and unindenting. And also when getting the identation of a line.
+    - Also indent when going immediately to newline should follow indent of previous line regardless of file default.
 - [ ] Fix bug where closing immediately while lsp is loading hangs and then segfaults.
 - [ ] For `"insertTextFormat": 2` in `clangd` and similar use only the last word in the signature when replacing
 - [ ] Keep a list of words in the current buffer. (for auto completion) (maybe?)

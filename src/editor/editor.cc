@@ -26,16 +26,16 @@ Editor *new_editor(const char *filename_arg, Coord position, Coord size) {
   }
   editor->root = load(str, len, optimal_chunk_size(len));
   free(str);
-  Language language = language_for_file(filename.c_str());
-  if (language.name != "unknown" && len <= (1024 * 128)) {
+  editor->lang = language_for_file(filename.c_str());
+  if (editor->lang.name != "unknown" && len <= (1024 * 128)) {
     editor->ts.parser = ts_parser_new();
-    editor->ts.language = language.fn();
+    editor->ts.language = editor->lang.fn();
     ts_parser_set_language(editor->ts.parser, editor->ts.language);
     editor->ts.query_file =
-        get_exe_dir() + "/../grammar/" + language.name + ".scm";
+        get_exe_dir() + "/../grammar/" + editor->lang.name + ".scm";
   }
   if (len <= (1024 * 28))
-    request_add_to_lsp(language, editor);
+    request_add_to_lsp(editor->lang, editor);
   return editor;
 }
 

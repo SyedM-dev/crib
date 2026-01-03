@@ -74,7 +74,7 @@ void editor_worker(Editor *editor) {
     exit(ENOMEM);
   std::shared_lock lockk(editor->knot_mtx);
   std::vector<Match> results =
-      search_rope(editor->root, "(?:0x|#)[0-9a-fA-F]{6}");
+      search_rope(editor->root, "(?:0x|#)[0-9a-fA-F]{6,8}\\b");
   if (results.size() > limit) {
     limit = results.size() + 50;
     free(hl_s);
@@ -91,7 +91,7 @@ void editor_worker(Editor *editor) {
     s.start = results[i].start;
     s.end = results[i].end;
     int x = results[i].text[0] == '#' ? 1 : 2;
-    uint32_t bg = HEX(results[i].text.substr(x));
+    uint32_t bg = HEX(results[i].text.substr(x, 6));
     uint8_t r = bg >> 16;
     uint8_t g = (bg >> 8) & 0xFF;
     uint8_t b = bg & 0xFF;

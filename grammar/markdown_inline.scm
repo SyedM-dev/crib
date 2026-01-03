@@ -1,4 +1,4 @@
-;; #AAD94C #000000 0 0 0 0 0
+;; #AAD94C #000000 0 0 0 0 1
 (code_span) @markup.raw
 
 ;; #FF8F40 #000000 0 1 0 0 1
@@ -75,6 +75,9 @@
     "]"
   ] @markup.link)
 
+;; #FF8F40 #000000 0 0 0 0 0
+">" @markup.quote
+
 ;; #7dcfff #000000 0 0 1 0 1
 [
   (link_destination)
@@ -85,6 +88,5 @@
 ;; #7dcfff #000000 0 0 1 0 1
 (uri_autolink) @_url
 
-;; #FF8F40 #000000 0 0 0 0 0
 ;; !html
 (html_tag) @injection.html

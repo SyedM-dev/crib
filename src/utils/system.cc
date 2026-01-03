@@ -23,6 +23,13 @@ std::string path_to_file_uri(const std::string &path_str) {
   return "file://" + percent_encode(path_abs(path_str));
 }
 
+std::string filename_from_path(const std::string &path) {
+  auto pos = path.find_last_of('/');
+  if (pos == std::string::npos)
+    return path;
+  return path.substr(pos + 1);
+}
+
 std::string get_exe_dir() {
   char exe_path[PATH_MAX];
   ssize_t count = readlink("/proc/self/exe", exe_path, PATH_MAX);

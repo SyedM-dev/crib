@@ -9,7 +9,9 @@
 struct Language {
   std::string name;
   const TSLanguage *(*fn)();
-  uint8_t lsp_id = 0;
+  uint8_t lsp_id;
+  uint32_t color = 0xFFFFFF;
+  const char *symbol = " ";
 };
 
 struct Highlight {

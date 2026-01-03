@@ -42,11 +42,8 @@ void editor_lsp_handle(Editor *editor, json msg) {
           auto pos = message.find('\n');
           message =
               (pos == std::string::npos) ? message : message.substr(0, pos);
-          std::string uri =
-              percent_decode(rel["location"]["uri"].get<std::string>());
-          auto pos2 = uri.find_last_of('/');
-          if (pos2 != std::string::npos)
-            uri = uri.substr(pos2 + 1);
+          std::string uri = filename_from_path(
+              percent_decode(rel["location"]["uri"].get<std::string>()));
           std::string row = std::to_string(
               rel["location"]["range"]["start"]["line"].get<int>());
           w.see_also.push_back(uri + ":" + row + ": " + message);

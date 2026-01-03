@@ -19,7 +19,7 @@ CFLAGS_DEBUG :=\
 	-g -fsanitize=address -fno-omit-frame-pointer\
 	-Wno-unused-command-line-argument \
 	-I./include -I./libs
-CFLAGS_RELEASE := \
+CFLAGS_RELEASE :=\
 	-std=c++20 -O3 -march=native \
 	-fno-exceptions -fno-rtti -fstrict-aliasing \
 	-ffast-math -flto=thin \

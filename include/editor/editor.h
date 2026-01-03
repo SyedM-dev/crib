@@ -1,12 +1,12 @@
 #ifndef EDITOR_H
 #define EDITOR_H
 
-#include "ui/diagnostics.h"
-#include "ui/hover.h"
 #include "editor/spans.h"
 #include "io/knot.h"
 #include "io/sysio.h"
 #include "ts/decl.h"
+#include "ui/diagnostics.h"
+#include "ui/hover.h"
 #include "utils/utils.h"
 
 #define CHAR 0
@@ -29,6 +29,7 @@ struct Editor {
   Coord position;
   Coord size;
   Coord scroll;
+  Language lang;
   TSSetMain ts;
   Queue<TSInputEdit> edit_queue;
   std::vector<Fold> folds;

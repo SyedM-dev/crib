@@ -649,15 +649,6 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
     }
     mode = NORMAL;
     break;
-  case RUNNER:
-    if (event.key_type == KEY_CHAR && event.len == 1) {
-      switch (event.c[0]) {
-      case 0x1B:
-        mode = NORMAL;
-        break;
-      }
-    }
-    break;
   }
   ensure_scroll(editor);
   if ((event.key_type == KEY_CHAR || event.key_type == KEY_PASTE) && event.c)

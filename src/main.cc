@@ -3,13 +3,15 @@
 #include "io/sysio.h"
 #include "lsp/lsp.h"
 #include "ts/ts.h"
+#include "ui/bar.h"
+#include "utils/utils.h"
 
 std::atomic<bool> running{true};
 Queue<KeyEvent> event_queue;
 std::vector<Editor *> editors;
 
 uint8_t current_editor = 0;
-uint8_t mode = NORMAL;
+std::atomic<uint8_t> mode = NORMAL;
 
 void background_worker() {
   while (running)
@@ -58,7 +60,10 @@ int main(int argc, char *argv[]) {
   Coord screen = start_screen();
   const char *filename = (argc > 1) ? argv[1] : "";
 
-  Editor *editor = new_editor(filename, {0, 0}, screen);
+  system(("bash " + get_exe_dir() + "/../scripts/init.sh").c_str());
+
+  Editor *editor = new_editor(filename, {0, 0}, {screen.row - 2, screen.col});
+  Bar bar(screen);
 
   if (!editor) {
     end_screen();
@@ -76,20 +81,25 @@ int main(int argc, char *argv[]) {
   while (running) {
     KeyEvent event;
     while (event_queue.pop(event)) {
-      if (event.key_type == KEY_MOUSE) {
-        Editor *target = editor_at(event.mouse_x, event.mouse_y);
-        if (!target)
-          continue;
-        if (event.mouse_state == PRESS)
-          current_editor = index_of(target);
-        event.mouse_x -= target->position.col;
-        event.mouse_y -= target->position.row;
-        throttle(4ms, handle_editor_event, target, event);
+      if (mode != RUNNER) {
+        if (event.key_type == KEY_MOUSE) {
+          Editor *target = editor_at(event.mouse_x, event.mouse_y);
+          if (!target)
+            continue;
+          if (event.mouse_state == PRESS)
+            current_editor = index_of(target);
+          event.mouse_x -= target->position.col;
+          event.mouse_y -= target->position.row;
+          handle_editor_event(target, event);
+        } else {
+          handle_editor_event(editors[current_editor], event);
+        }
       } else {
-        throttle(4ms, handle_editor_event, editors[current_editor], event);
+        bar.handle(event);
       }
     }
-    throttle(4ms, render_editor, editors[current_editor]);
+    render_editor(editors[current_editor]);
+    bar.render();
     throttle(4ms, render);
   }
 
@@ -101,6 +111,8 @@ int main(int argc, char *argv[]) {
 
   if (lsp_thread.joinable())
     lsp_thread.join();
+
+  system(("bash " + get_exe_dir() + "/../scripts/exit.sh").c_str());
 
   end_screen();
 
