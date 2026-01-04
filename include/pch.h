@@ -4,6 +4,9 @@
 #define PCRE2_CODE_UNIT_WIDTH 8
 #define PCRE_WORKSPACE_SIZE 512
 
+#include <magic.h>
+#include <nlohmann/json.hpp>
+#include <pcre2.h>
 extern "C" {
 #include "libgrapheme/grapheme.h"
 #include "unicode_width/unicode_width.h"
@@ -25,12 +28,9 @@ extern "C" {
 #include <fstream>
 #include <functional>
 #include <limits.h>
-#include <magic.h>
 #include <map>
 #include <mutex>
-#include <nlohmann/json.hpp>
 #include <optional>
-#include <pcre2.h>
 #include <queue>
 #include <shared_mutex>
 #include <signal.h>

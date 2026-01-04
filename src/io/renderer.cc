@@ -130,8 +130,8 @@ void render() {
     first_render = false;
   }
   for (uint32_t row = 0; row < rows; ++row) {
-    int first_change_col = -1;
-    int last_change_col = -1;
+    uint32_t first_change_col = -1;
+    uint32_t last_change_col = -1;
     for (uint32_t col = 0; col < cols; ++col) {
       uint32_t idx = row * cols + col;
       ScreenCell &old_cell = old_screen[idx];
@@ -144,7 +144,7 @@ void render() {
         if (first_change_col == -1) {
           first_change_col = col;
           if (first_change_col > 0) {
-            for (int back = 1; back <= 3 && first_change_col - back >= 0;
+            for (uint32_t back = 1; back <= 3 && first_change_col - back >= 0;
                  ++back) {
               ScreenCell &prev_cell =
                   screen[row * cols + (first_change_col - back)];
@@ -163,15 +163,15 @@ void render() {
     char buf[64];
     snprintf(buf, sizeof(buf), "\x1b[%d;%dH", row + 1, first_change_col + 1);
     out.append(buf);
-    for (int col = first_change_col; col <= last_change_col; ++col) {
-      int idx = row * cols + col;
+    for (uint32_t col = first_change_col; col <= last_change_col; ++col) {
+      uint32_t idx = row * cols + col;
       ScreenCell &old_cell = old_screen[idx];
       ScreenCell &new_cell = screen[idx];
-      int width = new_cell.width > 0 ? new_cell.width : 1;
+      uint32_t width = new_cell.width > 0 ? new_cell.width : 1;
       bool overlap = false;
       if (width > 1) {
-        for (int i = 1; i < width; ++i) {
-          int next_col = col + i;
+        for (uint32_t i = 1; i < width; ++i) {
+          uint32_t next_col = col + i;
           if (next_col >= cols)
             break;
           const ScreenCell &next = screen[row * cols + next_col];
@@ -241,7 +241,7 @@ void render() {
         current_underline = underline;
       }
       if (width > 1 && overlap) {
-        for (int i = 1; i < width; ++i)
+        for (uint32_t i = 1; i < width; ++i)
           out.push_back(' ');
       } else {
         if (!new_cell.utf8.empty()) {
@@ -282,10 +282,11 @@ void render() {
   }
 }
 
-void set_cursor(int row, int col, int type, bool show_cursor_param) {
+void set_cursor(uint32_t row, uint32_t col, uint32_t type,
+                bool show_cursor_param) {
   char buf[32];
-  int n = snprintf(buf, sizeof(buf), "\x1b[%d;%dH\x1b[%d q", row + 1, col + 1,
-                   type);
+  uint32_t n = snprintf(buf, sizeof(buf), "\x1b[%d;%dH\x1b[%d q", row + 1,
+                        col + 1, type);
   show_cursor = show_cursor_param;
   write(STDOUT_FILENO, buf, n);
 }

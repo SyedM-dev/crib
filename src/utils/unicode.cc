@@ -107,3 +107,25 @@ int utf8_byte_offset_to_utf16(const char *s, size_t byte_pos) {
   }
   return utf16_units;
 }
+
+size_t utf16_offset_to_utf8(const char *s, int utf16_pos) {
+  int utf16_units = 0;
+  size_t i = 0;
+  while (utf16_units < utf16_pos) {
+    unsigned char c = s[i];
+    if ((c & 0x80) == 0x00) {
+      i += 1;
+      utf16_units += 1;
+    } else if ((c & 0xE0) == 0xC0) {
+      i += 2;
+      utf16_units += 1;
+    } else if ((c & 0xF0) == 0xE0) {
+      i += 3;
+      utf16_units += 1;
+    } else {
+      i += 4;
+      utf16_units += 2;
+    }
+  }
+  return i;
+}

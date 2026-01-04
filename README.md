@@ -6,12 +6,13 @@ A TUI IDE.
 
 # TODO
 
+- [ ] Do auto complete box rendering functions.
 - [ ] Finish autocomplete box.
 - [ ] Add status bar & RUNNER mode
 - [ ] Get code context from tree-sitter
 - [ ] Maybe hide boxes in !`normal` mode
 - [ ] expand color regex to match css colors if in css file
-- [ ] Fix indentation logic
+- [ ] Fix indentation logic - tree-sitter indents too if possible
     - Make it work by one getting the identation used in a file by first checking if it has any line with 2 or more spaces then the least one is set to be the indent or if it is tabs then tabs but if there are none then use a table of file type to its indentation or use 2 spaces as default. store this info as `1 = tab` and `2 or more = those many spaces`.
     - Use this when indenting and unindenting. And also when getting the identation of a line.
     - Also indent when going immediately to newline should follow indent of previous line regardless of file default.
@@ -19,25 +20,11 @@ A TUI IDE.
 - [ ] For `"insertTextFormat": 2` in `clangd` and similar use only the last word in the signature when replacing
 - [ ] Keep a list of words in the current buffer. (for auto completion) (maybe?)
 - [ ] Add ecma to js and make tsx
-- [ ] Add support for LSP & autocomplete / snippets.
-    - First research
-        - `textDocument/documentHighlight` - for highlighting stuff (probably tree-sitter is enough)
-        - `textDocument/selectionRange` //
-        - `textDocument/completion` - Obviously
-        - `textDocument/onTypeFormatting` - seems promising for auto formatting (indentation etc)
-        - `textDocument/formatting` & `textDocument/rangeFormatting`
-        - `textDocument/semanticTokens/*` (probably tree-sitter is enough)
-        - `textDocument/linkedEditingRange` - probably useful
-        - `textDocument/foldingRange` - i will never use this for folding but it might be useful for other things.
-        - `textDocument/rename` & `textDocument/prepareRename` - probably useful
-        - And a lot more (just go through each for `clangd` and then expand to say `solargraph`).
-    - Make a universal plug for lsp. So focus more on making a general purpose solid communication interface. Instead of something specific.
-        - With a 4ish pass system. (more like each returned value from the lsp is used in 4 ways)
-            1. One for stuff like jump to x position. or rename symbol x to y. (stuff that explicitly requires user request to do something)
-                - Maybe even hover goes here
-            2. One for stuff that only affects highlighting and styles . like symbol highlighting etc.
-            3. One for Warnings/errors and inlay hints etc. (stuff that adds virtual text to the editor)
-            4. One for fromatting and stuff like that. (stuff that edits the buffer text)
+- [ ] Switch to like `RapidJSON` ro something more basic but faster than rn
+    - also decrease use of `std::string` so much in ui stuff and lsp and warnings etc.
+- [ ] Add lsp jumping support for goto definition, hover etc.
+- [ ] Add lsp rename support for renaming a symbol. (also see what tree-sitter can do here)
+- [ ] Check into more lsp stuff i can add.
 - [ ] Add codeium/copilot support for auto-completion (uses the VAI virtual text) as a test phase.
 - [ ] Add a whitespace highlighter (nerd font). for spaces and tabs at start/end of line. not as virtual but instead at render time.
 - [ ] Once renderer is proven to work well (i.e. redo this commit) merge `experimental` branch into `main`. commit `43f443e` on `experimental`.

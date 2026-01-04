@@ -1,5 +1,14 @@
 #include "editor/editor.h"
 
+void apply_lsp_edits(Editor *editor, std::vector<TextEdit> edits) {
+  std::sort(
+      edits.begin(), edits.end(),
+      [](const TextEdit &a, const TextEdit &b) { return a.start > b.start; });
+  for (const auto &edit : edits)
+    edit_replace(editor, edit.start, edit.end, edit.text.c_str(),
+                 edit.text.size());
+}
+
 void editor_lsp_handle(Editor *editor, json msg) {
   if (msg.contains("method") &&
       msg["method"] == "textDocument/publishDiagnostics") {

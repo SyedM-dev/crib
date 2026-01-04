@@ -12,8 +12,7 @@ struct HoverBox {
   std::atomic<bool> is_markup;
   uint32_t scroll_;
   std::vector<ScreenCell> cells;
-  uint32_t box_width;
-  uint32_t box_height;
+  Coord size;
   std::vector<Highlight> highlights;
   std::vector<Span> hover_spans;
 

@@ -3,9 +3,8 @@
 void DiagnosticBox::clear() {
   warnings.clear();
   cells.clear();
-  box_width = 0;
-  box_height = 0;
-}
+  size = {0, 0};
+};
 
 void DiagnosticBox::render_first() {
   if (warnings.empty())
@@ -18,11 +17,11 @@ void DiagnosticBox::render_first() {
       longest_line = MAX(longest_line, (uint32_t)see_also.length() + 4);
   }
   uint32_t content_width = MIN(longest_line, 150u);
-  box_width = content_width + 2;
-  cells.assign(box_width * 25, {" ", 0, 0, 0, 0, 0});
+  size.col = content_width + 2;
+  cells.assign(size.col * 25, {" ", 0, 0, 0, 0, 0});
   auto set = [&](uint32_t r, uint32_t c, const char *text, uint32_t fg,
                  uint32_t bg, uint8_t flags) {
-    cells[r * box_width + c] = {std::string(text), 0, fg, bg, flags, 0};
+    cells[r * size.col + c] = {std::string(text), 0, fg, bg, flags, 0};
   };
   uint32_t base_bg = 0;
   uint32_t border_fg = 0x82AAFF;
@@ -116,35 +115,35 @@ void DiagnosticBox::render_first() {
     };
     idx++;
   }
-  box_height = 2 + r;
+  size.row = 2 + r;
   set(0, 0, "┌", border_fg, base_bg, 0);
-  for (uint32_t i = 1; i < box_width - 1; i++)
+  for (uint32_t i = 1; i < size.col - 1; i++)
     set(0, i, "─", border_fg, base_bg, 0);
-  set(0, box_width - 1, "┐", border_fg, base_bg, 0);
-  for (uint32_t r = 1; r < box_height - 1; r++) {
+  set(0, size.col - 1, "┐", border_fg, base_bg, 0);
+  for (uint32_t r = 1; r < size.row - 1; r++) {
     set(r, 0, "│", border_fg, base_bg, 0);
-    set(r, box_width - 1, "│", border_fg, base_bg, 0);
+    set(r, size.col - 1, "│", border_fg, base_bg, 0);
   }
-  set(box_height - 1, 0, "└", border_fg, base_bg, 0);
-  for (uint32_t i = 1; i < box_width - 1; i++)
-    set(box_height - 1, i, "─", border_fg, base_bg, 0);
-  set(box_height - 1, box_width - 1, "┘", border_fg, base_bg, 0);
-  cells.resize(box_width * box_height);
+  set(size.row - 1, 0, "└", border_fg, base_bg, 0);
+  for (uint32_t i = 1; i < size.col - 1; i++)
+    set(size.row - 1, i, "─", border_fg, base_bg, 0);
+  set(size.row - 1, size.col - 1, "┘", border_fg, base_bg, 0);
+  cells.resize(size.col * size.row);
 }
 
 void DiagnosticBox::render(Coord pos) {
-  int32_t start_row = (int32_t)pos.row - (int32_t)box_height;
+  int32_t start_row = (int32_t)pos.row - (int32_t)size.row;
   if (start_row < 0)
     start_row = pos.row + 1;
   int32_t start_col = pos.col;
-  if (start_col + box_width > cols) {
-    start_col = cols - box_width;
+  if (start_col + size.col > cols) {
+    start_col = cols - size.col;
     if (start_col < 0)
       start_col = 0;
   }
-  for (uint32_t r = 0; r < box_height; r++)
-    for (uint32_t c = 0; c < box_width; c++)
-      update(start_row + r, start_col + c, cells[r * box_width + c].utf8,
-             cells[r * box_width + c].fg, cells[r * box_width + c].bg,
-             cells[r * box_width + c].flags);
+  for (uint32_t r = 0; r < size.row; r++)
+    for (uint32_t c = 0; c < size.col; c++)
+      update(start_row + r, start_col + c, cells[r * size.col + c].utf8,
+             cells[r * size.col + c].fg, cells[r * size.col + c].bg,
+             cells[r * size.col + c].flags);
 }

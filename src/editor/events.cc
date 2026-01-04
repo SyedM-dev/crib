@@ -364,45 +364,6 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
       case CTRL('s'):
         save_file(editor);
         break;
-      case CTRL(' '):
-        if (editor->lsp) {
-          json msg = {
-              {"jsonrpc", "2.0"},
-              {"method", "textDocument/completion"},
-              {
-                  "params",
-                  {
-                      {
-                          "textDocument",
-                          {
-                              {"uri", editor->uri},
-                          },
-                      },
-                      {
-                          "position",
-                          {
-                              {"line", editor->cursor.row},
-                              {"character", editor->cursor.col},
-                          },
-                      },
-                      {
-                          "context",
-                          {
-                              {"triggerKind", 1},
-                          },
-                      },
-                  },
-              },
-          };
-          LSPPending *pending = new LSPPending();
-          pending->editor = editor;
-          pending->method = "textDocument/completion";
-          pending->callback = [](Editor *editor, std::string, json completion) {
-            log("%s\n", completion.dump().c_str());
-          };
-          lsp_send(editor->lsp, msg, pending);
-        }
-        break;
       case 'p':
         uint32_t len;
         char *text = get_from_clipboard(&len);

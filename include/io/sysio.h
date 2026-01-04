@@ -62,19 +62,33 @@ struct ScreenCell {
 };
 
 struct KeyEvent {
+  /* KEY_CHAR, KEY_SPECIAL, KEY_MOUSE, KEY_PASTE, KEY_NONE */
   uint8_t key_type;
 
+  /* the character / string if key_type == KEY_CHAR or KEY_PASTE */
   char *c;
+  /* length of c */
   uint32_t len;
 
+  /* KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_DELETE if key_type ==
+   * KEY_SPECIAL */
   uint8_t special_key;
+  /* ALT, CNTRL, CNTRL_ALT, SHIFT if key_type == KEY_SPECIAL */
   uint8_t special_modifier;
 
+  /* column of mouse click */
   uint8_t mouse_x;
+  /* row of mouse click */
   uint8_t mouse_y;
+  /* LEFT_BTN, MIDDLE_BTN, RIGHT_BTN, SCROLL_BTN, NONE_BTN if key_type ==
+   * KEY_MOUSE */
   uint8_t mouse_button;
+  /* PRESS, RELEASE, DRAG, SCROLL if key_type == KEY_MOUSE */
   uint8_t mouse_state;
+  /* SCROLL_UP, SCROLL_DOWN, SCROLL_LEFT, SCROLL_RIGHT if key_type ==
+   * KEY_MOUSE and mouse_state == SCROLL */
   uint8_t mouse_direction;
+  /* ALT, CNTRL, CNTRL_ALT, SHIFT if key_type == KEY_MOUSE */
   uint8_t mouse_modifier;
 };
 
@@ -97,7 +111,8 @@ void update(uint32_t row, uint32_t col, std::string utf8, uint32_t fg,
             uint32_t bg, uint8_t flags, uint32_t ul_color);
 void update(uint32_t row, uint32_t col, const char *utf8, uint32_t fg,
             uint32_t bg, uint8_t flags, uint32_t ul_color);
-void set_cursor(int row, int col, int type, bool show_cursor_param);
+void set_cursor(uint32_t row, uint32_t col, uint32_t type,
+                bool show_cursor_param);
 void render();
 Coord get_size();
 

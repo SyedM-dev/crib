@@ -61,6 +61,8 @@ struct Match {
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define UNUSED(x) (void)(x)
+#define USING(x) UNUSED(sizeof(x))
 
 std::string clean_text(const std::string &input);
 std::string percent_encode(const std::string &s);
@@ -74,6 +76,7 @@ uint32_t get_visual_col_from_bytes(const char *line, uint32_t len,
 uint32_t get_bytes_from_visual_col(const char *line, uint32_t len,
                                    uint32_t target_visual_col);
 int utf8_byte_offset_to_utf16(const char *s, size_t byte_pos);
+size_t utf16_offset_to_utf8(const char *s, int utf16_pos);
 
 void log(const char *fmt, ...);
 

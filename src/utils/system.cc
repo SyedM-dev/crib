@@ -120,7 +120,7 @@ Language language_for_file(const char *filename) {
     if (it != kMimeToLang.end())
       return kLanguages.find(it->second)->second;
   }
-  return {"unknown", nullptr};
+  return Language{};
 }
 
 char *get_from_clipboard(uint32_t *out_len) {

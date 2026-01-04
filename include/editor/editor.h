@@ -1,10 +1,12 @@
 #ifndef EDITOR_H
 #define EDITOR_H
 
+#include "editor/completions.h"
 #include "editor/spans.h"
 #include "io/knot.h"
 #include "io/sysio.h"
 #include "ts/decl.h"
+#include "ui/completionbox.h"
 #include "ui/diagnostics.h"
 #include "ui/hover.h"
 #include "utils/utils.h"
@@ -49,6 +51,7 @@ struct Editor {
   bool diagnostics_active;
   DiagnosticBox diagnostics;
   int lsp_version = 1;
+  CompletionSession completion;
 };
 
 Editor *new_editor(const char *filename_arg, Coord position, Coord size);
@@ -73,6 +76,8 @@ void ensure_scroll(Editor *editor);
 void handle_editor_event(Editor *editor, KeyEvent event);
 void edit_erase(Editor *editor, Coord pos, int64_t len);
 void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len);
+void edit_replace(Editor *editor, Coord start, Coord end, const char *text,
+                  uint32_t len);
 Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y);
 char *get_selection(Editor *editor, uint32_t *out_len, Coord *out_start);
 void editor_worker(Editor *editor);
@@ -90,6 +95,13 @@ uint32_t leading_indent(const char *line, uint32_t len);
 uint32_t get_indent(Editor *editor, Coord cursor);
 bool closing_after_cursor(const char *line, uint32_t len, uint32_t col);
 void editor_lsp_handle(Editor *editor, json msg);
+void apply_lsp_edits(Editor *editor, std::vector<TextEdit> edits);
+void completion_resolve_doc(Editor *editor);
+void complete_accept(Editor *editor);
+void complete_next(Editor *editor);
+void complete_prev(Editor *editor);
+void complete_select(Editor *editor, uint8_t index);
+void handle_completion(Editor *editor, KeyEvent event);
 
 inline void apply_hook_insertion(Editor *editor, uint32_t line, uint32_t rows) {
   for (auto &hook : editor->hooks)

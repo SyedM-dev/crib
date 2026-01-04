@@ -3,6 +3,14 @@
 
 #include "utils/utils.h"
 
+struct TextEdit {
+  // NOTE: start.col is in utf16 index and not clusters or utf8
+  Coord start;
+  // NOTE: end.col is in utf16 index and not clusters or utf8
+  Coord end;
+  std::string text;
+};
+
 struct Fold {
   uint32_t start;
   uint32_t end;

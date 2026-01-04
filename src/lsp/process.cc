@@ -76,8 +76,34 @@ std::shared_ptr<LSPInstance> get_or_init_lsp(uint8_t lsp_id) {
           lsp->allow_hover = caps["hoverProvider"].get<bool>();
         else
           lsp->allow_hover = false;
-        if (caps.contains("completionProvider"))
+        if (caps.contains("completionProvider")) {
           lsp->allow_completion = true;
+          if (caps["completionProvider"].contains("resolveProvider"))
+            lsp->allow_resolve =
+                caps["completionProvider"]["resolveProvider"].get<bool>();
+          if (caps["completionProvider"].contains("triggerCharacters")) {
+            auto &chars = caps["completionProvider"]["triggerCharacters"];
+            if (chars.is_array()) {
+              for (auto &c : chars) {
+                std::string str = c.get<std::string>();
+                if (str.size() != 1)
+                  continue;
+                lsp->trigger_chars.push_back(str[0]);
+              }
+            }
+          }
+          if (caps["completionProvider"].contains("allCommitCharacters")) {
+            auto &chars = caps["completionProvider"]["allCommitCharacters"];
+            if (chars.is_array()) {
+              for (auto &c : chars) {
+                std::string str = c.get<std::string>();
+                if (str.size() != 1)
+                  continue;
+                lsp->end_chars.push_back(str[0]);
+              }
+            }
+          }
+        }
       }
       lsp->initialized = true;
       json initialized = {{"jsonrpc", "2.0"},

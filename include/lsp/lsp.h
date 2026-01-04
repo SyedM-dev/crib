@@ -34,7 +34,9 @@ struct LSPInstance {
   bool incremental_sync = false;
   bool allow_hover = false;
   bool allow_completion = false;
-  std::string trigger_chars;
+  bool allow_resolve = false;
+  std::vector<char> trigger_chars;
+  std::vector<char> end_chars;
   uint32_t last_id = 0;
   Queue<json> inbox;
   Queue<json> outbox;
@@ -53,12 +55,15 @@ static json client_capabilities = {
       {"hover", {{"contentFormat", {"markdown", "plaintext"}}}},
       {"completion",
        {{"completionItem",
-         {{"snippetSupport", true},
+         {{"commitCharactersSupport", true},
+          {"dynamicRegistration", false},
+          {"snippetSupport", true},
           {"documentationFormat", {"markdown", "plaintext"}},
-          {"resolveSupport", {{"properties", {"documentation", "detail"}}}},
+          {"resolveSupport", {{"properties", {"documentation"}}}},
           {"insertReplaceSupport", true},
           {"labelDetailsSupport", true},
-          {"insertTextModeSupport", {{"valueSet", {1}}}}}},
+          {"insertTextModeSupport", {{"valueSet", {1}}}},
+          {"deprecatedSupport", true}}},
         {"completionItemKind", {{"valueSet", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}}}},
         {"contextSupport", true},
         {"insertTextMode", 1}}}}}};

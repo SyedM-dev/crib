@@ -7,6 +7,7 @@ void Bar::render() {
   uint32_t row = screen.row - 2;
   uint32_t col = 0;
   uint32_t width = screen.col;
+  UNUSED(width);
   uint32_t color = 0;
   uint32_t black = 0x0b0e14;
   uint32_t grey = 0x33363c;
@@ -80,7 +81,7 @@ void Bar::handle(KeyEvent event) {
         cursor--;
       break;
     case KEY_RIGHT:
-      if (cursor < command.length())
+      if (cursor < (uint32_t)command.length())
         cursor++;
       break;
     case KEY_UP:

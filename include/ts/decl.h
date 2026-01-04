@@ -7,9 +7,9 @@
 #define TS_DEF(name) extern "C" const TSLanguage *LANG(name)()
 
 struct Language {
-  std::string name;
-  const TSLanguage *(*fn)();
-  uint8_t lsp_id;
+  std::string name = "unknown";
+  const TSLanguage *(*fn)() = nullptr;
+  uint8_t lsp_id = 0;
   uint32_t color = 0xFFFFFF;
   const char *symbol = " ";
 };
