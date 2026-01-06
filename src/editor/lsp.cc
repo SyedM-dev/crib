@@ -7,6 +7,11 @@ void apply_lsp_edits(Editor *editor, std::vector<TextEdit> edits) {
   for (const auto &edit : edits)
     edit_replace(editor, edit.start, edit.end, edit.text.c_str(),
                  edit.text.size());
+  editor->cursor = edits[0].start;
+  editor->cursor = move_right_pure(editor, editor->cursor,
+                                   count_clusters(edits[0].text.c_str(),
+                                                  edits[0].text.size(), 0,
+                                                  edits[0].text.size()));
 }
 
 void editor_lsp_handle(Editor *editor, json msg) {

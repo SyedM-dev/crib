@@ -6,8 +6,11 @@ A TUI IDE.
 
 # TODO
 
-- [ ] Do auto complete box rendering functions.
-- [ ] Finish autocomplete box.
+- [ ] Normalize completions edits if local filtering is used
+- [ ] Check why fish is behaving soo off with completions filtering
+- [ ] Also why clangd doesnt show any completions but applys them at 0,0
+- [ ] Also why solargraph applys edits at 0,0
+- [ ] Finish autocomplete box style functions.
 - [ ] Add status bar & RUNNER mode
 - [ ] Get code context from tree-sitter
 - [ ] Maybe hide boxes in !`normal` mode

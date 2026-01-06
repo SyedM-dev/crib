@@ -468,6 +468,12 @@ void render_editor(Editor *editor) {
     global_byte_offset += line_len + 1;
     line_index++;
   }
+  while (rendered_rows < editor->size.row) {
+    for (uint32_t col = 0; col < editor->size.col; col++)
+      update(editor->position.row + rendered_rows, editor->position.col + col,
+             " ", 0xFFFFFF, 0, 0);
+    rendered_rows++;
+  }
   if (cursor.row != UINT32_MAX && cursor.col != UINT32_MAX) {
     int type = 0;
     switch (mode) {
@@ -483,16 +489,12 @@ void render_editor(Editor *editor) {
       break;
     }
     set_cursor(cursor.row, cursor.col, type, true);
-    if (editor->hover_active)
+    if (editor->completion.active && !editor->completion.box.hidden)
+      editor->completion.box.render(cursor);
+    else if (editor->hover_active)
       editor->hover.render(cursor);
     else if (editor->diagnostics_active)
       editor->diagnostics.render(cursor);
-  }
-  while (rendered_rows < editor->size.row) {
-    for (uint32_t col = 0; col < editor->size.col; col++)
-      update(editor->position.row + rendered_rows, editor->position.col + col,
-             " ", 0xFFFFFF, 0, 0);
-    rendered_rows++;
   }
   free(it->buffer);
   free(it);

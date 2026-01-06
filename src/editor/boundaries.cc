@@ -42,8 +42,11 @@ void word_boundaries_exclusive(Editor *editor, Coord coord, uint32_t *prev_col,
     return;
   uint32_t line_len;
   char *line = next_line(it, &line_len);
-  if (!line)
+  if (!line) {
+    free(it->buffer);
+    free(it);
     return;
+  }
   if (line_len && line[line_len - 1] == '\n')
     line_len--;
   uint32_t col = coord.col;

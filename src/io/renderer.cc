@@ -130,8 +130,8 @@ void render() {
     first_render = false;
   }
   for (uint32_t row = 0; row < rows; ++row) {
-    uint32_t first_change_col = -1;
-    uint32_t last_change_col = -1;
+    int64_t first_change_col = -1;
+    int64_t last_change_col = -1;
     for (uint32_t col = 0; col < cols; ++col) {
       uint32_t idx = row * cols + col;
       ScreenCell &old_cell = old_screen[idx];
@@ -144,7 +144,7 @@ void render() {
         if (first_change_col == -1) {
           first_change_col = col;
           if (first_change_col > 0) {
-            for (uint32_t back = 1; back <= 3 && first_change_col - back >= 0;
+            for (int64_t back = 1; back <= 4 && first_change_col - back >= 0;
                  ++back) {
               ScreenCell &prev_cell =
                   screen[row * cols + (first_change_col - back)];
@@ -161,7 +161,7 @@ void render() {
     if (first_change_col == -1)
       continue;
     char buf[64];
-    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", row + 1, first_change_col + 1);
+    snprintf(buf, sizeof(buf), "\x1b[%d;%ldH", row + 1, first_change_col + 1);
     out.append(buf);
     for (uint32_t col = first_change_col; col <= last_change_col; ++col) {
       uint32_t idx = row * cols + col;
@@ -241,8 +241,16 @@ void render() {
         current_underline = underline;
       }
       if (width > 1 && overlap) {
-        for (uint32_t i = 1; i < width; ++i)
+        for (uint32_t i = 1; i < width; ++i) {
+          uint32_t next_col = col + i;
+          if (next_col >= cols)
+            break;
+          const ScreenCell &next = screen[row * cols + next_col];
+          if (!is_empty_cell(next))
+            break;
           out.push_back(' ');
+        }
+        out.push_back(' ');
       } else {
         if (!new_cell.utf8.empty()) {
           if (new_cell.utf8[0] == '\t')
@@ -282,7 +290,7 @@ void render() {
   }
 }
 
-void set_cursor(uint32_t row, uint32_t col, uint32_t type,
+void set_cursor(uint8_t row, uint8_t col, uint32_t type,
                 bool show_cursor_param) {
   char buf[32];
   uint32_t n = snprintf(buf, sizeof(buf), "\x1b[%d;%dH\x1b[%d q", row + 1,

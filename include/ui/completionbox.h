@@ -6,6 +6,7 @@
 #include "utils/utils.h"
 
 struct CompletionBox {
+  std::shared_mutex mtx;
   struct CompletionSession *session;
   bool hidden = true;
   std::vector<ScreenCell> cells;

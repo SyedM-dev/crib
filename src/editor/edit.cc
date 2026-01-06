@@ -2,7 +2,6 @@
 #include "editor/folds.h"
 #include "lsp/lsp.h"
 #include "utils/utils.h"
-#include <cstdint>
 
 void edit_erase(Editor *editor, Coord pos, int64_t len) {
   if (len == 0)
@@ -301,7 +300,7 @@ void edit_replace(Editor *editor, Coord start, Coord end, const char *text,
                      (end_line_byte_start - start_line_byte) + end_col);
   free(buf);
   if (erase_len != 0)
-    edit_erase(editor, end, -erase_len);
+    edit_erase(editor, start, erase_len);
   if (len > 0)
     edit_insert(editor, start, const_cast<char *>(text), len);
 }

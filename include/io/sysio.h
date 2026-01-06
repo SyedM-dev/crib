@@ -111,7 +111,7 @@ void update(uint32_t row, uint32_t col, std::string utf8, uint32_t fg,
             uint32_t bg, uint8_t flags, uint32_t ul_color);
 void update(uint32_t row, uint32_t col, const char *utf8, uint32_t fg,
             uint32_t bg, uint8_t flags, uint32_t ul_color);
-void set_cursor(uint32_t row, uint32_t col, uint32_t type,
+void set_cursor(uint8_t row, uint8_t col, uint32_t type,
                 bool show_cursor_param);
 void render();
 Coord get_size();

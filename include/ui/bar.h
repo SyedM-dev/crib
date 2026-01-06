@@ -8,7 +8,7 @@
 struct Bar {
   Coord screen;
   std::string command = "";
-  int cursor = 0;
+  uint32_t cursor = 0;
 
   Bar(Coord screen) : screen(screen) {}
   void render();

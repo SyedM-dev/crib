@@ -1,4 +1,4 @@
 CompileFlags:
-  Add: [-I/home/syed/main/crib/include, -I/home/syed/main/crib/libs]
+  Add: [-I/home/syed/main/crib/include, -I/home/syed/main/crib/libs, c++20]
   Remove: []
   Compiler: clang++

@@ -9,6 +9,7 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
   static uint32_t click_count = 0;
   static Coord last_click_pos = {UINT32_MAX, UINT32_MAX};
   Coord start = editor->cursor;
+  uint8_t old_mode = mode;
   if (editor->hover_active)
     editor->hover_active = false;
   if (event.key_type == KEY_MOUSE) {
@@ -612,6 +613,8 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
     break;
   }
   ensure_scroll(editor);
+  if (old_mode == mode || mode != INSERT)
+    handle_completion(editor, event);
   if ((event.key_type == KEY_CHAR || event.key_type == KEY_PASTE) && event.c)
     free(event.c);
 }
