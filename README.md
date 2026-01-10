@@ -237,6 +237,9 @@ Activated by `:` or `;`.
 - auto-indent on new lines
 - bracket/quote auto-pairing
 - hooks jumping (bookmarking)
+- color hex code highlighting
+- current line highlighting
+- current word under cursor highlighting
 
 #### Tree-sitter syntax highlighting and filetype detection (using extention or libmagic) for:
 - bash
