@@ -223,7 +223,11 @@ Activated by `:` or `;`.
 
 ## Features Implemented
 
-*TODO: Add a list of features*<br>
+* TUI editor with modal workflow (NORMAL / INSERT / SELECT / RUNNER / JUMPER) and full mouse support for scrolling and multi-click word/line selection.<br>
+* Core editing tools: indent/dedent, move lines up/down, folding on a selected range, yank/cut/paste via system clipboard, auto-indent on new lines, and bracket/quote auto-pairing in insert mode.<br>
+* Tree-sitter syntax highlighting and filetype detection for: bash, c/cpp (and headers), css, fish, go/gomod, haskell, html/erb, javascript, typescript/tsx, json/jsonc, ruby, lua, python, rust, php, markdown (block/inline), nginx, toml, yaml, sql, make, gdscript, man pages, diff/patch, gitattributes/gitignore, tree-sitter queries, regex, and ini.<br>
+* LSP-powered completions, hover docs, and diagnostics popups.<br>
+* Built-in LSP client configs for: clangd, ruby-lsp, solargraph, bash-language-server, vscode-css-language-server, vscode-json-language-server, fish-lsp, gopls, haskell-language-server, emmet-ls, typescript-language-server, lua-language-server, pyright-langserver, rust-analyzer, intelephense, marksman, nginx-language-server, taplo, yaml-language-server, sqls, make-language-server, and sql-language-server.<br>
 
 ## Features Planned
 
