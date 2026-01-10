@@ -75,9 +75,9 @@ static const std::unordered_map<uint8_t, LSP> kLsps = {
           nullptr,
       }}},
     {10,
-     {"emmet-ls",
+     {"emmet-language-server",
       {
-          "emmet-ls",
+          "emmet-language-server",
           "--stdio",
           nullptr,
       }}},

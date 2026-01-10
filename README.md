@@ -72,7 +72,7 @@ The following lsp's are supported and can be installed anywhere in your `$PATH`<
 * [fish-lsp](https://github.com/ndonfris/fish-lsp)
 * [gopls](https://pkg.go.dev/golang.org/x/tools/gopls)
 * [haskell-language-server](https://github.com/haskell/haskell-language-server)
-* [emmet-ls](https://github.com/aca/emmet-ls) *Autocompletion for emmet works but doesn't show popup correctly for now, use ctrl+\\ to run after writing emmet code*
+* [emmet-language-server](https://github.com/olrtg/emmet-language-server)
 * [typescript-language-server](https://github.com/typescript-language-server/typescript-language-server)
 * [lua-language-server](https://github.com/LuaLS/lua-language-server)
 * [pyright-langserver](https://github.com/microsoft/pyright)

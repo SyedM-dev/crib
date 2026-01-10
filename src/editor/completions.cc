@@ -52,11 +52,11 @@ void completion_filter(Editor *editor) {
 void completion_request(Editor *editor) {
   Coord hook = editor->cursor;
   word_boundaries(editor, editor->cursor, &hook.col, nullptr, nullptr, nullptr);
+  editor->completion.hook = hook;
   editor->completion.active = true;
   editor->completion.items.clear();
   editor->completion.visible.clear();
   editor->completion.select = 0;
-  editor->completion.hook = hook;
   LSPPending *pending = new LSPPending();
   pending->editor = editor;
   pending->method = "textDocument/completion";
@@ -94,6 +94,7 @@ void completion_request(Editor *editor) {
       }
     }
     session.items.reserve(items_json.size() + 1);
+    session.visible.reserve(items_json.size() + 1);
     for (auto &item_json : items_json) {
       CompletionItem item;
       item.original = item_json;
@@ -190,8 +191,8 @@ void completion_request(Editor *editor) {
           if (c.is_string() && c.get<std::string>().size() == 1)
             item.end_chars.push_back(c.get<std::string>()[0]);
       session.items.push_back(std::move(item));
+      session.visible.push_back(session.items.size() - 1);
     }
-    completion_filter(editor);
     session.box.hidden = false;
     session.box.render_update();
   };
@@ -268,7 +269,7 @@ void handle_completion(Editor *editor, KeyEvent event) {
         completion_request(editor);
       }
     } else if (ch == CTRL('\\')) {
-      if (editor->completion.active) {
+      if (editor->completion.active && editor->completion.visible.size()) {
         complete_accept(editor);
       } else {
         editor->completion.trigger = 1;
@@ -280,7 +281,7 @@ void handle_completion(Editor *editor, KeyEvent event) {
     } else if (ch == CTRL('o')) {
       if (editor->completion.active)
         complete_prev(editor);
-    } else if (ch == 0x7F || ch == 0x08) {
+    } else if (ch == 0x7F || ch == 0x08 || ch == CTRL('W')) {
       if (editor->completion.active) {
         if (editor->completion.complete) {
           if (editor->cursor <= editor->completion.hook)
@@ -288,7 +289,10 @@ void handle_completion(Editor *editor, KeyEvent event) {
           else
             completion_filter(editor);
         } else {
-          completion_request(editor);
+          if (editor->cursor <= editor->completion.hook)
+            editor->completion.active = false;
+          else
+            completion_request(editor);
         }
       }
     } else {
