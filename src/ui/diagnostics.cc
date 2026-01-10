@@ -11,7 +11,19 @@ void DiagnosticBox::render_first() {
     return;
   uint32_t longest_line = 8 + warnings[0].source.length();
   for (auto &warn : warnings) {
-    longest_line = MAX(longest_line, (uint32_t)warn.text.length() + 7);
+    uint32_t longest = 0;
+    uint32_t cur = 0;
+    for (char ch : warn.text_full)
+      if (ch == '\n') {
+        longest = MAX(longest, cur);
+        cur = 0;
+      } else {
+        if (ch == '\t')
+          cur += 3;
+        ++cur;
+      }
+    longest = MAX(longest, cur);
+    longest_line = MAX(longest_line, longest + 7);
     longest_line = MAX(longest_line, (uint32_t)warn.code.length() + 4);
     for (auto &see_also : warn.see_also)
       longest_line = MAX(longest_line, (uint32_t)see_also.length() + 4);
