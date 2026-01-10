@@ -184,7 +184,7 @@ Used for typing text.
 | **Esc** (`0x1B`) | Return to **NORMAL** mode. |
 | **Tab** (`\t`) | Inserts 2 spaces. |
 | **Enter** | Inserts newline + **Auto-indents** based on previous line/context. |
-| **Backspace** | Deletes previous character or auto-closes empty pairs (e.g., `{ |
+| **Backspace** | Deletes previous character or auto-collapses empty pairs (e.g., `{` -> `}`). |
 | **Ctrl + w** | **Delete Previous Word**. |
 | **Del** | Delete character under cursor. |
 | **Ctrl + Del** | Delete **Next Word**. |
