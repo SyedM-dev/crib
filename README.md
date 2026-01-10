@@ -292,6 +292,6 @@ Activated by `:` or `;`.
 - diagnostics
 - autocompletion
 - hover docs (with markdown support)
-- A list of all supported lsp's can be found [here](#LSPs).
+- A list of all supported lsp's can be found [here](#lsps).
 
 **A lot lot more to come**
