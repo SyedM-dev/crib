@@ -36,6 +36,7 @@ struct CompletionSession {
   CompletionBox box;
   HoverBox hover;
   uint32_t doc = UINT32_MAX;
+  std::atomic<bool> hover_dirty = false;
 
   CompletionSession() : box(this) {}
 };

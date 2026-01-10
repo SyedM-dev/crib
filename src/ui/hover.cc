@@ -44,10 +44,12 @@ void HoverBox::render_first(bool scroll) {
       TSQueryCursor *cursor = ts_query_cursor_new();
       ts_query_cursor_exec(cursor, ts.query, ts_tree_root_node(ts.tree));
       TSQueryMatch match;
-      auto subject_fn = [&](const TSNode *node, uint32_t *len) -> char * {
+      auto subject_fn = [&](const TSNode *node, uint32_t *len,
+                            bool *allocated) -> char * {
         uint32_t start = ts_node_start_byte(*node);
         uint32_t end = ts_node_end_byte(*node);
         *len = end - start;
+        *allocated = false;
         return text.data() + start;
       };
       while (ts_query_cursor_next_match(cursor, &match)) {

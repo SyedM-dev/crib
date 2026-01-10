@@ -13,7 +13,8 @@ TSQuery *load_query(const char *query_path, TSSetBase *set);
 void ts_collect_spans(Editor *editor);
 bool ts_predicate(
     TSQuery *query, const TSQueryMatch &match,
-    std::function<char *(const TSNode *, uint32_t *len)> subject_fn);
+    std::function<char *(const TSNode *, uint32_t *len, bool *allocated)>
+        subject_fn);
 void clear_regex_cache();
 
 #endif

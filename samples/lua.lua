@@ -14,60 +14,60 @@ print(self)
 
 -- Functions
 local function greet(user)
-	print("Hello, " .. user)
+  print("Hello, " .. user)
 end
 
 local function add(a, b)
-	return a + b
+  return a + b
 end
 
 -- Method definitions
 local obj = {}
 function obj:sayHi()
-	print("Hi from method!")
+  print("Hi from method!")
 end
 
 obj.sayHello = function()
-	print("Hello from field function!")
+  print("Hello from field function!")
 end
 
 -- Arrow-style anonymous function (LuaJIT/CFFI style)
 local arrow = function(x)
-	return x * 2
+  return x * 2
 end
 
 -- Table constructors
 local t = {
-	foo = 123,
-	bar = function()
-		return "bar"
-	end,
-	nested = {
-		a = 1,
-		b = 2,
-	},
+  foo = 123,
+  bar = function()
+    return "bar"
+  end,
+  nested = {
+    a = 1,
+    b = 2,
+  },
 }
 
 -- Loops
 for i = 1, MAX_COUNT do
-	counter = counter + i
+  counter = counter + i
 end
 
 while counter > 0 do
-	counter = counter - 1
+  counter = counter - 1
 end
 
 repeat
-	counter = counter + 1
+  counter = counter + 1
 until counter == 10
 
 -- Conditionals
 if counter > 5 then
-	print("Big number")
+  print("Big number")
 elseif counter == 5 then
-	print("Exactly five")
+  print("Exactly five")
 else
-	print("Small number")
+  print("Small number")
 end
 
 -- Operators
@@ -84,7 +84,7 @@ add(5, 10)
 -- Built-in function calls
 assert(x > 0)
 pcall(function()
-	print("safe")
+  print("safe")
 end)
 tonumber("123")
 
@@ -117,3 +117,4 @@ local tpl = `Value: ${counter}`
 
 -- Regex-like string (for testing injection highlighting)
 local re = "/^%a+$/"
+

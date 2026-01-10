@@ -103,4 +103,8 @@ void editor_worker(Editor *editor) {
   }
   lock2.unlock();
   hover_diagnostic(editor);
+  if (editor->completion.active && editor->completion.hover_dirty) {
+    editor->completion.hover.render_first();
+    editor->completion.hover_dirty = false;
+  }
 }

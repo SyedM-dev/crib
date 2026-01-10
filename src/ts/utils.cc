@@ -117,7 +117,8 @@ TSQuery *load_query(const char *query_path, TSSetBase *set) {
 
 bool ts_predicate(
     TSQuery *query, const TSQueryMatch &match,
-    std::function<char *(const TSNode *, uint32_t *len)> subject_fn) {
+    std::function<char *(const TSNode *, uint32_t *len, bool *allocated)>
+        subject_fn) {
   uint32_t step_count;
   const TSQueryPredicateStep *steps =
       ts_query_predicates_for_pattern(query, match.pattern_index, &step_count);
@@ -152,13 +153,15 @@ bool ts_predicate(
   const TSNode *node = find_capture_node(match, subject_id);
   pcre2_code *re = get_re(regex_txt);
   uint32_t len;
-  char *subject = subject_fn(node, &len);
+  bool allocated;
+  char *subject = subject_fn(node, &len, &allocated);
   if (!subject)
     return false;
   pcre2_match_data *md = pcre2_match_data_create_from_pattern(re, nullptr);
   int rc = pcre2_match(re, (PCRE2_SPTR)subject, len, 0, 0, md, nullptr);
   pcre2_match_data_free(md);
   bool ok = (rc >= 0);
-  free(subject);
+  if (allocated)
+    free(subject);
   return (command == "match?" ? ok : !ok);
 }

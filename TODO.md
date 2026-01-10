@@ -1,0 +1,60 @@
+Copyright 2025 Syed Daanish
+
+# TODO
+
+- [ ] Change this to TODO.md and add proper README.md
+- [ ] Check why fish is behaving soo off with completions filtering
+- [ ] Dont filter case sensitive.
+- [ ] Normalize completions edits if local filtering is used
+- [ ] Capture ctrl+h,l for scrolling documentation
+- [ ] Allow completion list to be scrolled up and down and show only x max at a time
+- [ ] Do not recompute word under cursor if not changed
+- [ ] Finish autocomplete box style functions.
+- [ ] Add status bar & RUNNER mode
+- [ ] Get code context from tree-sitter
+- [ ] Maybe hide boxes in !`normal` mode
+- [ ] expand color regex to match css colors if in css file
+- [ ] Fix indentation logic - tree-sitter indents too if possible
+    - Make it work by one getting the identation used in a file by first checking if it has any line with 2 or more spaces then the least one is set to be the indent or if it is tabs then tabs but if there are none then use a table of file type to its indentation or use 2 spaces as default. store this info as `1 = tab` and `2 or more = those many spaces`.
+    - Use this when indenting and unindenting. And also when getting the identation of a line.
+    - Also indent when going immediately to newline should follow indent of previous line regardless of file default.
+- [ ] Fix bug where closing immediately while lsp is loading hangs and then segfaults.
+- [ ] For `"insertTextFormat": 2` in `clangd` and similar use only the last word in the signature when replacing
+- [ ] Keep a list of words in the current buffer. (for auto completion) (maybe?)
+- [ ] Add ecma to js and make tsx
+- [ ] Switch to like `RapidJSON` ro something more basic but faster than rn
+    - also decrease use of `std::string` so much in ui stuff and lsp and warnings etc.
+- [ ] Add lsp jumping support for goto definition, hover etc.
+- [ ] Add lsp rename support for renaming a symbol. (also see what tree-sitter can do here)
+- [ ] Check into more lsp stuff i can add.
+- [ ] Add codeium/copilot support for auto-completion (uses the VAI virtual text) as a test phase.
+- [ ] Add a whitespace highlighter (nerd font). for spaces and tabs at start/end of line. not as virtual but instead at render time.
+- [ ] Once renderer is proven to work well (i.e. redo this commit) merge `experimental` branch into `main`. commit `43f443e` on `experimental`.
+- [ ] Add snippets from wherever i get them. (like luasnip or vsnip)
+- [ ] Add this thing where select at end of screen scrolls down. (and vice versa)
+    - Can be acheived by updating `main.cc` to send drag events to the selected editor instead of just under cursor.
+    - Then a drag event above or below will scroll the selected editor.
+- [ ] Add support for virtual cursor where edits apply at all the places.
+- [ ] Add alt + click to set multiple cursors.
+- [ ] Add search / replace along with search / virtual cursors are searched pos.
+    - Allow using perl directly for replace maybe? and others with my dfa?
+    - or add searcher that supports $1 $2 etc. (capture groups)
+- [ ] Add support for undo/redo.
+- [ ] Add splash screen / minigame jumping.
+- [ ] Normalize / validate unicode on file open. so use utf8 purely and fix other types of files
+- [ ] Add git stuff.
+- [ ] Add SQL support. (viewer and basic editor)
+- [ ] Add color picker/palette for hex or other css colors.
+- [ ] Fix bug where alt+up at eof adds extra line.
+- [ ] Think about how i would keep fold states sensical if i added code prettying/formatting.
+- [ ] Use tree-sitter to get the node path of the current node under cursor and add an indicator bar. 
+    - (possibly with a picker to jump to any node)
+- [ ] Add the highlight of block edges when cursor is on a bracket (or in). (prolly from lsp)
+- [ ] Add this thing where selection double click on a bracket selects whole block.
+    - (only on the first time) and sets mode to `WORD`.
+- [ ] Redo cpp/c/h scm file . also pretty much all of them do manually
+- [ ] Try making `lua-typed` and man pages `tree-sitter` grammar.
+- [ ] Redo folding system and its relation to move_line_* functions. (Currently its a mess)
+- [ ] Make whole thing event driven and not clock driven.
+
+- [ ] Fix in kutu.rb such that windows arent focused on hover . they are only when they are true windows and not just popups . also popus are focused even without hover when they open.

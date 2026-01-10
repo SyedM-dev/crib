@@ -152,13 +152,14 @@ void CompletionBox::render(Coord pos) {
              cells[r * size.col + c].flags);
   if (session->items.size() > session->select &&
       session->items[session->select].documentation &&
-      *session->items[session->select].documentation != "") {
+      *session->items[session->select].documentation != "" &&
+      !session->hover_dirty) {
     if (session->doc != session->select) {
       session->doc = session->select;
       session->hover.clear();
       session->hover.text = *session->items[session->select].documentation;
       session->hover.is_markup = true;
-      session->hover.render_first();
+      session->hover_dirty = true;
     } else {
       if ((int32_t)position.col - (int32_t)session->hover.size.col > 0) {
         session->hover.render({position.row + session->hover.size.row,
