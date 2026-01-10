@@ -76,7 +76,7 @@ The following lsp's are supported and can be installed anywhere in your `$PATH`<
 
 #### Compiler
 
-`g++` and `clang++` should both work fine.
+`g++` and `clang++` should both work fine but `c++20+` is required.
 The makefile has been set to use g++ if made with `make -j test` and clang++ if made with `make -j release`<br>
 This can be changed but I have found clang++ builds to be slightly faster - also test builds do not have the flags needed to be used system wide or any optimizations.<br>
 

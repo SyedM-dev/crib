@@ -2,7 +2,6 @@ Copyright 2025 Syed Daanish
 
 # TODO
 
-- [ ] Change this to TODO.md and add proper README.md
 - [ ] Check why fish is behaving soo off with completions filtering
 - [ ] Dont filter case sensitive.
 - [ ] Normalize completions edits if local filtering is used
@@ -56,5 +55,3 @@ Copyright 2025 Syed Daanish
 - [ ] Try making `lua-typed` and man pages `tree-sitter` grammar.
 - [ ] Redo folding system and its relation to move_line_* functions. (Currently its a mess)
 - [ ] Make whole thing event driven and not clock driven.
-
-- [ ] Fix in kutu.rb such that windows arent focused on hover . they are only when they are true windows and not just popups . also popus are focused even without hover when they open.
