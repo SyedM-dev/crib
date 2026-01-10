@@ -44,7 +44,7 @@ For any problems with `npm install` make sure to have older versions of node ins
 For some even manual clang or gcc compilation may be required.<br>
 *TODO: Make a detailed list of how to do compile each*<br>
 
-#### LSP's
+#### LSPs
 
 The following lsp's are supported and can be installed anywhere in your `$PATH`<br>
 
@@ -223,8 +223,55 @@ Activated by `:` or `;`.
 
 ## Features Implemented
 
-*TODO: Add a list of features*<br>
+#### Core workflow:
+- NORMAL / INSERT / SELECT / RUNNER / JUMPER modes
+- full mouse support for scrolling and multi-click word/line selection.
+    - Double click to select word
+    - Triple click to select line
 
-## Features Planned
+#### Core editing tools:
+- indent/dedent
+- move lines up/down
+- folding on a selected range
+- yank/cut/paste via system clipboard
+- auto-indent on new lines
+- bracket/quote auto-pairing
+- hooks jumping (bookmarking)
 
-*TODO: Add a list of features*<br>
+#### Tree-sitter syntax highlighting and filetype detection (using extention or libmagic) for:
+- bash
+- c/cpp (and headers)
+- css
+- fish
+- go/gomod
+- haskell
+- html/erb
+- javascript
+- typescript/tsx
+- json/jsonc
+- ruby
+- lua
+- python
+- rust
+- php
+- markdown
+- nginx
+- toml
+- yaml
+- sql
+- make
+- gdscript
+- man pages
+- diff/patch
+- gitattributes/gitignore
+- tree-sitter queries
+- regex
+- ini
+
+#### LSP-powered features:
+- diagnostics
+- autocompletion
+- hover docs (with markdown support)
+- A list of all supported lsp's can be found [here](#LSPs).
+
+**A lot lot more to come**
