@@ -1,17 +1,37 @@
+#include "editor/decl.h"
 #include "editor/editor.h"
 
-void apply_lsp_edits(Editor *editor, std::vector<TextEdit> edits) {
+void apply_lsp_edits(Editor *editor, std::vector<TextEdit> edits, bool move) {
+  if (!edits.size())
+    return;
+  TextEdit first = edits[0];
+  Coord cursor = editor->cursor;
   std::sort(
       edits.begin(), edits.end(),
       [](const TextEdit &a, const TextEdit &b) { return a.start > b.start; });
   for (const auto &edit : edits)
     edit_replace(editor, edit.start, edit.end, edit.text.c_str(),
                  edit.text.size());
-  editor->cursor = edits[0].start;
-  editor->cursor = move_right_pure(editor, editor->cursor,
-                                   count_clusters(edits[0].text.c_str(),
-                                                  edits[0].text.size(), 0,
-                                                  edits[0].text.size()));
+  if (move) {
+    std::shared_lock lock(editor->knot_mtx);
+    editor->cursor = first.start;
+    editor->cursor =
+        move_right_pure(editor, editor->cursor,
+                        count_clusters(first.text.c_str(), first.text.size(), 0,
+                                       first.text.size()));
+  } else {
+    if (cursor.row >= editor->root->line_count) {
+      editor->cursor.row = editor->root->line_count - 1;
+      editor->cursor.col = 0;
+    } else {
+      std::shared_lock lock(editor->knot_mtx);
+      uint32_t len;
+      line_to_byte(editor->root, cursor.row, &len);
+      len--;
+      editor->cursor.row = cursor.row;
+      editor->cursor.col = cursor.col < len ? cursor.col : len;
+    }
+  }
 }
 
 void editor_lsp_handle(Editor *editor, json msg) {

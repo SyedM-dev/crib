@@ -506,29 +506,29 @@
 ; Macros & directives
 ; ============================================================
 
-;; #F29CC3 #000000 0 0 0 0 2
+;; #F29CC3 #000000 0 0 0 0 3
 (preproc_def
   name: (_) @constant.macro)
 
-;; #F29CC3 #000000 0 0 0 0 2
+;; #F29CC3 #000000 0 0 0 0 3
 (preproc_call
   directive: (preproc_directive) @_u
   argument: (_) @constant.macro
   (#match? @_u "^#undef$"))
 
-;; #F29CC3 #000000 0 0 0 0 2
+;; #F29CC3 #000000 0 0 0 0 3
 (preproc_ifdef
   name: (identifier) @constant.macro)
 
-;; #F29CC3 #000000 0 0 0 0 2
+;; #F29CC3 #000000 0 0 0 0 3
 (preproc_elifdef
   name: (identifier) @constant.macro)
 
-;; #F29CC3 #000000 0 0 0 0 2
+;; #F29CC3 #000000 0 0 0 0 3
 (preproc_defined
   (identifier) @constant.macro)
 
-;; #F29CC3 #000000 0 0 0 0 2
+;; #F29CC3 #000000 0 0 0 0 3
 (preproc_defined) @function.macro
 
 ; ============================================================

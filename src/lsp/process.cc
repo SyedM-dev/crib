@@ -72,10 +72,35 @@ std::shared_ptr<LSPInstance> get_or_init_lsp(uint8_t lsp_id) {
             lsp->incremental_sync = (change_type == 2);
           }
         }
-        if (caps.contains("hoverProvider"))
-          lsp->allow_hover = caps["hoverProvider"].get<bool>();
-        else
+        lsp->allow_formatting = caps.value("documentFormattingProvider", false);
+        if (caps.contains("documentOnTypeFormattingProvider")) {
+          auto &fmt = caps["documentOnTypeFormattingProvider"];
+          if (fmt.is_object()) {
+            if (fmt.contains("firstTriggerCharacter")) {
+              std::string s = fmt["firstTriggerCharacter"].get<std::string>();
+              if (s.size() == 1)
+                lsp->format_chars.push_back(s[0]);
+            }
+            if (fmt.contains("moreTriggerCharacter")) {
+              for (auto &c : fmt["moreTriggerCharacter"]) {
+                std::string s = c.get<std::string>();
+                if (s.size() == 1)
+                  lsp->format_chars.push_back(s[0]);
+              }
+            }
+            lsp->allow_formatting_on_type = true;
+          } else if (fmt.is_boolean()) {
+            lsp->allow_formatting_on_type = fmt.get<bool>();
+          }
+        }
+
+        if (caps.contains("hoverProvider")) {
+          auto &hover = caps["hoverProvider"];
+          lsp->allow_hover =
+              hover.is_boolean() ? hover.get<bool>() : hover.is_object();
+        } else {
           lsp->allow_hover = false;
+        }
         if (caps.contains("completionProvider")) {
           lsp->allow_completion = true;
           if (caps["completionProvider"].contains("resolveProvider"))

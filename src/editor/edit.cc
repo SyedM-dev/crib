@@ -283,21 +283,15 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
 void edit_replace(Editor *editor, Coord start, Coord end, const char *text,
                   uint32_t len) {
   std::shared_lock lock(editor->knot_mtx);
-  uint32_t start_line_byte = line_to_byte(editor->root, start.row, nullptr);
-  uint32_t end_len;
-  uint32_t end_line_byte_start = line_to_byte(editor->root, end.row, &end_len);
-  uint32_t end_line_byte = end_line_byte_start + len;
+  uint32_t start_byte =
+      line_to_byte(editor->root, start.row, nullptr) + start.col;
+  uint32_t end_byte = line_to_byte(editor->root, end.row, nullptr) + end.col;
   lock.unlock();
-  char *buf =
-      read(editor->root, start_line_byte, end_line_byte - start_line_byte);
+  char *buf = read(editor->root, start_byte, end_byte - start_byte);
   if (!buf)
     return;
-  uint32_t start_col = utf16_offset_to_utf8(buf, start.col);
-  uint32_t end_col = utf16_offset_to_utf8(
-      buf + (end_line_byte_start - start_line_byte), end.col);
   uint32_t erase_len =
-      count_clusters(buf, end_line_byte - start_line_byte, start_col,
-                     (end_line_byte_start - start_line_byte) + end_col);
+      count_clusters(buf, end_byte - start_byte, 0, end_byte - start_byte);
   free(buf);
   if (erase_len != 0)
     edit_erase(editor, start, erase_len);

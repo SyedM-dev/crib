@@ -44,12 +44,13 @@ void HoverBox::render_first(bool scroll) {
       TSQueryCursor *cursor = ts_query_cursor_new();
       ts_query_cursor_exec(cursor, ts.query, ts_tree_root_node(ts.tree));
       TSQueryMatch match;
+      auto subject_fn = [&](const TSNode *node, uint32_t *len) -> char * {
+        uint32_t start = ts_node_start_byte(*node);
+        uint32_t end = ts_node_end_byte(*node);
+        *len = end - start;
+        return text.data() + start;
+      };
       while (ts_query_cursor_next_match(cursor, &match)) {
-        auto subject_fn = [&](const TSNode *node) -> std::string {
-          uint32_t start = ts_node_start_byte(*node);
-          uint32_t end = ts_node_end_byte(*node);
-          return text.substr(start, end - start);
-        };
         if (!ts_predicate(ts.query, match, subject_fn))
           continue;
         for (uint32_t i = 0; i < match.capture_count; i++) {
@@ -75,11 +76,6 @@ void HoverBox::render_first(bool scroll) {
                                  ts_tree_root_node(inj_ts.tree));
             TSQueryMatch inj_match;
             while (ts_query_cursor_next_match(inj_cursor, &inj_match)) {
-              auto subject_fn = [&](const TSNode *node) -> std::string {
-                uint32_t start = ts_node_start_byte(*node);
-                uint32_t end = ts_node_end_byte(*node);
-                return text.substr(start, end - start);
-              };
               if (!ts_predicate(inj_ts.query, inj_match, subject_fn))
                 continue;
               for (uint32_t i = 0; i < inj_match.capture_count; i++) {

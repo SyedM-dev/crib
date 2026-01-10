@@ -1,6 +1,7 @@
 #include "config.h"
 #include "io/sysio.h"
 #include "ts/ts.h"
+#include <cstdint>
 
 std::unordered_map<std::string, pcre2_code *> regex_cache;
 
@@ -114,8 +115,9 @@ TSQuery *load_query(const char *query_path, TSSetBase *set) {
   return q;
 }
 
-bool ts_predicate(TSQuery *query, const TSQueryMatch &match,
-                  std::function<std::string(const TSNode *)> subject_fn) {
+bool ts_predicate(
+    TSQuery *query, const TSQueryMatch &match,
+    std::function<char *(const TSNode *, uint32_t *len)> subject_fn) {
   uint32_t step_count;
   const TSQueryPredicateStep *steps =
       ts_query_predicates_for_pattern(query, match.pattern_index, &step_count);
@@ -149,11 +151,14 @@ bool ts_predicate(TSQuery *query, const TSQueryMatch &match,
   }
   const TSNode *node = find_capture_node(match, subject_id);
   pcre2_code *re = get_re(regex_txt);
-  std::string subject = subject_fn(node);
+  uint32_t len;
+  char *subject = subject_fn(node, &len);
+  if (!subject)
+    return false;
   pcre2_match_data *md = pcre2_match_data_create_from_pattern(re, nullptr);
-  int rc = pcre2_match(re, (PCRE2_SPTR)subject.c_str(), subject.size(), 0, 0,
-                       md, nullptr);
+  int rc = pcre2_match(re, (PCRE2_SPTR)subject, len, 0, 0, md, nullptr);
   pcre2_match_data_free(md);
   bool ok = (rc >= 0);
+  free(subject);
   return (command == "match?" ? ok : !ok);
 }

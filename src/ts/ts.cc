@@ -90,15 +90,17 @@ void ts_collect_spans(Editor *editor) {
     ts_query_cursor_exec(cursor, q, ts_tree_root_node(item.tsset->tree));
     std::unordered_map<std::string, PendingRanges> pending_injections;
     TSQueryMatch match;
+    auto subject_fn = [&](const TSNode *node, uint32_t *len) -> char * {
+      uint32_t start = ts_node_start_byte(*node);
+      uint32_t end = ts_node_end_byte(*node);
+      if (start == end || end > editor->root->char_count)
+        return nullptr;
+      std::shared_lock lock(editor->knot_mtx);
+      char *text = read(editor->root, start, end - start);
+      *len = end - start;
+      return text;
+    };
     while (ts_query_cursor_next_match(cursor, &match)) {
-      auto subject_fn = [&](const TSNode *node) -> std::string {
-        uint32_t start = ts_node_start_byte(*node);
-        uint32_t end = ts_node_end_byte(*node);
-        char *text = read(editor->root, start, end - start);
-        std::string final = std::string(text, end - start);
-        free(text);
-        return final;
-      };
       if (!ts_predicate(q, match, subject_fn))
         continue;
       for (uint32_t i = 0; i < match.capture_count; i++) {

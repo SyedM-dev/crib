@@ -18,6 +18,8 @@
 #define EXTRA_META 4
 #define INDENT_WIDTH 2
 
+// autocomplete lua// Bracket closing / tab on enter
+
 struct Editor {
   std::string filename;
   std::string uri;
@@ -95,7 +97,7 @@ uint32_t leading_indent(const char *line, uint32_t len);
 uint32_t get_indent(Editor *editor, Coord cursor);
 bool closing_after_cursor(const char *line, uint32_t len, uint32_t col);
 void editor_lsp_handle(Editor *editor, json msg);
-void apply_lsp_edits(Editor *editor, std::vector<TextEdit> edits);
+void apply_lsp_edits(Editor *editor, std::vector<TextEdit> edits, bool move);
 void completion_resolve_doc(Editor *editor);
 void complete_accept(Editor *editor);
 void complete_next(Editor *editor);
@@ -114,6 +116,58 @@ inline void apply_hook_deletion(Editor *editor, uint32_t removal_start,
   for (auto &hook : editor->hooks)
     if (hook > removal_start)
       hook -= removal_end - removal_start + 1;
+}
+
+inline static void utf8_normalize_edit(Editor *editor, TextEdit *edit) {
+  std::shared_lock lock(editor->knot_mtx);
+  if (edit->start.row > editor->root->line_count) {
+    edit->start.row = editor->root->line_count;
+    edit->start.col = UINT32_MAX;
+  }
+  if (edit->end.row > editor->root->line_count) {
+    edit->end.row = editor->root->line_count;
+    edit->end.col = UINT32_MAX;
+  }
+  LineIterator *it = begin_l_iter(editor->root, edit->start.row);
+  if (!it)
+    return;
+  uint32_t len;
+  char *line = next_line(it, &len);
+  if (!line) {
+    free(it->buffer);
+    free(it);
+    return;
+  }
+  if (edit->start.col < len)
+    edit->start.col = utf16_offset_to_utf8(line, edit->start.col);
+  else
+    edit->start.col = len;
+  if (edit->end.row == edit->start.row) {
+    if (edit->end.col < len)
+      edit->end.col = utf16_offset_to_utf8(line, edit->end.col);
+    else
+      edit->end.col = len;
+    free(it->buffer);
+    free(it);
+    return;
+  }
+  free(it->buffer);
+  free(it);
+  it = begin_l_iter(editor->root, edit->end.row);
+  if (!it)
+    return;
+  line = next_line(it, &len);
+  if (!line) {
+    free(it->buffer);
+    free(it);
+    return;
+  }
+  if (edit->end.col < len)
+    edit->end.col = utf16_offset_to_utf8(line, edit->end.col);
+  else
+    edit->end.col = len;
+  free(it->buffer);
+  free(it);
 }
 
 #endif

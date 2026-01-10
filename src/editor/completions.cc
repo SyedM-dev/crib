@@ -1,9 +1,11 @@
+#include "editor/decl.h"
 #include "editor/editor.h"
 #include "io/knot.h"
 #include "io/sysio.h"
 #include "lsp/lsp.h"
 #include "main.h"
 #include "utils/utils.h"
+#include <regex>
 
 inline static std::string completion_prefix(Editor *editor) {
   Coord hook = editor->completion.hook;
@@ -50,23 +52,15 @@ void completion_filter(Editor *editor) {
 void completion_request(Editor *editor) {
   Coord hook = editor->cursor;
   word_boundaries(editor, editor->cursor, &hook.col, nullptr, nullptr, nullptr);
-  LineIterator *it = begin_l_iter(editor->root, hook.row);
-  char *line = next_line(it, nullptr);
-  if (!line) {
-    free(it->buffer);
-    free(it);
-    return;
-  }
   editor->completion.active = true;
   editor->completion.items.clear();
   editor->completion.visible.clear();
   editor->completion.select = 0;
-  hook.col = utf8_byte_offset_to_utf16(line, hook.col);
   editor->completion.hook = hook;
   LSPPending *pending = new LSPPending();
   pending->editor = editor;
   pending->method = "textDocument/completion";
-  pending->callback = [line, it](Editor *editor, std::string, json message) {
+  pending->callback = [](Editor *editor, std::string, json message) {
     auto &session = editor->completion;
     std::unique_lock lock(session.mtx);
     std::vector<json> items_json;
@@ -115,8 +109,15 @@ void completion_request(Editor *editor) {
           item.is_markup =
               item_json["documentation"]["kind"].get<std::string>() ==
               "markdown";
-          item.documentation =
+          std::string documentation =
               item_json["documentation"]["value"].get<std::string>();
+          if (item.is_markup) {
+            static const std::regex fence_no_lang("```(\\s*\\n)");
+            item.documentation = std::regex_replace(
+                documentation, fence_no_lang, "```" + editor->lang.name + "$1");
+          } else {
+            item.documentation = documentation;
+          }
         }
       }
       if (item_json.contains("deprecated") &&
@@ -147,26 +148,27 @@ void completion_request(Editor *editor) {
             edit.start.col = te["insert"]["start"]["character"];
             edit.end.row = te["insert"]["end"]["line"];
             edit.end.col = te["insert"]["end"]["character"];
+          } else if (te.contains("range")) {
+            edit.start.row = te["range"]["start"]["line"];
+            edit.start.col = te["range"]["start"]["character"];
+            edit.end.row = te["range"]["end"]["line"];
+            edit.end.col = te["range"]["end"]["character"];
+          } else {
+            edit.start = session.hook;
+            edit.end = editor->cursor;
           }
-        } else {
-          edit.text = te.value("newText", "");
-          edit.start.row = te["range"]["start"]["line"];
-          edit.start.col = te["range"]["start"]["character"];
-          edit.end.row = te["range"]["end"]["line"];
-          edit.end.col = te["range"]["end"]["character"];
         }
       } else if (item_json.contains("insertText") &&
                  item_json["insertText"].is_string()) {
         edit.text = item_json["insertText"].get<std::string>();
         edit.start = session.hook;
-        uint32_t col = utf8_byte_offset_to_utf16(line, editor->cursor.col);
-        edit.end = {editor->cursor.row, col};
+        edit.end = editor->cursor;
       } else {
         edit.text = item.label;
         edit.start = session.hook;
-        uint32_t col = utf8_byte_offset_to_utf16(line, editor->cursor.col);
-        edit.end = {editor->cursor.row, col};
+        edit.end = editor->cursor;
       }
+      utf8_normalize_edit(editor, &edit);
       item.edits.push_back(edit);
       if (item_json.contains("additionalTextEdits")) {
         for (auto &te : item_json["additionalTextEdits"]) {
@@ -176,6 +178,7 @@ void completion_request(Editor *editor) {
           edit.start.col = te["range"]["start"]["character"];
           edit.end.row = te["range"]["end"]["line"];
           edit.end.col = te["range"]["end"]["character"];
+          utf8_normalize_edit(editor, &edit);
           item.edits.push_back(edit);
         }
       }
@@ -187,15 +190,23 @@ void completion_request(Editor *editor) {
           if (c.is_string() && c.get<std::string>().size() == 1)
             item.end_chars.push_back(c.get<std::string>()[0]);
       session.items.push_back(std::move(item));
-      session.visible.push_back(session.items.size() - 1);
     }
     completion_filter(editor);
     session.box.hidden = false;
     session.box.render_update();
+  };
+  std::shared_lock lock(editor->knot_mtx);
+  LineIterator *it = begin_l_iter(editor->root, hook.row);
+  char *line = next_line(it, nullptr);
+  if (!line) {
     free(it->buffer);
     free(it);
-  };
+    return;
+  }
   uint32_t col = utf8_byte_offset_to_utf16(line, editor->cursor.col);
+  free(it->buffer);
+  free(it);
+  lock.unlock();
   json message = {
       {"jsonrpc", "2.0"},
       {"method", "textDocument/completion"},
@@ -315,10 +326,26 @@ void completion_resolve_doc(Editor *editor) {
   pending->callback = [](Editor *editor, std::string, json message) {
     std::unique_lock lock(editor->completion.mtx);
     auto &item = editor->completion.items[editor->completion.select];
-    if (message.contains("documentation"))
-      item.documentation = message["documentation"].get<std::string>();
-    else
-      item.documentation = "";
+    if (message["result"].contains("documentation")) {
+      if (message["result"]["documentation"].is_string()) {
+        item.documentation =
+            message["result"]["documentation"].get<std::string>();
+      } else if (message["result"]["documentation"].contains("value") &&
+                 message["result"]["documentation"]["value"].is_string()) {
+        item.is_markup =
+            message["result"]["documentation"]["kind"].get<std::string>() ==
+            "markdown";
+        std::string documentation =
+            message["result"]["documentation"]["value"].get<std::string>();
+        if (item.is_markup) {
+          static const std::regex fence_no_lang("```(\\s*\\n)");
+          item.documentation = std::regex_replace(
+              documentation, fence_no_lang, "```" + editor->lang.name + "$1");
+        } else {
+          item.documentation = documentation;
+        }
+      }
+    }
     editor->completion.box.render_update();
   };
   json message = {{"jsonrpc", "2.0"},
@@ -332,7 +359,7 @@ void complete_accept(Editor *editor) {
     return;
   auto &item = editor->completion.items[editor->completion.select];
   // TODO: support snippets here
-  apply_lsp_edits(editor, item.edits);
+  apply_lsp_edits(editor, item.edits, true);
   editor->completion.active = false;
 }
 

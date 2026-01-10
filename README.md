@@ -6,10 +6,13 @@ A TUI IDE.
 
 # TODO
 
-- [ ] Normalize completions edits if local filtering is used
 - [ ] Check why fish is behaving soo off with completions filtering
-- [ ] Also why clangd doesnt show any completions but applys them at 0,0
-- [ ] Also why solargraph applys edits at 0,0
+- [ ] Normalize completions edits if local filtering is used
+- [ ] Capture ctrl+h,l for scrolling documentation
+- [ ] Documentation fix position and make it async first render
+- [ ] Allow completion list to be scrolled up and down and show only x max at a time
+- [ ] Dont filter case sensitive.
+- [ ] Do not recompute word under cursor if not changed
 - [ ] Finish autocomplete box style functions.
 - [ ] Add status bar & RUNNER mode
 - [ ] Get code context from tree-sitter

@@ -35,6 +35,9 @@ struct LSPInstance {
   bool allow_hover = false;
   bool allow_completion = false;
   bool allow_resolve = false;
+  bool allow_formatting = false;
+  bool allow_formatting_on_type = false;
+  std::vector<char> format_chars;
   std::vector<char> trigger_chars;
   std::vector<char> end_chars;
   uint32_t last_id = 0;
@@ -53,6 +56,8 @@ static json client_capabilities = {
     {"textDocument",
      {{"publishDiagnostics", {{"relatedInformation", true}}},
       {"hover", {{"contentFormat", {"markdown", "plaintext"}}}},
+      {"formatting", {{"dynamicRegistration", false}}},
+      {"onTypeFormatting", {{"dynamicRegistration", false}}},
       {"completion",
        {{"completionItem",
          {{"commitCharactersSupport", true},

@@ -1,8 +1,6 @@
 #include "ui/completionbox.h"
 #include "editor/completions.h"
 #include "utils/utils.h"
-#include <cstdint>
-#include <string>
 
 std::string item_kind_name(uint8_t kind) {
   switch (kind) {
@@ -76,11 +74,11 @@ void CompletionBox::render_update() {
     if (i >= session->items.size())
       continue;
     auto &item = session->items[i];
-    max_label_len = std::max(max_label_len, (uint32_t)item.label.size());
+    max_label_len = MAX(max_label_len, (uint32_t)item.label.size());
     if (item.detail)
-      max_detail_len = std::max(max_detail_len, (uint32_t)item.detail->size());
+      max_detail_len = MAX(max_detail_len, (uint32_t)item.detail->size());
     max_kind_len =
-        std::max(max_kind_len, (uint32_t)item_kind_name(item.kind).size());
+        MAX(max_kind_len, (uint32_t)item_kind_name(item.kind).size());
   }
   size.row = session->visible.size() + 2;
   size.col = 2 + 2 + max_label_len + 1 + max_detail_len + 2 + max_kind_len + 1;
@@ -91,7 +89,7 @@ void CompletionBox::render_update() {
       cells[r * size.col + c] = {std::string(text), 0, fg, bg, flags, 0};
   };
   uint32_t border_fg = 0x82AAFF;
-  uint32_t sel_bg = 0xFFFF00;
+  uint32_t sel_bg = 0x174225;
   set(0, 0, "┌", border_fg, 0, 0);
   for (uint32_t c = 1; c < size.col - 1; c++)
     set(0, c, "─", border_fg, 0, 0);
@@ -99,7 +97,7 @@ void CompletionBox::render_update() {
   for (uint32_t row_idx = 0; row_idx < session->visible.size(); row_idx++) {
     uint32_t r = row_idx + 1;
     auto &item = session->items[session->visible[row_idx]];
-    uint32_t bg = (session->visible[row_idx] == session->select) ? sel_bg : 0;
+    uint32_t bg = (session->visible[row_idx] == session->select) ? sel_bg : 1;
     uint32_t fg = 0xFFFFFF;
     set(r, 0, "│", border_fg, 0, 0);
     uint32_t c = 1;
@@ -134,7 +132,7 @@ void CompletionBox::render_update() {
 }
 
 void CompletionBox::render(Coord pos) {
-  if (hidden)
+  if (hidden || session->visible.empty())
     return;
   std::shared_lock lock(mtx);
   int32_t start_row = (int32_t)pos.row - (int32_t)size.row;
@@ -152,4 +150,23 @@ void CompletionBox::render(Coord pos) {
       update(start_row + r, start_col + c, cells[r * size.col + c].utf8,
              cells[r * size.col + c].fg, cells[r * size.col + c].bg,
              cells[r * size.col + c].flags);
+  if (session->items.size() > session->select &&
+      session->items[session->select].documentation &&
+      *session->items[session->select].documentation != "") {
+    if (session->doc != session->select) {
+      session->doc = session->select;
+      session->hover.clear();
+      session->hover.text = *session->items[session->select].documentation;
+      session->hover.is_markup = true;
+      session->hover.render_first();
+    } else {
+      if ((int32_t)position.col - (int32_t)session->hover.size.col > 0) {
+        session->hover.render({position.row + session->hover.size.row,
+                               position.col - session->hover.size.col});
+      } else {
+        session->hover.render(
+            {position.row + session->hover.size.row, position.col + size.col});
+      }
+    }
+  }
 }

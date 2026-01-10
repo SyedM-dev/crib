@@ -34,6 +34,8 @@ struct CompletionSession {
   std::optional<char> trigger_char;
   uint8_t trigger = 0;
   CompletionBox box;
+  HoverBox hover;
+  uint32_t doc = UINT32_MAX;
 
   CompletionSession() : box(this) {}
 };

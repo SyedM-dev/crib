@@ -24,6 +24,7 @@ void background_lsp() {
 }
 
 void input_listener() {
+
   while (running) {
     KeyEvent event = throttle(1ms, read_key);
     if (event.key_type == KEY_NONE)
@@ -130,3 +131,4 @@ int main(int argc, char *argv[]) {
   clear_regex_cache();
   return 0;
 }
+

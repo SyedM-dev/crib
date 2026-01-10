@@ -1,3 +1,4 @@
+from __future__ import annotations
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Test file for Python Tree-sitter highlighting."""
@@ -17,7 +18,6 @@ __name__  # builtin constant
 import os
 import sys as system
 from re import compile as re_compile
-from __future__ import annotations
 from math import *
 
 # ==============================
@@ -94,7 +94,7 @@ while x > 0:
 
 try:
     1 / 0
-except ZeroDivisionError as e:
+except ZeroDivisionError as err:
     raise
 finally:
     pass
@@ -105,7 +105,7 @@ finally:
 a, b = 5, 10
 c = a + b * 2 // 3 % 4 ** 2
 d = (a << 2) & b | c ^ ~a
-e = not a or b and c
+ef = not a or b and c
 
 # ==============================
 # f-strings / interpolation
@@ -131,7 +131,7 @@ def static_func():
 def cls_func(cls):
     return cls
 
-@custom_decorator
+# @custom_decorator
 def decorated_func():
     return None
 

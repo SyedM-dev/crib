@@ -1,10 +1,10 @@
 #!/usr/bin/env fish
-# Fish highlighting torture test 🐟
+# Fish highlighting torture test
 
 # === Variables ===
-set normal_var "hello"
+set normal_var hello
 set -l local_var 123
-set -gx GLOBAL_VAR "world"
+set -gx GLOBAL_VAR world
 set PATH $PATH /usr/local/bin
 set --erase OLD_VAR
 
@@ -17,15 +17,15 @@ set double "double quoted $normal_var"
 set escaped "newline\n tab\t dollar\$"
 
 # === Conditionals ===
-if test $normal_var = "hello"
-    echo "equal"
-else if test $normal_var != "world"
+if test $normal_var = hello
+    echo equal
+else if test $normal_var != world
     echo "not equal"
 end
 
 # === Logical operators ===
-true and echo "yes"
-false or echo "fallback"
+true and echo yes
+false or echo fallback
 not false
 
 # === Arithmetic ===
@@ -50,14 +50,14 @@ function greet --argument name
     echo "Hello $name"
 end
 
-greet "world"
+greet world
 
 # === Command substitution ===
 set files (ls | grep ".fish")
 
 # === Redirections ===
-echo "output" > /tmp/fish_test.txt
-cat < /tmp/fish_test.txt >> /tmp/fish_log.txt
+echo output >/tmp/fish_test.txt
+cat </tmp/fish_test.txt >>/tmp/fish_log.txt
 
 # === Process substitution ===
 diff (ls /bin) (ls /usr/bin)
@@ -65,11 +65,11 @@ diff (ls /bin) (ls /usr/bin)
 # === Case statement ===
 switch $argv[1]
     case start
-        echo "Starting"
+        echo Starting
     case stop
-        echo "Stopping"
+        echo Stopping
     case '*'
-        echo "Unknown"
+        echo Unknown
 end
 
 # === Subshell ===
@@ -79,10 +79,10 @@ end
 
 # === Comments & operators ===
 # && || | & ! should all highlight
-true && echo "ok" || echo "fail"
+true && echo ok || echo fail
 
 # === Regex ===
-string match -r '^[a-z]+$' "hello"
+string match -r '^[a-z]+$' hello
 
 # === Test builtin ===
 test -f /etc/passwd
@@ -90,3 +90,4 @@ test ! -d /does/not/exist
 
 # === Exit ===
 exit 0
+
