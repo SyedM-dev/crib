@@ -26,11 +26,27 @@ git clone --recurse-submodules https://git.syedm.dev/SyedM/crib.git
 
 #### System-wide libraries
 
-Make sure to install [nlohmann/json](https://github.com/nlohmann/json) from your package manager
-(it should be available in the compiler as the header `nlohmann/json.hpp`) and to also have libmagic installed --
-`#include <magic.h>` should work. And finally for [pcre2](https://github.com/PCRE2Project/pcre2): `#include <pcre2.h>`<br>
+Make sure you have the following dependencies installed:
 
-It also uses `xclip` at runtime for copying/pasting.
+* **[nlohmann/json](https://github.com/nlohmann/json)**
+  Install it via your package manager. Once installed, the header should be available as:
+  ```cpp
+  #include <nlohmann/json.hpp>
+  ```
+
+* **libmagic**
+  Install it so that you can include it in your code:
+  ```cpp
+  #include <magic.h>
+  ```
+
+* **[PCRE2](https://github.com/PCRE2Project/pcre2)**
+  Install the library to use its headers:
+  ```cpp
+  #include <pcre2.h>
+  ```
+
+It also uses `xclip` at runtime for copying/pasting *(TODO: make it portable)*.
 And any modern terminal should work fine - preferably `kitty` or `wezterm`.<br>
 
 #### `./libs` folder
@@ -69,9 +85,9 @@ The following lsp's are supported and can be installed anywhere in your `$PATH`<
 * **sqls** — [https://github.com/lighttiger2505/sqls](https://github.com/lighttiger2505/sqls)
 * **make-language-server** — [https://github.com/make-langserver/make-language-server](https://github.com/make-langserver/make-language-server)
 
-> As it is still in development, some of these may not work as expected or that well.
-> But for c/ruby/lua/python it should work fine (I test more with these).
-> It should work even if the lsp is not installed but lsp features will not work.
+> As it is still in development, some of these may not work as expected or that well.<br>
+> But for c/ruby/lua/python it should work fine (I test more with these).<br>
+> It should work even if the lsp is not installed but lsp features will not work.<br>
 > See `include/config.h` & `include/ts/decl.h` if you want to add your own lsp and/or tree-sitter grammar.<br>
 
 #### Compiler
