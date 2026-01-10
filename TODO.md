@@ -21,6 +21,7 @@ Copyright 2025 Syed Daanish
 - [ ] For `"insertTextFormat": 2` in `clangd` and similar use only the last word in the signature when replacing
 - [ ] Keep a list of words in the current buffer. (for auto completion) (maybe?)
 - [ ] Add ecma to js and make tsx
+- [ ] Add formatting for files whose lsp doesnt.
 - [ ] Switch to like `RapidJSON` ro something more basic but faster than rn
     - also decrease use of `std::string` so much in ui stuff and lsp and warnings etc.
 - [ ] Add lsp jumping support for goto definition, hover etc.

@@ -292,6 +292,7 @@ Activated by `:` or `;`.
 - diagnostics
 - autocompletion
 - hover docs (with markdown support)
+- formatting *(very few lsp's support this - try to configure a few more which can but need configuration and for others need to add support for external formatters)*
 - A list of all supported lsp's can be found [here](#lsps).
 
 **A lot lot more to come**
