@@ -140,3 +140,4 @@ log INFO "You typed: $user_input"
 
 # End marker
 log INFO "Script finished (version $VERSION)"
+
