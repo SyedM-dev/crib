@@ -2,57 +2,119 @@ Copyright 2025 Syed Daanish
 
 # TODO
 
-- [ ] Check why fish is behaving soo off with completions filtering
-- [ ] Dont filter case sensitive.
-- [ ] Normalize completions edits if local filtering is used
-- [ ] Capture ctrl+h,l for scrolling documentation
-- [ ] Allow completion list to be scrolled up and down and show only x max at a time
-- [ ] Do not recompute word under cursor if not changed
-- [ ] Finish autocomplete box style functions.
-- [ ] Add status bar & RUNNER mode
-- [ ] Get code context from tree-sitter
-- [ ] Maybe hide boxes in !`normal` mode
-- [ ] expand color regex to match css colors if in css file
-- [ ] Fix indentation logic - tree-sitter indents too if possible
-    - Make it work by one getting the identation used in a file by first checking if it has any line with 2 or more spaces then the least one is set to be the indent or if it is tabs then tabs but if there are none then use a table of file type to its indentation or use 2 spaces as default. store this info as `1 = tab` and `2 or more = those many spaces`.
-    - Use this when indenting and unindenting. And also when getting the identation of a line.
-    - Also indent when going immediately to newline should follow indent of previous line regardless of file default.
-- [ ] Fix bug where closing immediately while lsp is loading hangs and then segfaults.
-- [ ] For `"insertTextFormat": 2` in `clangd` and similar use only the last word in the signature when replacing
-- [ ] Keep a list of words in the current buffer. (for auto completion) (maybe?)
-- [ ] Add ecma to js and make tsx
-- [ ] Add formatting for files whose lsp doesnt.
-- [ ] Switch to like `RapidJSON` ro something more basic but faster than rn
-    - also decrease use of `std::string` so much in ui stuff and lsp and warnings etc.
-- [ ] Add lsp jumping support for goto definition, hover etc.
-- [ ] Add lsp rename support for renaming a symbol. (also see what tree-sitter can do here)
-- [ ] Check into more lsp stuff i can add.
-- [ ] Add codeium/copilot support for auto-completion (uses the VAI virtual text) as a test phase.
-- [ ] Add a whitespace highlighter (nerd font). for spaces and tabs at start/end of line. not as virtual but instead at render time.
-- [ ] Once renderer is proven to work well (i.e. redo this commit) merge `experimental` branch into `main`. commit `43f443e` on `experimental`.
-- [ ] Add snippets from wherever i get them. (like luasnip or vsnip)
-- [ ] Add this thing where select at end of screen scrolls down. (and vice versa)
-    - Can be acheived by updating `main.cc` to send drag events to the selected editor instead of just under cursor.
-    - Then a drag event above or below will scroll the selected editor.
-- [ ] Add support for virtual cursor where edits apply at all the places.
-- [ ] Add alt + click to set multiple cursors.
-- [ ] Add search / replace along with search / virtual cursors are searched pos.
-    - Allow using perl directly for replace maybe? and others with my dfa?
-    - or add searcher that supports $1 $2 etc. (capture groups)
-- [ ] Add support for undo/redo.
-- [ ] Add splash screen / minigame jumping.
-- [ ] Normalize / validate unicode on file open. so use utf8 purely and fix other types of files
-- [ ] Add git stuff.
-- [ ] Add SQL support. (viewer and basic editor)
-- [ ] Add color picker/palette for hex or other css colors.
-- [ ] Fix bug where alt+up at eof adds extra line.
-- [ ] Think about how i would keep fold states sensical if i added code prettying/formatting.
-- [ ] Use tree-sitter to get the node path of the current node under cursor and add an indicator bar. 
-    - (possibly with a picker to jump to any node)
-- [ ] Add the highlight of block edges when cursor is on a bracket (or in). (prolly from lsp)
-- [ ] Add this thing where selection double click on a bracket selects whole block.
-    - (only on the first time) and sets mode to `WORD`.
-- [ ] Redo cpp/c/h scm file . also pretty much all of them do manually
-- [ ] Try making `lua-typed` and man pages `tree-sitter` grammar.
-- [ ] Redo folding system and its relation to move_line_* functions. (Currently its a mess)
-- [ ] Make whole thing event driven and not clock driven.
+### Critical Fixes
+
+* [ ] **Critical Crash:** Fix bug where closing immediately while LSP is still loading hangs and then segfaults (especially on slow ones like fish-lsp).
+* [ ] **Navigation Bug:** Fix bug where `Alt+Up` at EOF adds an extra line.
+* [ ] **LSP Bug:** Check why `fish-lsp` is behaving so off with completions filtering.
+* [ ] **File IO:** Normalize/validate unicode on file open (enforce UTF-8, handle other types gracefully).
+
+
+### Core Editing Mechanics
+
+* [ ] **Undo/Redo:** Add support for undo/redo history.
+* [ ] **Indentation Engine (Major Task):**
+    * **Startup:**
+        1. Scan file: Check for lines with 2+ spaces. Least count = indent. If tabs, use tabs.
+        2. Fallback: Use table of file types or default to 2 spaces.
+        3. Store as: `1 = tab`, `2+ = n spaces`.
+        4. Apply: Use this for indent/unindent actions.
+        5. Newline: Follow indent of previous line immediately (ignore default).
+    * **Indent/Unindent:**
+        * Add support for indent/unindent actions.
+        * that use indentation of previous line that is not comment or string or whitespace/blank.
+        * and try auto indent one level extra if previous line ends with colon or bracket start.
+        * and dedent one level extra if previous line ends with bracket end.
+    * **Newline:** Add support for newline actions similar to indent.
+
+* [ ] **Tree-sitter Indent:** Attempt to allow Tree-sitter to handle indentation if possible.
+
+* [ ] **Scrolling:** Add logic where selecting at the end of the screen scrolls down (and vice versa).
+    * *Implementation:* Update `main.cc` to send drag events to the selected editor.
+
+* [ ] **Documentation UI:** Capture `Ctrl+h` / `Ctrl+l` for scrolling documentation windows.
+
+
+### UX
+
+* [ ] **Editor word highlighter:** Do not recompute word under cursor if not changed.
+
+* [ ] **Completion Filtering:**
+    * [ ] Stop filtering case-sensitive.
+    * [ ] Normalize completion edits if local filtering is used.
+
+* [ ] **UI Refinement:**
+    * [ ] Allow completion list to be scrolled; show only `x` max items.
+    * [ ] Finish autocomplete box style functions.
+
+* [ ] **LSP Features:**
+    * [ ] Add LSP jumping support (Go to Definition, Hover).
+    * [ ] Add LSP rename support.
+    * [ ] Handle snippets properly in autocomplete: use only the last word in signature when replacing and set cursor to the first one.
+
+* [ ] **Basic Autocomplete:** Keep a list of words in the current buffer for non-LSP fallback.
+* [ ] **Language Support:**
+    * [ ] Add ECMA to JS and make TSX support.
+    * [ ] Add formatting for files where LSP doesn't provide it.
+    * [ ] Redo grammar files properly (especially cpp).
+
+
+### Major Features
+
+* [ ] **Search & Replace:**
+    * [ ] Add Search/Replace UI.
+    * [ ] Support capture groups (`$1`, `$2`) or allow Perl regex directly.
+    * [ ] Ensure virtual cursors are included in search positions.
+
+* [ ] **Multi-Cursor:**
+    * [ ] Add virtual cursor support (edits apply to all locations).
+    * [ ] Add `Alt+Click` to set multiple cursors.
+    * [ ] Allow search and place cursor at all matches.
+
+* [ ] **Block Selection:**
+    * [ ] Double-clicking a bracket selects the whole block (first time only) and sets mode to `WORD`.
+
+* [ ] **Tree-sitter Context:**
+    * [ ] Get code context from Tree-sitter.
+    * [ ] Get node path of current cursor and add indicator bar (breadcrumbs).
+    * [ ] Highlight block edges when cursor is on/in a bracket.
+
+
+### Visuals, UI & Extensions?
+
+*Focus: Aesthetics and external integrations.*
+
+* [ ] **Status Bar:** Complete status bar and command runner.
+
+* [ ] **Visual Aids:**
+    * [ ] Expand color regex to match CSS colors in CSS files.
+    * [ ] Add color picker/palette.
+
+* [ ] **Git:** Add Git integration (status, diffs).
+* [ ] **AI/Snippets:**
+    * [ ] Add snippets support (LuaSnip/VSnip style).
+    * [ ] Add Codeium/Copilot support (using VAI virtual text) as a test phase.
+
+* [ ] **SQL:** Add SQL support (Viewer and Basic Editor).
+* [ ] **Prolly?:** Add Splash Screen / Minigame.
+
+
+### Optimizations & Fluff
+
+* [ ] **Event Loop:**
+    * [ ] Make the whole engine event-driven rather than clock-driven.
+    * [ ] Mybe keep background thread with dirty flag.
+    * [ ] But merge input and render into a single loop that only renders when input affects render or background thread needs refresh and try to couple multiple renders.
+    * [ ] LSP and inputs should be blocking (lsp on its fd) and inputs in io/input.cc
+
+* [ ] **Performance:**
+    * [ ] Switch JSON parser to `RapidJSON` (or similar high-performance lib).
+    * [ ] Decrease usage of `std::string` in UI, LSP, and warnings.
+
+* [ ] **Folding:** Redo folding system and its relation to `move_line_*` functions.
+
+* [ ] **Grammars:**
+    * [ ] Manually add redo SCM files (especially cpp/c/h).
+    * [ ] Create `lua-typed` and `man pages` Tree-sitter grammars.
+
+* [ ] **Repo Maintenance:** Once renderer is proven check commit `43f443e`.
