@@ -53,7 +53,8 @@ void completion_request(Editor *editor) {
   Coord hook = editor->cursor;
   word_boundaries(editor, editor->cursor, &hook.col, nullptr, nullptr, nullptr);
   editor->completion.hook = hook;
-  editor->completion.active = true;
+  editor->completion.complete = false;
+  editor->completion.active = false;
   editor->completion.items.clear();
   editor->completion.visible.clear();
   editor->completion.select = 0;
@@ -71,9 +72,15 @@ void completion_request(Editor *editor) {
       if (result.is_array()) {
         items_json = result.get<std::vector<json>>();
         session.complete = true;
+        if (items_json.empty())
+          return;
+        editor->completion.active = true;
       } else if (result.is_object() && result.contains("items")) {
         auto &list = result;
         items_json = list["items"].get<std::vector<json>>();
+        if (items_json.empty())
+          return;
+        editor->completion.active = true;
         session.complete = !list.value("isIncomplete", false);
         if (list.contains("itemDefaults") && list["itemDefaults"].is_object()) {
           auto &defs = list["itemDefaults"];
@@ -246,16 +253,16 @@ void handle_completion(Editor *editor, KeyEvent event) {
           return;
         }
     } else {
-      if (editor->completion.items.empty())
-        return;
-      const auto &item = editor->completion.items[editor->completion.select];
-      const std::vector<char> &end_chars =
-          item.end_chars.empty() ? editor->lsp->end_chars : item.end_chars;
-      for (char c : end_chars)
-        if (c == ch) {
-          complete_accept(editor);
-          return;
-        }
+      if (!editor->completion.items.empty()) {
+        const auto &item = editor->completion.items[editor->completion.select];
+        const std::vector<char> &end_chars =
+            item.end_chars.empty() ? editor->lsp->end_chars : item.end_chars;
+        for (char c : end_chars)
+          if (c == ch) {
+            complete_accept(editor);
+            return;
+          }
+      }
     }
     if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
         (ch >= '0' && ch <= '9') || ch == '_') {
@@ -269,7 +276,7 @@ void handle_completion(Editor *editor, KeyEvent event) {
         completion_request(editor);
       }
     } else if (ch == CTRL('\\')) {
-      if (editor->completion.active && editor->completion.visible.size()) {
+      if (editor->completion.active && !editor->completion.visible.empty()) {
         complete_accept(editor);
       } else {
         editor->completion.trigger = 1;
@@ -294,6 +301,9 @@ void handle_completion(Editor *editor, KeyEvent event) {
           else
             completion_request(editor);
         }
+      } else {
+        editor->completion.trigger = 3;
+        completion_request(editor);
       }
     } else {
       editor->completion.active = false;
@@ -362,7 +372,21 @@ void complete_accept(Editor *editor) {
   if (!editor->completion.active || editor->completion.box.hidden)
     return;
   auto &item = editor->completion.items[editor->completion.select];
-  // TODO: support snippets here
+  // TODO: support snippets here maybe?
+  int delta_col = 0;
+  TextEdit &e = item.edits[0];
+  if (e.end.row == editor->cursor.row) {
+    delta_col = editor->cursor.col - e.end.col;
+    e.end.col = editor->cursor.col;
+    for (size_t i = 1; i < item.edits.size(); ++i) {
+      TextEdit &e = item.edits[i];
+      if (e.start.row == editor->cursor.row) {
+        e.start.col += delta_col;
+        if (e.end.row == editor->cursor.row)
+          e.end.col += delta_col;
+      }
+    }
+  }
   apply_lsp_edits(editor, item.edits, true);
   editor->completion.active = false;
 }
