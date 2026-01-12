@@ -88,6 +88,7 @@ static const std::unordered_map<uint8_t, LSP> kLsps = {
           "--stdio",
           nullptr,
       }}},
+#define LUA_LS 12
     {12,
      {"lua-language-server",
       {
@@ -204,7 +205,6 @@ static const std::unordered_map<std::string, Language> kLanguages = {
     {"query", {"query", LANG(query), 0, 0x7E57C2, " "}},
     {"regex", {"regex", LANG(regex), 0, 0x9E9E9E, ".*"}},
     {"ini", {"ini", LANG(ini), 0, 0x6d8086, " "}},
-
 };
 
 static const std::unordered_map<std::string, std::string> kExtToLang = {
@@ -257,6 +257,7 @@ static const std::unordered_map<std::string, std::string> kExtToLang = {
     {"toml", "toml"},
     {"yaml", "yaml"},
     {"yml", "yaml"},
+    {"clangd", "yaml"},
 };
 
 static const std::unordered_map<std::string, std::string> kMimeToLang = {

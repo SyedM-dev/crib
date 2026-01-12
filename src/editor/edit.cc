@@ -286,10 +286,10 @@ void edit_replace(Editor *editor, Coord start, Coord end, const char *text,
   uint32_t start_byte =
       line_to_byte(editor->root, start.row, nullptr) + start.col;
   uint32_t end_byte = line_to_byte(editor->root, end.row, nullptr) + end.col;
-  lock.unlock();
   char *buf = read(editor->root, start_byte, end_byte - start_byte);
   if (!buf)
     return;
+  lock.unlock();
   uint32_t erase_len =
       count_clusters(buf, end_byte - start_byte, 0, end_byte - start_byte);
   free(buf);

@@ -4,35 +4,44 @@ Copyright 2025 Syed Daanish
 
 ### Critical Fixes
 
-* [ ] **Critical Crash:** Fix bug where closing immediately while LSP is still loading hangs and then segfaults (especially on slow ones like fish-lsp).
-* [ ] **Navigation Bug:** Fix bug where `Alt+Up` at EOF adds an extra line.
+##### Check each lsp with each of the features implemented
+
 * [ ] **LSP Bug:** Check why `fish-lsp` is behaving so off with completions filtering.
 * [ ] **File IO:** Normalize/validate unicode on file open (enforce UTF-8, handle other types gracefully).
-
+* [ ] **Critical Crash:** Fix bug where closing immediately while LSP is still loading hangs and then segfaults (especially on slow ones like fish-lsp).
+* [ ] **Navigation Bug:** Fix bug where `Alt+Up` at EOF adds an extra line.
+* [ ] **Modularize handle_events functions:** The function is over 700 lines with a lot of repeating blocks. Split into smaller functions.
+* [ ] **Editor Indentation Fix:**
+    * [ ] Keep cache of language maps in engine to reduce lookup time.
+    * [ ] In indents add function to support tab which indents if before any content and inserts a pure \t otherwise.
+    * [ ] And backspace which undents if before any content.
+    * [ ] Add block indentation support.
+    * [ ] Ignore comments/strings (maybe as-set by tree-sitter) when auto-indenting.
+    * [ ] Just use span cursor to avoid strings/comments.. And use another map for c-style single line block and add stuff like operators to it.
+    * [ ] These will dedent when the block immediately after them is dedented
+    * [ ] Dont dedent is ending is valid starting is invalid but also empty
+    * [ ] Just leave asis if starting is empty
+* [ ] **Readme:** Update readme to show indetation mechanics.
+* [ ] **LSP Bug:** Try to find out why emojis are breaking lsp edits. (check the ruby sample)
+* [ ] **UI Refinement:**
+    * [ ] Allow completion list to be scrolled; show only `x` max items.
+    * [ ] Finish autocomplete box style functions.
+* [ ] **Documentation UI:** Capture `Ctrl+h` / `Ctrl+l` for scrolling documentation windows.
+* [ ] **Redo hooks and folding as proper engines**: With functions to checkstate/cursor like function and edits application.
+* [ ] Do trextmate like regex grammar parsing with lsp symbols for semantic highlighting.
+    * Probably remove tre--sitter or just keep it for context tree.
+    * Making bracket matching andignoring strings/comments easier.
 
 ### Core Editing Mechanics
 
 * [ ] **Undo/Redo:** Add support for undo/redo history.
-* [ ] **Indentation Engine (Major Task):**
-    * **Startup:**
-        1. Scan file: Check for lines with 2+ spaces. Least count = indent. If tabs, use tabs.
-        2. Fallback: Use table of file types or default to 2 spaces.
-        3. Store as: `1 = tab`, `2+ = n spaces`.
-        4. Apply: Use this for indent/unindent actions.
-        5. Newline: Follow indent of previous line immediately (ignore default).
-    * **Indent/Unindent:**
-        * Add support for indent/unindent actions.
-        * that use indentation of previous line that is not comment or string or whitespace/blank.
-        * and try auto indent one level extra if previous line ends with colon or bracket start.
-        * and dedent one level extra if previous line ends with bracket end.
-    * **Newline:** Add support for newline actions similar to indent.
+
+* [ ] **Auto brace selection:** Add support for auto brace selection.
 
 * [ ] **Tree-sitter Indent:** Attempt to allow Tree-sitter to handle indentation if possible.
 
 * [ ] **Scrolling:** Add logic where selecting at the end of the screen scrolls down (and vice versa).
     * *Implementation:* Update `main.cc` to send drag events to the selected editor.
-
-* [ ] **Documentation UI:** Capture `Ctrl+h` / `Ctrl+l` for scrolling documentation windows.
 
 
 ### UX
@@ -42,10 +51,6 @@ Copyright 2025 Syed Daanish
 * [ ] **Completion Filtering:**
     * [ ] Stop filtering case-sensitive.
     * [ ] Normalize completion edits if local filtering is used.
-
-* [ ] **UI Refinement:**
-    * [ ] Allow completion list to be scrolled; show only `x` max items.
-    * [ ] Finish autocomplete box style functions.
 
 * [ ] **LSP Features:**
     * [ ] Add LSP jumping support (Go to Definition, Hover).
@@ -110,6 +115,7 @@ Copyright 2025 Syed Daanish
 * [ ] **Performance:**
     * [ ] Switch JSON parser to `RapidJSON` (or similar high-performance lib).
     * [ ] Decrease usage of `std::string` in UI, LSP, and warnings.
+    * [ ] Also for vectors into managed memory especially for completions/lsp-stuff.
 
 * [ ] **Folding:** Redo folding system and its relation to `move_line_*` functions.
 

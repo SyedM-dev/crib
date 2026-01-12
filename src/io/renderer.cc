@@ -1,4 +1,5 @@
 #include "io/sysio.h"
+#include <cstdint>
 
 uint32_t rows, cols;
 bool show_cursor = 0;
@@ -143,7 +144,7 @@ void render() {
       if (content_changed) {
         if (first_change_col == -1) {
           first_change_col = col;
-          if (first_change_col > 0) {
+          if (first_change_col > 0)
             for (int64_t back = 1; back <= 4 && first_change_col - back >= 0;
                  ++back) {
               ScreenCell &prev_cell =
@@ -153,9 +154,8 @@ void render() {
                 break;
               }
             }
-          }
         }
-        last_change_col = col;
+        last_change_col = MIN(cols + 1, col + 4);
       }
     }
     if (first_change_col == -1)
@@ -253,10 +253,18 @@ void render() {
         out.push_back(' ');
       } else {
         if (!new_cell.utf8.empty()) {
-          if (new_cell.utf8[0] == '\t')
+          if (new_cell.utf8[0] == '\t') {
             out.append("    ");
-          else if (new_cell.utf8[0] != '\x1b')
+          } else if (new_cell.utf8[0] != '\x1b') {
             out.append(new_cell.utf8);
+          } else if (new_cell.utf8[0] == '\x1b') {
+            ScreenCell *cell = &new_cell;
+            int back = 0;
+            while ((int)col - back >= 0 && cell->utf8[0] == '\x1b')
+              cell = &screen[row * cols + col - ++back];
+            if (width >= cell->width)
+              out.append(" ");
+          }
         } else {
           out.push_back(' ');
         }

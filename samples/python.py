@@ -12,6 +12,7 @@ NotImplemented
 Ellipsis
 __name__  # builtin constant
 
+
 # ==============================
 # Imports
 # ==============================
@@ -71,7 +72,7 @@ GLOBAL_VAR = 3
 
 # Builtin variable references
 self = "something"
-cls = "class"
+cls = "dj"
 
 # ==============================
 # Control flow

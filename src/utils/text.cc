@@ -42,6 +42,39 @@ std::string percent_encode(const std::string &s) {
   return out;
 }
 
+std::string substitute_fence(const std::string &documentation,
+                             const std::string &lang) {
+  int errorcode;
+  PCRE2_SIZE erroroffset;
+  const char *pattern = "\n```\n(.*?)```\n";
+  pcre2_code *re =
+      pcre2_compile((PCRE2_SPTR)pattern, PCRE2_ZERO_TERMINATED, PCRE2_DOTALL,
+                    &errorcode, &erroroffset, nullptr);
+  if (!re)
+    return documentation;
+  PCRE2_SIZE outlen = 0;
+  std::string replacement = "```" + lang + "\n$1```";
+  int rc = pcre2_substitute(
+      re, (PCRE2_SPTR)documentation.c_str(), documentation.size(), 0,
+      PCRE2_SUBSTITUTE_GLOBAL | PCRE2_SUBSTITUTE_OVERFLOW_LENGTH, nullptr,
+      nullptr, (PCRE2_SPTR)replacement.c_str(), replacement.size(), nullptr,
+      &outlen);
+  if (rc < 0) {
+    pcre2_code_free(re);
+    return documentation;
+  }
+  std::string out(outlen, '\0');
+  rc = pcre2_substitute(re, (PCRE2_SPTR)documentation.c_str(),
+                        documentation.size(), 0, PCRE2_SUBSTITUTE_GLOBAL,
+                        nullptr, nullptr, (PCRE2_SPTR)replacement.c_str(),
+                        replacement.size(), (PCRE2_UCHAR *)out.data(), &outlen);
+  pcre2_code_free(re);
+  if (rc < 0)
+    return documentation;
+  out.resize(outlen);
+  return out;
+}
+
 std::string trim(const std::string &s) {
   size_t start = s.find_first_not_of(" \t\n\r");
   if (start == std::string::npos)

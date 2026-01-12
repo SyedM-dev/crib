@@ -5,7 +5,6 @@
 #include "lsp/lsp.h"
 #include "main.h"
 #include "utils/utils.h"
-#include <regex>
 
 inline static std::string completion_prefix(Editor *editor) {
   Coord hook = editor->completion.hook;
@@ -58,6 +57,7 @@ void completion_request(Editor *editor) {
   editor->completion.items.clear();
   editor->completion.visible.clear();
   editor->completion.select = 0;
+  editor->completion.version = editor->lsp_version;
   LSPPending *pending = new LSPPending();
   pending->editor = editor;
   pending->method = "textDocument/completion";
@@ -67,6 +67,7 @@ void completion_request(Editor *editor) {
     std::vector<json> items_json;
     std::vector<char> end_chars_def;
     int insert_text_format = 1;
+    int insert_text_mode = 1;
     if (message.contains("result")) {
       auto &result = message["result"];
       if (result.is_array()) {
@@ -87,6 +88,9 @@ void completion_request(Editor *editor) {
           if (defs.contains("insertTextFormat") &&
               defs["insertTextFormat"].is_number())
             insert_text_format = defs["insertTextFormat"].get<int>();
+          if (defs.contains("insertTextMode") &&
+              defs["insertTextMode"].is_number())
+            insert_text_mode = defs["insertTextMode"].get<int>();
           if (defs.contains("textEdit"))
             if (defs["textEdit"].is_array())
               for (auto &c : defs["textEdit"]) {
@@ -119,10 +123,11 @@ void completion_request(Editor *editor) {
               "markdown";
           std::string documentation =
               item_json["documentation"]["value"].get<std::string>();
+          if (documentation.size() > 1024)
+            item.is_markup = false;
           if (item.is_markup) {
-            static const std::regex fence_no_lang("```(\\s*\\n)");
-            item.documentation = std::regex_replace(
-                documentation, fence_no_lang, "```" + editor->lang.name + "$1");
+            item.documentation =
+                substitute_fence(documentation, editor->lang.name);
           } else {
             item.documentation = documentation;
           }
@@ -193,6 +198,8 @@ void completion_request(Editor *editor) {
       item.snippet = insert_text_format == 2;
       if (item_json.contains("insertTextFormat"))
         item.snippet = item_json["insertTextFormat"].get<int>() == 2;
+      if (item_json.contains("insertTextMode"))
+        item.asis = item_json["insertTextMode"].get<int>() == 1;
       if (item_json.contains("commitCharacters"))
         for (auto &c : item_json["commitCharacters"])
           if (c.is_string() && c.get<std::string>().size() == 1)
@@ -301,9 +308,6 @@ void handle_completion(Editor *editor, KeyEvent event) {
           else
             completion_request(editor);
         }
-      } else {
-        editor->completion.trigger = 3;
-        completion_request(editor);
       }
     } else {
       editor->completion.active = false;
@@ -351,10 +355,11 @@ void completion_resolve_doc(Editor *editor) {
             "markdown";
         std::string documentation =
             message["result"]["documentation"]["value"].get<std::string>();
+        if (documentation.size() > 1024)
+          item.is_markup = false;
         if (item.is_markup) {
-          static const std::regex fence_no_lang("```(\\s*\\n)");
-          item.documentation = std::regex_replace(
-              documentation, fence_no_lang, "```" + editor->lang.name + "$1");
+          item.documentation =
+              substitute_fence(documentation, editor->lang.name);
         } else {
           item.documentation = documentation;
         }
@@ -372,18 +377,21 @@ void complete_accept(Editor *editor) {
   if (!editor->completion.active || editor->completion.box.hidden)
     return;
   auto &item = editor->completion.items[editor->completion.select];
-  // TODO: support snippets here maybe?
-  int delta_col = 0;
-  TextEdit &e = item.edits[0];
-  if (e.end.row == editor->cursor.row) {
-    delta_col = editor->cursor.col - e.end.col;
-    e.end.col = editor->cursor.col;
-    for (size_t i = 1; i < item.edits.size(); ++i) {
-      TextEdit &e = item.edits[i];
-      if (e.start.row == editor->cursor.row) {
-        e.start.col += delta_col;
-        if (e.end.row == editor->cursor.row)
-          e.end.col += delta_col;
+  // TODO: support snippets and asis here
+  //       once indentation engine is implemented
+  if (editor->completion.version != editor->lsp_version) {
+    int delta_col = 0;
+    TextEdit &e = item.edits[0];
+    if (e.end.row == editor->cursor.row) {
+      delta_col = editor->cursor.col - e.end.col;
+      e.end.col = editor->cursor.col;
+      for (size_t i = 1; i < item.edits.size(); ++i) {
+        TextEdit &e = item.edits[i];
+        if (e.start.row == editor->cursor.row) {
+          e.start.col += delta_col;
+          if (e.end.row == editor->cursor.row)
+            e.end.col += delta_col;
+        }
       }
     }
   }

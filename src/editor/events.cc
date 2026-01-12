@@ -2,6 +2,8 @@
 #include "editor/folds.h"
 #include "lsp/lsp.h"
 #include "main.h"
+#include "utils/utils.h"
+#include <cstdint>
 
 void handle_editor_event(Editor *editor, KeyEvent event) {
   static std::chrono::steady_clock::time_point last_click_time =
@@ -21,11 +23,11 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
     case SCROLL:
       switch (event.mouse_direction) {
       case SCROLL_UP:
-        scroll_up(editor, 10);
+        scroll_up(editor, 4);
         ensure_cursor(editor);
         break;
       case SCROLL_DOWN:
-        scroll_down(editor, 10);
+        scroll_down(editor, 4);
         ensure_cursor(editor);
         break;
       case SCROLL_LEFT:
@@ -355,13 +357,17 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
         ensure_cursor(editor);
         break;
       case '>':
-      case '.':
-        indent_line(editor, editor->cursor.row);
-        break;
+      case '.': {
+        uint32_t delta = editor->indents.indent_line(editor->cursor.row);
+        editor->cursor.col = start.col + delta;
+        editor->cursor.row = start.row;
+      } break;
       case '<':
-      case ',':
-        dedent_line(editor, editor->cursor.row);
-        break;
+      case ',': {
+        uint32_t delta = editor->indents.dedent_line(editor->cursor.row);
+        editor->cursor.col = MAX((int64_t)start.col - delta, 0);
+        editor->cursor.row = start.row;
+      } break;
       case CTRL('s'):
         save_file(editor);
         break;
@@ -385,33 +391,7 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
           edit_insert(editor, editor->cursor, (char *)"  ", 2);
           cursor_right(editor, 2);
         } else if (event.c[0] == '\n' || event.c[0] == '\r') {
-          uint32_t line_len = 0;
-          LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
-          char *line = next_line(it, &line_len);
-          bool closing = false;
-          if (line && line_len > 0 && line[line_len - 1] == '\n')
-            line_len--;
-          uint32_t indent = get_indent(editor, editor->cursor);
-          if (line) {
-            if (indent == 0)
-              indent = leading_indent(line, line_len);
-            closing = closing_after_cursor(line, line_len, editor->cursor.col);
-          }
-          free(it->buffer);
-          free(it);
-          uint32_t closing_indent =
-              indent >= INDENT_WIDTH ? indent - INDENT_WIDTH : 0;
-          std::string insert_text("\n");
-          insert_text.append(indent, ' ');
-          Coord new_cursor = {editor->cursor.row + 1, indent};
-          if (closing) {
-            insert_text.push_back('\n');
-            insert_text.append(closing_indent, ' ');
-          }
-          edit_insert(editor, editor->cursor, insert_text.data(),
-                      insert_text.size());
-          editor->cursor = new_cursor;
-          editor->cursor_preffered = UINT32_MAX;
+          editor->indents.insert_new_line(editor->cursor);
         } else if (event.c[0] == CTRL('W')) {
           uint32_t prev_col_byte, prev_col_cluster;
           word_boundaries(editor, editor->cursor, &prev_col_byte, nullptr,
@@ -424,8 +404,15 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
           char c = event.c[0];
           uint32_t col = editor->cursor.col;
           LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
+          if (!it)
+            return;
           uint32_t len;
           char *line = next_line(it, &len);
+          if (!line) {
+            free(it->buffer);
+            free(it);
+            return;
+          }
           bool skip_insert = false;
           if (line && col < len) {
             char next = line[col];
@@ -464,6 +451,67 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
             } else {
               edit_insert(editor, editor->cursor, &c, 1);
               cursor_right(editor, 1);
+            }
+            if (editor->lsp && editor->lsp->allow_formatting_on_type) {
+              for (char ch : editor->lsp->format_chars) {
+                if (ch == c) {
+                  LineIterator *it =
+                      begin_l_iter(editor->root, editor->cursor.row);
+                  if (!it)
+                    return;
+                  char *line = next_line(it, nullptr);
+                  if (!line) {
+                    free(it->buffer);
+                    free(it);
+                    return;
+                  }
+                  uint32_t col =
+                      utf8_byte_offset_to_utf16(line, editor->cursor.col);
+                  free(it->buffer);
+                  free(it);
+                  int version = editor->lsp_version;
+                  json message = {
+                      {"jsonrpc", "2.0"},
+                      {"method", "textDocument/onTypeFormatting"},
+                      {"params",
+                       {{"textDocument", {{"uri", editor->uri}}},
+                        {"position",
+                         {{"line", editor->cursor.row}, {"character", col}}},
+                        {"ch", std::string(1, c)},
+                        {"options",
+                         {{"tabSize", 2},
+                          {"insertSpaces", true},
+                          {"trimTrailingWhitespace", true},
+                          {"trimFinalNewlines", true}}}}}};
+                  LSPPending *pending = new LSPPending();
+                  pending->editor = editor;
+                  pending->method = "textDocument/onTypeFormatting";
+                  pending->callback = [version](Editor *editor, std::string,
+                                                json message) {
+                    if (version != editor->lsp_version)
+                      return;
+                    auto &edits = message["result"];
+                    if (edits.is_array()) {
+                      std::vector<TextEdit> t_edits;
+                      t_edits.reserve(edits.size());
+                      for (auto &edit : edits) {
+                        TextEdit t_edit;
+                        t_edit.text = edit.value("newText", "");
+                        t_edit.start.row = edit["range"]["start"]["line"];
+                        t_edit.start.col = edit["range"]["start"]["character"];
+                        t_edit.end.row = edit["range"]["end"]["line"];
+                        t_edit.end.col = edit["range"]["end"]["character"];
+                        utf8_normalize_edit(editor, &t_edit);
+                        t_edits.push_back(t_edit);
+                      }
+                      apply_lsp_edits(editor, t_edits, false);
+                      ensure_scroll(editor);
+                    }
+                  };
+                  lsp_send(editor->lsp, message, pending);
+                  break;
+                }
+              }
             }
           }
         } else if (event.c[0] == 0x7F || event.c[0] == 0x08) {

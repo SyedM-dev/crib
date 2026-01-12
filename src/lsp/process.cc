@@ -59,7 +59,7 @@ std::shared_ptr<LSPInstance> get_or_init_lsp(uint8_t lsp_id) {
     LSPPending *pending = new LSPPending();
     pending->method = "initialize";
     pending->editor = nullptr;
-    pending->callback = [lsp](Editor *, std::string, json msg) {
+    pending->callback = [lsp, lsp_id](Editor *, std::string, json msg) {
       if (msg.contains("result") && msg["result"].contains("capabilities")) {
         auto &caps = msg["result"]["capabilities"];
         if (caps.contains("textDocumentSync")) {
@@ -73,7 +73,8 @@ std::shared_ptr<LSPInstance> get_or_init_lsp(uint8_t lsp_id) {
           }
         }
         lsp->allow_formatting = caps.value("documentFormattingProvider", false);
-        if (caps.contains("documentOnTypeFormattingProvider")) {
+        if (lsp_id != LUA_LS /* Lua ls gives terrible ontype formatting */ &&
+            caps.contains("documentOnTypeFormattingProvider")) {
           auto &fmt = caps["documentOnTypeFormattingProvider"];
           if (fmt.is_object()) {
             if (fmt.contains("firstTriggerCharacter")) {
@@ -93,7 +94,6 @@ std::shared_ptr<LSPInstance> get_or_init_lsp(uint8_t lsp_id) {
             lsp->allow_formatting_on_type = fmt.get<bool>();
           }
         }
-
         if (caps.contains("hoverProvider")) {
           auto &hover = caps["hoverProvider"];
           lsp->allow_hover =

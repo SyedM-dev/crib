@@ -102,8 +102,8 @@ local nothing = nil
 -- Comments
 -- Single line
 --[[
-    Multi-line
-    comment
+  Multi-line
+  comment
 ]]
 
 -- Strings

@@ -2,6 +2,7 @@
 #define EDITOR_H
 
 #include "editor/completions.h"
+#include "editor/indents.h"
 #include "editor/spans.h"
 #include "io/knot.h"
 #include "io/sysio.h"
@@ -52,8 +53,9 @@ struct Editor {
   HoverBox hover;
   bool diagnostics_active;
   DiagnosticBox diagnostics;
-  int lsp_version = 1;
+  std::atomic<int> lsp_version = 1;
   CompletionSession completion;
+  IndentationEngine indents;
 };
 
 Editor *new_editor(const char *filename_arg, Coord position, Coord size);
@@ -72,8 +74,6 @@ void cursor_right(Editor *editor, uint32_t number);
 void scroll_up(Editor *editor, int32_t number);
 void scroll_down(Editor *editor, uint32_t number);
 void ensure_cursor(Editor *editor);
-void indent_line(Editor *editor, uint32_t row);
-void dedent_line(Editor *editor, uint32_t row);
 void ensure_scroll(Editor *editor);
 void handle_editor_event(Editor *editor, KeyEvent event);
 void edit_erase(Editor *editor, Coord pos, int64_t len);
@@ -93,9 +93,6 @@ void word_boundaries_exclusive(Editor *editor, Coord coord, uint32_t *prev_col,
 std::vector<Fold>::iterator find_fold_iter(Editor *editor, uint32_t line);
 bool add_fold(Editor *editor, uint32_t start, uint32_t end);
 bool remove_fold(Editor *editor, uint32_t line);
-uint32_t leading_indent(const char *line, uint32_t len);
-uint32_t get_indent(Editor *editor, Coord cursor);
-bool closing_after_cursor(const char *line, uint32_t len, uint32_t col);
 void editor_lsp_handle(Editor *editor, json msg);
 void apply_lsp_edits(Editor *editor, std::vector<TextEdit> edits, bool move);
 void completion_resolve_doc(Editor *editor);

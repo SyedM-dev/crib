@@ -7,8 +7,6 @@ void HoverBox::clear() {
   is_markup = false;
   size = {0, 0};
   cells.clear();
-  highlights.clear();
-  hover_spans.clear();
 }
 
 void HoverBox::scroll(int32_t number) {
@@ -30,9 +28,11 @@ void HoverBox::render_first(bool scroll) {
     std::vector<Span> injected_spans;
     TSSetBase ts = TSSetBase{};
     if (is_markup) {
+      highlights.clear();
       highlights.reserve(1024);
       base_spans.reserve(1024);
       injected_spans.reserve(1024);
+      hover_spans.clear();
       hover_spans.reserve(1024);
       std::string query_path = get_exe_dir() + "/../grammar/hover.scm";
       ts.language = LANG(markdown)();
@@ -85,6 +85,8 @@ void HoverBox::render_first(bool scroll) {
                 uint32_t start = ts_node_start_byte(inj_cap.node);
                 uint32_t end = ts_node_end_byte(inj_cap.node);
                 if (Highlight *hl = safe_get(inj_ts.query_map, inj_cap.index)) {
+                  if (highlights.size() >= 1000)
+                    continue;
                   highlights.push_back(*hl);
                   Highlight *hl_f = &highlights.back();
                   injected_spans.push_back({start, end, hl_f});
@@ -98,6 +100,8 @@ void HoverBox::render_first(bool scroll) {
             continue;
           }
           if (Highlight *hl = safe_get(ts.query_map, cap.index)) {
+            if (highlights.size() >= 1000)
+              continue;
             highlights.push_back(*hl);
             Highlight *hl_f = &highlights.back();
             base_spans.push_back({start, end, hl_f});

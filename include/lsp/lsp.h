@@ -67,7 +67,7 @@ static json client_capabilities = {
           {"resolveSupport", {{"properties", {"documentation"}}}},
           {"insertReplaceSupport", true},
           {"labelDetailsSupport", true},
-          {"insertTextModeSupport", {{"valueSet", {1}}}},
+          {"insertTextModeSupport", {{"valueSet", {1, 2}}}},
           {"deprecatedSupport", true}}},
         {"completionItemKind",
          {{"valueSet", {1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13,

@@ -1,5 +1,6 @@
 #include "editor/decl.h"
 #include "editor/editor.h"
+#include "utils/utils.h"
 
 void apply_lsp_edits(Editor *editor, std::vector<TextEdit> edits, bool move) {
   if (!edits.size())
@@ -43,13 +44,28 @@ void editor_lsp_handle(Editor *editor, json msg) {
     for (size_t i = 0; i < diagnostics.size(); i++) {
       json d = diagnostics[i];
       VWarn w;
-      // HACK: convert back to utf-8 but as this is only visually affecting it
-      //       is not worth getting the line string from the rope.
       w.line = d["range"]["start"]["line"];
       w.start = d["range"]["start"]["character"];
+      std::shared_lock lock(editor->knot_mtx);
+      LineIterator *it = begin_l_iter(editor->root, w.line);
+      if (!it)
+        continue;
+      uint32_t len;
+      char *line = next_line(it, &len);
+      if (!line) {
+        free(it->buffer);
+        free(it);
+        continue;
+      }
+      if (len > 0 && line[len - 1] == '\n')
+        --len;
+      lock.unlock();
+      w.start = utf16_offset_to_utf8(line, w.start);
       uint32_t end = d["range"]["end"]["character"];
       if (d["range"]["end"]["line"] == w.line)
-        w.end = end;
+        w.end = utf16_offset_to_utf8(line, end);
+      free(it->buffer);
+      free(it);
       std::string text = trim(d["message"].get<std::string>());
       w.text_full = text;
       auto pos = text.find('\n');

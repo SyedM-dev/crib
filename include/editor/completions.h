@@ -14,6 +14,7 @@ struct CompletionItem {
   std::optional<std::string> documentation;
   bool is_markup = false;
   bool deprecated = false;
+  bool asis = true;
   std::string sort;
   std::string filter;
   bool snippet = false;
@@ -37,6 +38,7 @@ struct CompletionSession {
   HoverBox hover;
   uint32_t doc = UINT32_MAX;
   std::atomic<bool> hover_dirty = false;
+  int version;
 
   CompletionSession() : box(this) {}
 };

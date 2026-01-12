@@ -86,9 +86,9 @@ uint32_t count_clusters(const char *line, size_t len, size_t from, size_t to) {
   return count;
 }
 
-int utf8_byte_offset_to_utf16(const char *s, size_t byte_pos) {
-  int utf16_units = 0;
-  size_t i = 0;
+uint32_t utf8_byte_offset_to_utf16(const char *s, uint32_t byte_pos) {
+  uint32_t utf16_units = 0;
+  uint32_t i = 0;
   while (i < byte_pos) {
     unsigned char c = s[i];
     if ((c & 0x80) == 0x00) {
@@ -108,9 +108,9 @@ int utf8_byte_offset_to_utf16(const char *s, size_t byte_pos) {
   return utf16_units;
 }
 
-size_t utf16_offset_to_utf8(const char *s, int utf16_pos) {
-  int utf16_units = 0;
-  size_t i = 0;
+uint32_t utf16_offset_to_utf8(const char *s, uint32_t utf16_pos) {
+  uint32_t utf16_units = 0;
+  uint32_t i = 0;
   while (utf16_units < utf16_pos) {
     unsigned char c = s[i];
     if ((c & 0x80) == 0x00) {

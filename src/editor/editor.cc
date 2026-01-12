@@ -38,6 +38,7 @@ Editor *new_editor(const char *filename_arg, Coord position, Coord size) {
   }
   if (len <= (1024 * 28))
     request_add_to_lsp(editor->lang, editor);
+  editor->indents.compute_indent(editor);
   return editor;
 }
 
@@ -69,14 +70,15 @@ void save_file(Editor *editor) {
   if (!editor || !editor->root)
     return;
   std::shared_lock lock(editor->knot_mtx);
+  int version = editor->lsp_version;
   char *str = read(editor->root, 0, editor->root->char_count);
   if (!str)
     return;
+  lock.unlock();
   std::ofstream out(editor->filename);
   out.write(str, editor->root->char_count);
   out.close();
   free(str);
-  lock.unlock();
   if (editor->lsp) {
     json save_msg = {{"jsonrpc", "2.0"},
                      {"method", "textDocument/didSave"},
@@ -95,8 +97,10 @@ void save_file(Editor *editor) {
       LSPPending *pending = new LSPPending();
       pending->editor = editor;
       pending->method = "textDocument/formatting";
-      pending->callback = [save_msg](Editor *editor, std::string,
-                                     json message) {
+      pending->callback = [save_msg, version](Editor *editor, std::string,
+                                              json message) {
+        if (version != editor->lsp_version)
+          return;
         auto &edits = message["result"];
         if (edits.is_array()) {
           std::vector<TextEdit> t_edits;
@@ -113,10 +117,11 @@ void save_file(Editor *editor) {
           }
           apply_lsp_edits(editor, t_edits, false);
           ensure_scroll(editor);
-          std::unique_lock lock(editor->knot_mtx);
+          std::shared_lock lock(editor->knot_mtx);
           char *str = read(editor->root, 0, editor->root->char_count);
           if (!str)
             return;
+          lock.unlock();
           std::ofstream out(editor->filename);
           out.write(str, editor->root->char_count);
           free(str);

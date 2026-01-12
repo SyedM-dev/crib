@@ -251,7 +251,7 @@ Activated by `:` or `;`.
 - move lines up/down
 - folding on a selected range
 - yank/cut/paste via system clipboard
-- auto-indent on new lines
+- per-language smart auto-indent on new line insert
 - bracket/quote auto-pairing
 - hooks jumping (bookmarking)
 - color hex code highlighting
@@ -292,7 +292,10 @@ Activated by `:` or `;`.
 - diagnostics
 - autocompletion
 - hover docs (with markdown support)
-- formatting *(very few lsp's support this - try to configure a few more which can but need configuration and for others need to add support for external formatters)*
+- formatting support
+    - Full file formatting on save
+    - Ontype formatting when inserting special characters defined by the language server
+    - *(few lsp's actually support this - try to configure a few more which can but need configuration and for others need to add support for external formatters)*
 - A list of all supported lsp's can be found [here](#lsps).
 
 **A lot lot more to come**
