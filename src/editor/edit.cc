@@ -1,7 +1,7 @@
 #include "editor/editor.h"
-#include "editor/folds.h"
 #include "lsp/lsp.h"
 #include "utils/utils.h"
+#include <cstdint>
 
 void edit_erase(Editor *editor, Coord pos, int64_t len) {
   if (len == 0)
@@ -11,9 +11,8 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     uint32_t cursor_original =
         line_to_byte(editor->root, editor->cursor.row, nullptr) +
         editor->cursor.col;
-    TSPoint old_point = {pos.row, pos.col};
     uint32_t byte_pos = line_to_byte(editor->root, pos.row, nullptr) + pos.col;
-    Coord point = move_left_pure(editor, pos, -len);
+    Coord point = move_left(editor, pos, -len);
     json lsp_range;
     bool do_lsp = (editor->lsp != nullptr);
     if (do_lsp) {
@@ -48,30 +47,12 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     lock_1.unlock();
     uint32_t start_row = point.row;
     uint32_t end_row = pos.row;
-    apply_line_deletion(editor, start_row + 1, end_row);
     apply_hook_deletion(editor, start_row + 1, end_row);
     std::unique_lock lock_2(editor->knot_mtx);
     editor->root = erase(editor->root, start, byte_pos - start);
-    if (editor->ts.tree) {
-      TSInputEdit edit = {
-          .start_byte = start,
-          .old_end_byte = byte_pos,
-          .new_end_byte = start,
-          .start_point = {point.row, point.col},
-          .old_end_point = old_point,
-          .new_end_point = {point.row, point.col},
-      };
-      editor->edit_queue.push(edit);
-    }
-    std::unique_lock lock_3(editor->spans.mtx);
-    apply_edit(editor->spans.spans, start, start - byte_pos);
-    if (editor->spans.mid_parse)
-      editor->spans.edits.push({start, start - byte_pos});
-    lock_3.unlock();
     lock_2.unlock();
-    std::unique_lock lock_4(editor->hex_color_spans.mtx);
-    apply_edit(editor->hex_color_spans.spans, byte_pos, start - byte_pos);
-    lock_4.unlock();
+    if (editor->parser)
+      editor->parser->edit(editor->root, start_row, end_row, start_row);
     if (do_lsp) {
       if (editor->lsp->incremental_sync) {
         json message = {
@@ -102,9 +83,8 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     uint32_t cursor_original =
         line_to_byte(editor->root, editor->cursor.row, nullptr) +
         editor->cursor.col;
-    TSPoint old_point = {pos.row, pos.col};
     uint32_t byte_pos = line_to_byte(editor->root, pos.row, nullptr) + pos.col;
-    Coord point = move_right_pure(editor, pos, len);
+    Coord point = move_right(editor, pos, len);
     json lsp_range;
     bool do_lsp = (editor->lsp != nullptr);
     if (do_lsp) {
@@ -139,30 +119,12 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     lock_1.unlock();
     uint32_t start_row = pos.row;
     uint32_t end_row = point.row;
-    apply_line_deletion(editor, start_row + 1, end_row);
     apply_hook_deletion(editor, start_row + 1, end_row);
     std::unique_lock lock_2(editor->knot_mtx);
     editor->root = erase(editor->root, byte_pos, end - byte_pos);
-    if (editor->ts.tree) {
-      TSInputEdit edit = {
-          .start_byte = byte_pos,
-          .old_end_byte = end,
-          .new_end_byte = byte_pos,
-          .start_point = old_point,
-          .old_end_point = {point.row, point.col},
-          .new_end_point = old_point,
-      };
-      editor->edit_queue.push(edit);
-    }
-    std::unique_lock lock_3(editor->spans.mtx);
-    apply_edit(editor->spans.spans, byte_pos, byte_pos - end);
-    if (editor->spans.mid_parse)
-      editor->spans.edits.push({byte_pos, byte_pos - end});
-    lock_3.unlock();
     lock_2.unlock();
-    std::unique_lock lock_4(editor->hex_color_spans.mtx);
-    apply_edit(editor->hex_color_spans.spans, byte_pos, byte_pos - end);
-    lock_4.unlock();
+    if (editor->parser)
+      editor->parser->edit(editor->root, start_row, end_row, start_row);
     if (do_lsp) {
       if (editor->lsp->incremental_sync) {
         json message = {
@@ -197,7 +159,6 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
       line_to_byte(editor->root, editor->cursor.row, nullptr) +
       editor->cursor.col;
   uint32_t byte_pos = line_to_byte(editor->root, pos.row, nullptr) + pos.col;
-  TSPoint start_point = {pos.row, pos.col};
   if (cursor_original > byte_pos) {
     uint32_t cursor_new = cursor_original + len;
     uint32_t new_col;
@@ -207,39 +168,14 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
   lock_1.unlock();
   std::unique_lock lock_2(editor->knot_mtx);
   editor->root = insert(editor->root, byte_pos, data, len);
-  uint32_t cols = 0;
   uint32_t rows = 0;
-  for (uint32_t i = 0; i < len; i++) {
-    if (data[i] == '\n') {
+  for (uint32_t i = 0; i < len; i++)
+    if (data[i] == '\n')
       rows++;
-      cols = 0;
-    } else {
-      cols++;
-    }
-  }
-  apply_line_insertion(editor, pos.row, rows);
   apply_hook_insertion(editor, pos.row, rows);
-  if (editor->ts.tree) {
-    TSInputEdit edit = {
-        .start_byte = byte_pos,
-        .old_end_byte = byte_pos,
-        .new_end_byte = byte_pos + len,
-        .start_point = start_point,
-        .old_end_point = start_point,
-        .new_end_point = {start_point.row + rows,
-                          (rows == 0) ? (start_point.column + cols) : cols},
-    };
-    editor->edit_queue.push(edit);
-  }
-  std::unique_lock lock_3(editor->spans.mtx);
-  apply_edit(editor->spans.spans, byte_pos, len);
-  if (editor->spans.mid_parse)
-    editor->spans.edits.push({byte_pos, len});
-  lock_3.unlock();
   lock_2.unlock();
-  std::unique_lock lock_4(editor->hex_color_spans.mtx);
-  apply_edit(editor->hex_color_spans.spans, byte_pos, len);
-  lock_4.unlock();
+  if (editor->parser)
+    editor->parser->edit(editor->root, pos.row, pos.row, pos.row + rows);
   if (editor->lsp) {
     if (editor->lsp->incremental_sync) {
       lock_1.lock();

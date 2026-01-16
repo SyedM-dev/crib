@@ -1,7 +1,6 @@
 #ifndef EDITOR_COMPLETIONS_H
 #define EDITOR_COMPLETIONS_H
 
-#include "editor/decl.h"
 #include "pch.h"
 #include "ui/completionbox.h"
 #include "ui/hover.h"

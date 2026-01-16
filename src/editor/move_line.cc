@@ -1,5 +1,4 @@
 #include "editor/editor.h"
-#include "editor/folds.h"
 #include "main.h"
 
 void move_line_up(Editor *editor) {
@@ -17,7 +16,7 @@ void move_line_up(Editor *editor) {
     if (line_len > 0 && line[line_len - 1] == '\n')
       line_len--;
     line_cluster_len = count_clusters(line, line_len, 0, line_len);
-    uint32_t target_row = prev_unfolded_row(editor, editor->cursor.row - 1);
+    uint32_t target_row = editor->cursor.row - 1;
     uint32_t up_by = editor->cursor.row - target_row;
     if (up_by > 1)
       up_by--;
@@ -68,7 +67,7 @@ void move_line_down(Editor *editor) {
     if (line_len && line[line_len - 1] == '\n')
       line_len--;
     line_cluster_len = count_clusters(line, line_len, 0, line_len);
-    uint32_t target_row = next_unfolded_row(editor, editor->cursor.row + 1);
+    uint32_t target_row = editor->cursor.row + 1;
     if (target_row >= editor->root->line_count) {
       free(line);
       lock.unlock();
@@ -95,7 +94,7 @@ void move_line_down(Editor *editor) {
     std::shared_lock lock(editor->knot_mtx);
     uint32_t start_row = MIN(editor->cursor.row, editor->selection.row);
     uint32_t end_row = MAX(editor->cursor.row, editor->selection.row);
-    uint32_t target_row = next_unfolded_row(editor, end_row + 1);
+    uint32_t target_row = end_row + 1;
     if (target_row >= editor->root->line_count)
       return;
     uint32_t down_by = target_row - end_row;

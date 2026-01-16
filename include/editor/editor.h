@@ -3,10 +3,9 @@
 
 #include "editor/completions.h"
 #include "editor/indents.h"
-#include "editor/spans.h"
 #include "io/knot.h"
 #include "io/sysio.h"
-#include "ts/decl.h"
+#include "syntax/parser.h"
 #include "ui/completionbox.h"
 #include "ui/diagnostics.h"
 #include "ui/hover.h"
@@ -35,12 +34,6 @@ struct Editor {
   Coord size;
   Coord scroll;
   Language lang;
-  TSSetMain ts;
-  Queue<TSInputEdit> edit_queue;
-  std::vector<Fold> folds;
-  Spans spans;
-  Spans word_spans;
-  Spans hex_color_spans;
   uint32_t hooks[94];
   bool jumper_set;
   std::shared_mutex v_mtx;
@@ -56,19 +49,17 @@ struct Editor {
   std::atomic<int> lsp_version = 1;
   CompletionSession completion;
   IndentationEngine indents;
+  Parser *parser;
 };
 
 Editor *new_editor(const char *filename_arg, Coord position, Coord size);
 void save_file(Editor *editor);
 void free_editor(Editor *editor);
 void render_editor(Editor *editor);
-void fold(Editor *editor, uint32_t start_line, uint32_t end_line);
 void cursor_up(Editor *editor, uint32_t number);
 void cursor_down(Editor *editor, uint32_t number);
 Coord move_left(Editor *editor, Coord cursor, uint32_t number);
 Coord move_right(Editor *editor, Coord cursor, uint32_t number);
-Coord move_left_pure(Editor *editor, Coord cursor, uint32_t number);
-Coord move_right_pure(Editor *editor, Coord cursor, uint32_t number);
 void cursor_left(Editor *editor, uint32_t number);
 void cursor_right(Editor *editor, uint32_t number);
 void scroll_up(Editor *editor, int32_t number);
@@ -90,9 +81,6 @@ void word_boundaries(Editor *editor, Coord coord, uint32_t *prev_col,
                      uint32_t *next_clusters);
 void word_boundaries_exclusive(Editor *editor, Coord coord, uint32_t *prev_col,
                                uint32_t *next_col);
-std::vector<Fold>::iterator find_fold_iter(Editor *editor, uint32_t line);
-bool add_fold(Editor *editor, uint32_t start, uint32_t end);
-bool remove_fold(Editor *editor, uint32_t line);
 void editor_lsp_handle(Editor *editor, json msg);
 void apply_lsp_edits(Editor *editor, std::vector<TextEdit> edits, bool move);
 void completion_resolve_doc(Editor *editor);

@@ -11,7 +11,6 @@ extern "C" {
 #include "libgrapheme/grapheme.h"
 #include "unicode_width/unicode_width.h"
 }
-#include "tree-sitter/lib/include/tree_sitter/api.h"
 #include <algorithm>
 #include <atomic>
 #include <cctype>
@@ -32,8 +31,10 @@ extern "C" {
 #include <mutex>
 #include <optional>
 #include <queue>
+#include <set>
 #include <shared_mutex>
 #include <signal.h>
+#include <stack>
 #include <string.h>
 #include <string>
 #include <sys/ioctl.h>

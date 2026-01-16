@@ -139,11 +139,11 @@ void CompletionBox::render(Coord pos) {
   if (start_row < 0)
     start_row = pos.row + 1;
   int32_t start_col = pos.col;
-  if (start_col + size.col > cols) {
-    start_col = cols - size.col;
-    if (start_col < 0)
-      start_col = 0;
-  }
+  // if (start_col + size.col > cols) {
+  //   start_col = cols - size.col;
+  //   if (start_col < 0)
+  //     start_col = 0;
+  // }
   position = {(uint32_t)start_row, (uint32_t)start_col};
   for (uint32_t r = 0; r < size.row; r++)
     for (uint32_t c = 0; c < size.col; c++)

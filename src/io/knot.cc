@@ -301,7 +301,7 @@ Knot *erase(Knot *node, uint32_t offset, uint32_t len) {
   return balance(node);
 }
 
-static void _read_into(Knot *node, uint32_t offset, uint32_t len, char *dest) {
+void read_into(Knot *node, uint32_t offset, uint32_t len, char *dest) {
   if (!node || len == 0)
     return;
   if (node->depth == 0) {
@@ -314,7 +314,7 @@ static void _read_into(Knot *node, uint32_t offset, uint32_t len, char *dest) {
     uint32_t chunk_len = left_count - offset;
     if (chunk_len > len)
       chunk_len = len;
-    _read_into(left, offset, chunk_len, dest);
+    read_into(left, offset, chunk_len, dest);
     dest += chunk_len;
     len -= chunk_len;
     offset = 0;
@@ -322,7 +322,7 @@ static void _read_into(Knot *node, uint32_t offset, uint32_t len, char *dest) {
     offset -= left_count;
   }
   if (len > 0 && node->right)
-    _read_into(node->right, offset, len, dest);
+    read_into(node->right, offset, len, dest);
 }
 
 char *read(Knot *root, uint32_t offset, uint32_t len) {
@@ -340,7 +340,7 @@ char *read(Knot *root, uint32_t offset, uint32_t len) {
   char *buffer = (char *)malloc((len + 1) * sizeof(char));
   if (!buffer)
     return nullptr;
-  _read_into(root, offset, len, buffer);
+  read_into(root, offset, len, buffer);
   buffer[len] = '\0';
   return buffer;
 }

@@ -4,7 +4,6 @@
 #include "editor/decl.h"
 #include "io/sysio.h"
 #include "pch.h"
-#include "ts/decl.h"
 #include "utils/utils.h"
 
 struct HoverBox {
@@ -13,8 +12,6 @@ struct HoverBox {
   uint32_t scroll_;
   std::vector<ScreenCell> cells;
   Coord size;
-  std::vector<Highlight> highlights;
-  std::vector<Span> hover_spans;
 
   void clear();
   void scroll(int32_t number);

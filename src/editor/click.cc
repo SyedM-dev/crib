@@ -1,5 +1,4 @@
 #include "editor/editor.h"
-#include "editor/folds.h"
 #include "main.h"
 
 Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
@@ -7,7 +6,6 @@ Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
     x++;
   uint32_t numlen =
       EXTRA_META + static_cast<int>(std::log10(editor->root->line_count + 1));
-  bool is_gutter_click = (x < numlen);
   uint32_t render_width = editor->size.col - numlen;
   x = MAX(x, numlen) - numlen;
   uint32_t target_visual_row = y;
@@ -21,28 +19,6 @@ Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
   if (!it)
     return editor->scroll;
   while (visual_row <= target_visual_row) {
-    const Fold *fold = fold_for_line(editor->folds, line_index);
-    if (fold) {
-      if (visual_row == target_visual_row) {
-        free(it->buffer);
-        free(it);
-        if (is_gutter_click) {
-          remove_fold(editor, fold->start);
-          return {UINT32_MAX, UINT32_MAX};
-        }
-        return {fold->start > 0 ? fold->start - 1 : 0, 0};
-      }
-      visual_row++;
-      while (line_index <= fold->end) {
-        char *l = next_line(it, nullptr);
-        if (!l)
-          break;
-        line_index++;
-      }
-      last_line_index = fold->end;
-      last_col = 0;
-      continue;
-    }
     uint32_t line_len;
     char *line = next_line(it, &line_len);
     if (!line)

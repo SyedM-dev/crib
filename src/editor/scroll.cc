@@ -1,5 +1,4 @@
 #include "editor/editor.h"
-#include "editor/folds.h"
 
 void scroll_up(Editor *editor, int32_t number) {
   if (!editor || number == 0)
@@ -63,41 +62,6 @@ void scroll_up(Editor *editor, int32_t number) {
       free(it);
       return;
     }
-    const Fold *fold = fold_for_line(editor->folds, line_index);
-    if (fold) {
-      while (line && line_index > fold->start) {
-        free(line);
-        line = prev_line(it, &len);
-        line_index--;
-        if (!line) {
-          editor->scroll = {0, 0};
-          free(it->buffer);
-          free(it);
-          return;
-        }
-      }
-      if (--number == 0) {
-        editor->scroll = {fold->start, 0};
-        free(it->buffer);
-        free(it);
-        return;
-      }
-      if (fold->start == 0) {
-        editor->scroll = {0, 0};
-        free(it->buffer);
-        free(it);
-        return;
-      }
-      line_index = fold->start - 1;
-      line = prev_line(it, &len);
-      if (!line) {
-        editor->scroll = {0, 0};
-        free(it->buffer);
-        free(it);
-        return;
-      }
-      continue;
-    }
     if (len > 0 && line[len - 1] == '\n')
       len--;
     current_byte_offset = 0;
@@ -147,34 +111,6 @@ void scroll_down(Editor *editor, uint32_t number) {
   uint32_t visual_seen = 0;
   bool first_visual_line = true;
   while (true) {
-    const Fold *fold = fold_for_line(editor->folds, line_index);
-    if (fold) {
-      Coord fold_coord = {fold->start, 0};
-      if (q_size < max_visual_lines) {
-        scroll_queue[(q_head + q_size) % max_visual_lines] = fold_coord;
-        q_size++;
-      } else {
-        scroll_queue[q_head] = fold_coord;
-        q_head = (q_head + 1) % max_visual_lines;
-      }
-      visual_seen++;
-      if (visual_seen >= number + max_visual_lines) {
-        editor->scroll = scroll_queue[q_head];
-        break;
-      }
-      uint32_t skip_until = fold->end;
-      while (line_index <= skip_until) {
-        char *line = next_line(it, nullptr);
-        if (!line) {
-          free(scroll_queue);
-          free(it->buffer);
-          free(it);
-          return;
-        }
-        line_index++;
-      }
-      continue;
-    }
     uint32_t line_len;
     char *line = next_line(it, &line_len);
     if (!line)

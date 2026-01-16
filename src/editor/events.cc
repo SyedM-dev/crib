@@ -1,9 +1,7 @@
 #include "editor/editor.h"
-#include "editor/folds.h"
 #include "lsp/lsp.h"
 #include "main.h"
 #include "utils/utils.h"
-#include <cstdint>
 
 void handle_editor_event(Editor *editor, KeyEvent event) {
   static std::chrono::steady_clock::time_point last_click_time =
@@ -579,17 +577,6 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
       char *text;
       Coord start;
       switch (event.c[0]) {
-      case 'f':
-        if (editor->cursor.row != editor->selection.row) {
-          uint32_t start = MIN(editor->cursor.row, editor->selection.row);
-          uint32_t end = MAX(editor->cursor.row, editor->selection.row);
-          add_fold(editor, start, end);
-        }
-        cursor_left(editor, 1);
-        cursor_down(editor, 1);
-        editor->selection_active = false;
-        mode = NORMAL;
-        break;
       case 0x1B:
       case 's':
       case 'v':
@@ -648,10 +635,8 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
           }
         editor->hooks[event.c[0] - '!'] = editor->cursor.row + 1;
       } else {
-        uint32_t line = editor->hooks[event.c[0] - '!'];
+        uint32_t line = editor->hooks[event.c[0] - '!'] - 1;
         if (line > 0) {
-          if (line_is_folded(editor->folds, --line))
-            break;
           editor->cursor = {line, 0};
           editor->cursor_preffered = UINT32_MAX;
         }

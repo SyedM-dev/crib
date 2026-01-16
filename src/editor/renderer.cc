@@ -1,7 +1,5 @@
 #include "editor/editor.h"
-#include "editor/folds.h"
 #include "main.h"
-#include "ts/decl.h"
 
 void render_editor(Editor *editor) {
   uint32_t sel_start = 0, sel_end = 0;
@@ -22,6 +20,9 @@ void render_editor(Editor *editor) {
   while (warn_it != editor->warnings.end() &&
          warn_it->line < editor->scroll.row)
     ++warn_it;
+  std::unique_lock<std::mutex> lock;
+  if (editor->parser)
+    lock = std::unique_lock<std::mutex>(editor->parser->mutex);
   std::shared_lock knot_lock(editor->knot_mtx);
   if (editor->selection_active) {
     Coord start, end;
@@ -73,56 +74,12 @@ void render_editor(Editor *editor) {
   }
   Coord cursor = {UINT32_MAX, UINT32_MAX};
   uint32_t line_index = editor->scroll.row;
-  SpanCursor span_cursor(editor->spans);
-  SpanCursor word_span_cursor(editor->word_spans);
-  SpanCursor hex_span_cursor(editor->hex_color_spans);
   LineIterator *it = begin_l_iter(editor->root, line_index);
   if (!it)
     return;
   uint32_t rendered_rows = 0;
   uint32_t global_byte_offset = line_to_byte(editor->root, line_index, nullptr);
-  span_cursor.sync(global_byte_offset);
-  word_span_cursor.sync(global_byte_offset);
-  hex_span_cursor.sync(global_byte_offset);
   while (rendered_rows < editor->size.row) {
-    const Fold *fold = fold_for_line(editor->folds, line_index);
-    if (fold) {
-      update(editor->position.row + rendered_rows, editor->position.col, "",
-             0xAAAAAA, 0, 0);
-      char buf[16];
-      int len = snprintf(buf, sizeof(buf), "%*u ", numlen - 3, fold->start + 1);
-      uint32_t num_color =
-          editor->cursor.row == fold->start ? 0xFFFFFF : 0x555555;
-      for (int i = 0; i < len; i++)
-        update(editor->position.row + rendered_rows,
-               editor->position.col + i + 2, (char[2]){buf[i], 0}, num_color, 0,
-               0);
-      const char marker[15] = "... folded ...";
-      uint32_t i = 0;
-      for (; i < 14 && i < render_width; i++)
-        update(rendered_rows, i + render_x, (char[2]){marker[i], 0}, 0xc6c6c6,
-               0, 0);
-      for (; i < render_width; i++)
-        update(rendered_rows, i + render_x, " ", 0xc6c6c6, 0, 0);
-      rendered_rows++;
-      uint32_t skip_until = fold->end;
-      while (line_index <= skip_until) {
-        if (hook_it != v.end() && hook_it->first == line_index + 1)
-          hook_it++;
-        while (warn_it != editor->warnings.end() && warn_it->line == line_index)
-          ++warn_it;
-        uint32_t line_len;
-        char *line = next_line(it, &line_len);
-        if (!line)
-          break;
-        global_byte_offset += line_len;
-        if (line_len > 0 && line[line_len - 1] == '\n')
-          global_byte_offset--;
-        global_byte_offset++;
-        line_index++;
-      }
-      continue;
-    }
     uint32_t line_len;
     char *line = next_line(it, &line_len);
     if (!line)
@@ -182,25 +139,13 @@ void render_editor(Editor *editor) {
         }
         uint32_t absolute_byte_pos =
             global_byte_offset + current_byte_offset + local_render_offset;
-        Highlight *hl = span_cursor.get_highlight(absolute_byte_pos);
-        Highlight *word_hl = word_span_cursor.get_highlight(absolute_byte_pos);
-        Highlight *hex_hl = hex_span_cursor.get_highlight(absolute_byte_pos);
+        const Highlight *hl = nullptr;
+        if (editor->parser && editor->parser->line_data.size() > line_index)
+          hl = &highlight_map.at(editor->parser->get_type(
+              {line_index, current_byte_offset + local_render_offset}));
         uint32_t fg = hl ? hl->fg : 0xFFFFFF;
         uint32_t bg = hl ? hl->bg : 0;
         uint8_t fl = hl ? hl->flags : 0;
-        if (hex_hl) {
-          if (hex_hl->fg != 0)
-            fg = hex_hl->fg;
-          if (hex_hl->bg != 0)
-            bg = hex_hl->bg;
-          fl |= hex_hl->flags;
-        } else if (word_hl) {
-          if (word_hl->fg != 0)
-            fg |= word_hl->fg;
-          if (word_hl->bg != 0)
-            bg |= word_hl->bg;
-          fl |= word_hl->flags;
-        }
         if (editor->selection_active && absolute_byte_pos >= sel_start &&
             absolute_byte_pos < sel_end)
           bg = 0x555555;
@@ -468,6 +413,8 @@ void render_editor(Editor *editor) {
     global_byte_offset += line_len + 1;
     line_index++;
   }
+  if (lock.owns_lock())
+    lock.unlock();
   while (rendered_rows < editor->size.row) {
     for (uint32_t col = 0; col < editor->size.col; col++)
       update(editor->position.row + rendered_rows, editor->position.col + col,
@@ -498,4 +445,6 @@ void render_editor(Editor *editor) {
   }
   free(it->buffer);
   free(it);
+  if (editor->parser)
+    editor->parser->scroll(line_index + 5);
 }

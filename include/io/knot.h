@@ -91,6 +91,9 @@ Knot *erase(Knot *node, uint32_t offset, uint32_t len);
 // returns a null terminated string, should be freed by the caller
 char *read(Knot *root, uint32_t offset, uint32_t len);
 
+// Used to read into an existing buffer
+void read_into(Knot *node, uint32_t offset, uint32_t len, char *dest);
+
 // Used to split the rope into left and right ropes
 // node is the rope to be split (it is no longer valid after call / do not free)
 // offset is the position of the split relative to the start of the rope
@@ -111,9 +114,9 @@ LineIterator *begin_l_iter(Knot *root, uint32_t start_line);
 
 // Each subsequent call returns the next line as a null terminated string
 // `it` is the iterator returned from begin_l_iter
-// After getting the necessary lines free the iterator (no need to go upto the
-// end) returns null if there are no more lines All return strings `must` be
-// freed by the caller
+// After getting the necessary lines free the iterator (no need to go upto
+// the end) returns null if there are no more lines All return strings
+// `must` be freed by the caller
 char *next_line(LineIterator *it, uint32_t *out_len);
 
 // Returns the previous line as a null terminated string

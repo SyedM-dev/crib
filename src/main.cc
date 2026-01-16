@@ -2,7 +2,6 @@
 #include "editor/editor.h"
 #include "io/sysio.h"
 #include "lsp/lsp.h"
-#include "ts/ts.h"
 #include "ui/bar.h"
 #include "utils/utils.h"
 
@@ -15,7 +14,7 @@ std::atomic<uint8_t> mode = NORMAL;
 
 void background_worker() {
   while (running)
-    throttle(8ms, editor_worker, editors[current_editor]);
+    throttle(16ms, editor_worker, editors[current_editor]);
 }
 
 void background_lsp() {
@@ -119,14 +118,15 @@ int main(int argc, char *argv[]) {
   for (auto editor : editors)
     free_editor(editor);
 
+  std::unique_lock lk(active_lsps_mtx);
+  lk.unlock();
   while (true) {
-    std::unique_lock lk(active_lsps_mtx);
+    lk.lock();
     if (active_lsps.empty())
       break;
     lk.unlock();
     throttle(16ms, lsp_worker);
   }
 
-  clear_regex_cache();
   return 0;
 }

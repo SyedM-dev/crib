@@ -1,13 +1,10 @@
 #include "editor/editor.h"
-#include "editor/folds.h"
 
 void ensure_cursor(Editor *editor) {
   std::shared_lock knot_lock(editor->knot_mtx);
   if (editor->cursor < editor->scroll) {
-    uint32_t line_idx = next_unfolded_row(editor, editor->scroll.row);
-    editor->cursor.row = line_idx;
-    editor->cursor.col =
-        line_idx == editor->scroll.row ? editor->scroll.col : 0;
+    editor->cursor.row = editor->scroll.row;
+    editor->cursor.col = editor->scroll.col;
     editor->cursor_preffered = UINT32_MAX;
     return;
   }
@@ -24,20 +21,6 @@ void ensure_cursor(Editor *editor) {
   while (true) {
     if (visual_rows >= editor->size.row)
       break;
-    const Fold *fold = fold_for_line(editor->folds, line_index);
-    if (fold) {
-      Coord c = {fold->start, 0};
-      last_visible = c;
-      visual_rows++;
-      uint32_t skip_until = fold->end;
-      while (line_index <= skip_until) {
-        char *line = next_line(it, nullptr);
-        if (!line)
-          break;
-        line_index++;
-      }
-      continue;
-    }
     uint32_t line_len;
     char *line = next_line(it, &line_len);
     if (!line)
@@ -81,14 +64,8 @@ void ensure_cursor(Editor *editor) {
     }
     line_index++;
   }
-  uint32_t last_real_row = last_visible.row;
-  const Fold *last_fold = fold_for_line(editor->folds, last_visible.row);
-  if (last_fold) {
-    last_visible.row = last_fold->start == 0 ? 0 : last_fold->start - 1;
-    last_visible.col = 0;
-  }
   editor->cursor.row = last_visible.row;
-  editor->cursor.col = last_visible.row == last_real_row ? last_visible.col : 0;
+  editor->cursor.col = last_visible.col;
   editor->cursor_preffered = UINT32_MAX;
   free(it->buffer);
   free(it);
@@ -112,7 +89,6 @@ void ensure_scroll(Editor *editor) {
     }
     if (len > 0 && line[len - 1] == '\n')
       --len;
-    uint32_t rows = 1;
     uint32_t cols = 0;
     uint32_t offset = 0;
     uint32_t old_offset = 0;
@@ -121,7 +97,6 @@ void ensure_scroll(Editor *editor) {
           grapheme_next_character_break_utf8(line + offset, len - offset);
       int width = display_width(line + offset, inc);
       if (cols + width > render_width) {
-        rows++;
         cols = 0;
         if (editor->cursor.col > old_offset && editor->cursor.col <= offset) {
           editor->scroll.row = editor->cursor.row;
@@ -139,7 +114,7 @@ void ensure_scroll(Editor *editor) {
     free(it);
     editor->scroll.row = editor->cursor.row;
     editor->scroll.col = (editor->cursor.col == 0) ? 0 : old_offset;
-  } else {
+  } else if (editor->cursor.row - editor->scroll.row < editor->size.row * 2) {
     uint32_t line_index = editor->scroll.row;
     LineIterator *it = begin_l_iter(editor->root, line_index);
     if (!it)
@@ -150,30 +125,6 @@ void ensure_scroll(Editor *editor) {
     uint32_t q_size = 0;
     bool first_visual_line = true;
     while (true) {
-      const Fold *fold = fold_for_line(editor->folds, line_index);
-      if (fold) {
-        Coord fold_coord = {fold->start, 0};
-        if (q_size < max_visual_lines) {
-          scroll_queue[(q_head + q_size) % max_visual_lines] = fold_coord;
-          q_size++;
-        } else {
-          scroll_queue[q_head] = fold_coord;
-          q_head = (q_head + 1) % max_visual_lines;
-        }
-        if (fold->start <= editor->cursor.row &&
-            editor->cursor.row <= fold->end) {
-          editor->scroll = scroll_queue[q_head];
-          break;
-        }
-        uint32_t skip_until = fold->end;
-        while (line_index <= skip_until) {
-          char *line = next_line(it, nullptr);
-          if (!line)
-            break;
-          line_index++;
-        }
-        continue;
-      }
       uint32_t line_len;
       char *line = next_line(it, &line_len);
       if (!line)
@@ -234,5 +185,11 @@ void ensure_scroll(Editor *editor) {
     free(scroll_queue);
     free(it->buffer);
     free(it);
+  } else {
+    editor->scroll.row = (editor->cursor.row > editor->size.row * 1.5)
+                             ? editor->cursor.row - editor->size.row * 1.5
+                             : 0;
+    editor->scroll.col = 0;
+    ensure_scroll(editor);
   }
 }

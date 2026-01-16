@@ -2,7 +2,6 @@
 #define UTILS_H
 
 #include "pch.h"
-#include "ts/decl.h"
 
 template <typename T> struct Queue {
   std::queue<T> q;
@@ -59,6 +58,13 @@ struct Match {
   std::string text;
 };
 
+struct Language {
+  std::string name;
+  uint8_t lsp_id;
+  uint32_t color;
+  const char *symbol;
+};
+
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -80,6 +86,7 @@ uint32_t get_bytes_from_visual_col(const char *line, uint32_t len,
                                    uint32_t target_visual_col);
 uint32_t utf8_byte_offset_to_utf16(const char *s, uint32_t byte_pos);
 uint32_t utf16_offset_to_utf8(const char *s, uint32_t utf16_pos);
+uint8_t utf8_codepoint_width(unsigned char c);
 
 void log(const char *fmt, ...);
 

@@ -29,39 +29,20 @@ Editor *new_editor(const char *filename_arg, Coord position, Coord size) {
   editor->root = load(str, len, optimal_chunk_size(len));
   free(str);
   editor->lang = language_for_file(filename.c_str());
-  if (editor->lang.name != "unknown" && len <= (1024 * 128)) {
-    editor->ts.parser = ts_parser_new();
-    editor->ts.language = editor->lang.fn();
-    ts_parser_set_language(editor->ts.parser, editor->ts.language);
-    editor->ts.query_file =
-        get_exe_dir() + "/../grammar/" + editor->lang.name + ".scm";
-  }
-  if (len <= (1024 * 28))
-    request_add_to_lsp(editor->lang, editor);
+  if (editor->lang.name != "unknown")
+    editor->parser = new Parser(editor->root, &editor->knot_mtx,
+                                editor->lang.name, size.row + 5);
+  // if (len <= (1024 * 28))
+  //   request_add_to_lsp(editor->lang, editor);
   editor->indents.compute_indent(editor);
   return editor;
 }
 
-void free_tsset(TSSetMain *set) {
-  if (set->parser)
-    ts_parser_delete(set->parser);
-  if (set->tree)
-    ts_tree_delete(set->tree);
-  if (set->query)
-    ts_query_delete(set->query);
-  for (auto &inj : set->injections) {
-    if (inj.second.parser)
-      ts_parser_delete(inj.second.parser);
-    if (inj.second.query)
-      ts_query_delete(inj.second.query);
-    if (inj.second.tree)
-      ts_tree_delete(inj.second.tree);
-  }
-}
-
 void free_editor(Editor *editor) {
   remove_from_lsp(editor);
-  free_tsset(&editor->ts);
+  if (editor->parser)
+    delete editor->parser;
+  editor->parser = nullptr;
   free_rope(editor->root);
   delete editor;
 }

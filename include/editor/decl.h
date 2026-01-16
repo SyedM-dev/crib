@@ -9,22 +9,6 @@ struct TextEdit {
   std::string text;
 };
 
-struct Fold {
-  uint32_t start;
-  uint32_t end;
-
-  bool contains(uint32_t line) const { return line >= start && line <= end; }
-  bool operator<(const Fold &other) const { return start < other.start; }
-};
-
-struct Span {
-  uint32_t start;
-  uint32_t end;
-  Highlight *hl;
-
-  bool operator<(const Span &other) const { return start < other.start; }
-};
-
 struct VWarn {
   uint32_t line;
   std::string text;

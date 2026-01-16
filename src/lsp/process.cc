@@ -161,7 +161,7 @@ void close_lsp(uint8_t lsp_id) {
   lsp->initialized = false;
   LSPPending *shutdown_pending = new LSPPending();
   shutdown_pending->method = "shutdown";
-  shutdown_pending->callback = [lsp, lsp_id](Editor *, std::string, json) {
+  shutdown_pending->callback = [lsp](Editor *, std::string, json) {
     json exit = {{"jsonrpc", "2.0"}, {"method", "exit"}};
     lsp_send(lsp, exit, nullptr);
   };

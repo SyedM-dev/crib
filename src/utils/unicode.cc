@@ -28,6 +28,18 @@ int display_width(const char *str, size_t len) {
   return width;
 }
 
+uint8_t utf8_codepoint_width(unsigned char c) {
+  if ((c & 0x80) == 0x00)
+    return 1;
+  if ((c & 0xE0) == 0xC0)
+    return 2;
+  if ((c & 0xF0) == 0xE0)
+    return 3;
+  if ((c & 0xF8) == 0xF0)
+    return 4;
+  return 1;
+}
+
 uint32_t get_visual_col_from_bytes(const char *line, uint32_t len,
                                    uint32_t byte_limit) {
   if (!line)

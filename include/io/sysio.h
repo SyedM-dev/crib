@@ -92,11 +92,6 @@ struct KeyEvent {
   uint8_t mouse_modifier;
 };
 
-extern uint32_t rows, cols;
-extern std::vector<ScreenCell> screen;
-extern std::vector<ScreenCell> old_screen;
-extern std::mutex screen_mutex;
-
 inline bool is_empty_cell(const ScreenCell &c) {
   return c.utf8.empty() || c.utf8 == " " || c.utf8 == "\x1b";
 }

@@ -17,9 +17,9 @@ void apply_lsp_edits(Editor *editor, std::vector<TextEdit> edits, bool move) {
     std::shared_lock lock(editor->knot_mtx);
     editor->cursor = first.start;
     editor->cursor =
-        move_right_pure(editor, editor->cursor,
-                        count_clusters(first.text.c_str(), first.text.size(), 0,
-                                       first.text.size()));
+        move_right(editor, editor->cursor,
+                   count_clusters(first.text.c_str(), first.text.size(), 0,
+                                  first.text.size()));
   } else {
     if (cursor.row >= editor->root->line_count) {
       editor->cursor.row = editor->root->line_count - 1;

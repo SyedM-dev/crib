@@ -1,12 +1,11 @@
 #include "io/sysio.h"
-#include <cstdint>
 
-uint32_t rows, cols;
-bool show_cursor = 0;
-std::vector<ScreenCell> screen;
-std::vector<ScreenCell> old_screen;
-std::mutex screen_mutex;
-termios orig_termios;
+static uint32_t rows, cols;
+static bool show_cursor = 0;
+static std::vector<ScreenCell> screen;
+static std::vector<ScreenCell> old_screen;
+static std::mutex screen_mutex;
+static termios orig_termios;
 
 void disable_raw_mode() {
   std::string os = "\x1b[?1049l\x1b[2 q\x1b[?1002l\x1b[?25h\x1b[?2004l";

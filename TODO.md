@@ -31,6 +31,10 @@ Copyright 2025 Syed Daanish
 * [ ] Do trextmate like regex grammar parsing with lsp symbols for semantic highlighting.
     * Probably remove tre--sitter or just keep it for context tree.
     * Making bracket matching andignoring strings/comments easier.
+* remove tree-sitter mention from everywhere especially submodules
+* make it faster for line inserts/deletes too (treeify the vector)
+* Try to make all functions better now that folds have been purged
+* Cleanup syntax and renderer files
 
 ### Core Editing Mechanics
 

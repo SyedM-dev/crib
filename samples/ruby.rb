@@ -12,7 +12,7 @@ end
 # Emoji-heavy strings
 emojis = "👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏"
 
-# Mixed-width CJK block
+# Mixed-width CJKssssssssssssssss LoadErssssssssssssssssssssssss
 cjk_samples = [
   "漢字テスト",
   "測試中文字串",
@@ -22,11 +22,12 @@ cjk_samples = [
 ]
 
 # Ruby regex with unicode
-unicode_regex = /[一-龯ぁ-んァ-ヶー々〆〤]/
+$unicode_regex = /[一-龯ぁ-んァ-ヶー々〆〤]/
+
 
 # Unicode identifiers (valid in Ruby)
-变量 = 123
-π = 3.14159
+变量 = 0x5_4eddaee
+π = 3.14_159e+2, ?\u0234, ?\,, ?\x0A, ?s
 挨拶 = -> { "こんにちは" }
 
 # Method using unicode variable names
@@ -35,15 +36,18 @@ def math_test
 end
 
 # Iterate through CJK samples
-cjk_samples.each_with_index do |str, idx|
-  puts "CJK[#{idx}] => #{str} (len=#{str.length})"
+cjk_samples.each_with_index do |str, idx:|
+  puts %Q! CJK[#{idx}] => #{str} (len=#{str.length})\! !
+  symbol = :"
+  a
+  "
 end
 
 # Test emoji width behaviors
 puts "Emoji count: #{emojis.length}"
 
 # Multi-line string with unicode
-multi = <<~BASH
+multi = <<BASH
   # Function recursion demo
   factorial() {
     local n="$1"
@@ -53,9 +57,15 @@ multi = <<~BASH
       local prev
       prev=$(factorial $((n - 1)))
       echo $((n * prev))
+     before #{ interpol
+    
+    # comment should be fine heres s
+    $a / $-s+0xFF
+    }s 
+x
+    a after
     fi
-  }
-
+  } #{s}
   log INFO "factorial(5) = $(factorial 5)"
 BASH
 
@@ -68,6 +78,12 @@ mixed = [
   "Spacing test →→→→→→→",
   "Zero-width joiner test: 👨‍👩‍👧‍👦 family emoji",
 ]
+
+two_docs = <<DOC1 , <<DOC2
+stuff for doc2
+DOC1
+stuff for doc 2 with #{interpolation} and more
+DOC2
 
 mixed.each { |m| puts m }
 
@@ -90,7 +106,7 @@ const_str = "定数文字列🔒".freeze
 puts const_str
 
 # End marker
-puts "--- END OF UNICODE TEST FILE ---"
+puts '--- END OF UNICODE TEST FILE ---'
 
 # Ruby syntax highlighting test
 
@@ -99,14 +115,17 @@ puts "--- END OF UNICODE TEST FILE ---"
   It spans multiple lines.
   Good for testing highlighting.
 
-This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, 
+This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped linetest,
 
 =end
 
 # Constants
+
+__END_
+
+
 PI = 3.14159
 MAX_ITER = 5
-
 # Module
 module Utilities
   def self.random_greeting
@@ -246,9 +265,12 @@ puts "PI is approximately #{PI.round(2)}"
 
 # Multi-line strings
 multi_line = <<~TEXT
+   k kmW ;
   This is a multi-line string.
   It spans multiple lines.
-  Good for testing highlighting.
+  Gossn m
+  dd
+  od for testing highlighting.
 TEXT
 
 puts multi_line
@@ -278,6 +300,8 @@ def wrapper
   yield if block_given?
   puts "After block"
 end
+
+# ss
 
 wrapper { puts "Inside block" }
 

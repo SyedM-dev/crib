@@ -3,3 +3,5 @@ CompileFlags:
   Remove: []
   Compiler: clang++
 
+HeaderInsertion:
+  Policy: Never
