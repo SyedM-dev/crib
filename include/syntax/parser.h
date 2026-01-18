@@ -1,4 +1,8 @@
+#ifndef SYNTAX_PARSER_H
+#define SYNTAX_PARSER_H
+
 #include "syntax/decl.h"
+#include "syntax/line_tree.h"
 
 struct Parser {
   Knot *root;
@@ -12,7 +16,7 @@ struct Parser {
   std::atomic<uint32_t> scroll_max{UINT32_MAX - 2048};
   std::mutex mutex;
   std::mutex data_mutex;
-  std::vector<LineData> line_data;
+  LineTree line_tree;
   std::set<uint32_t> dirty_lines;
 
   Parser(Knot *n_root, std::shared_mutex *n_knot_mutex, std::string n_lang,
@@ -21,13 +25,6 @@ struct Parser {
             uint32_t new_end_line);
   void work();
   void scroll(uint32_t line);
-  uint8_t get_type(Coord c) {
-    if (c.row >= line_data.size())
-      return 0;
-    const LineData &line = line_data[c.row];
-    for (const Token &t : line.tokens)
-      if (t.start <= c.col && c.col < t.end)
-        return t.type;
-    return 0;
-  }
 };
+
+#endif

@@ -6,7 +6,7 @@ Copyright 2025 Syed Daanish
 
 Crib is a TUI based text editor built primaririly for personal use.<br>
 Crib has a vim-style editor modes system but navigation and shortcuts are very different.<br>
-It supports tree-sitter based text highlighting.<br>
+It supports superfast incremental syntax highlighting.<br>
 And LSP for auto-completion, diagnostics, hover docs etc.<br>
 It aims to be complete general purpose IDE.<br>
 (It is still very much a work in progress so a lot of things may seem incomplete)<br>
@@ -16,7 +16,7 @@ For now it is just a single file editor. I plan to add a multi-file support with
 
 ### Get started
 
-Make sure the repo is cloned with submodules to get most of the dependencies.
+Make sure the repo is cloned with submodules to get `libgrapheme`.
 
 ```bash
 git clone --recurse-submodules https://git.syedm.dev/SyedM/crib.git
@@ -26,18 +26,12 @@ git clone --recurse-submodules https://git.syedm.dev/SyedM/crib.git
 
 #### System-wide libraries
 
-Make sure you have the following dependencies installed:
+Make sure you have the following dependencies installed (apart from the standard C++ libraries):
 
 * **[nlohmann/json](https://github.com/nlohmann/json)**
   Install it via your package manager. Once installed, the header should be available as:
   ```cpp
   #include <nlohmann/json.hpp>
-  ```
-
-* **libmagic**
-  Install it so that you can include it in your code:
-  ```cpp
-  #include <magic.h>
   ```
 
 * **[PCRE2](https://github.com/PCRE2Project/pcre2)**
@@ -46,19 +40,20 @@ Make sure you have the following dependencies installed:
   #include <pcre2.h>
   ```
 
-It also uses `xclip` at runtime for copying/pasting *(TODO: make it portable)*.
+* **libmagic**
+  Install it so that you can include it in your code (most *nix systems have it installed):
+  ```cpp
+  #include <magic.h>
+  ```
+
+It also uses `xclip` at runtime for copying/pasting *(TODO: make it os portable)*.
 And any modern terminal should work fine - preferably `kitty` or `wezterm`.<br>
 
 #### `./libs` folder
 
-Some other dependancies like `libgrapheme` and `tree-sitter*` and `unicode_width` are added as submodules or copied.<br>
-`unicode_width` is compiled by the makefile so nothing to do there.<br>
-`libgrapheme` needs to be compiled using `make` in it's folder.<br>
-`tree-sitter` needs to be compiled using `make` in it's folder.<br>
-For other tree-sitter grammars, run `make` in their folders except some for which `npm install` needs to be used (see their README.md)<br>
-For any problems with `npm install` make sure to have older versions of node installed.<br>
-For some even manual clang or gcc compilation may be required.<br>
-*TODO: Make a detailed list of how to do compile each*<br>
+Some other dependancies like `libgrapheme` and `unicode_width` are added as submodules or copied.<br>
+    `unicode_width` is compiled by the makefile so nothing to do there.<br>
+    `libgrapheme` needs to be compiled using `make` in it's folder.<br>
 
 #### LSPs
 
@@ -93,8 +88,7 @@ The following lsp's are supported and can be installed anywhere in your `$PATH`<
 #### Compiler
 
 `g++` and `clang++` should both work fine but `c++20+` is required.
-The makefile has been set to use g++ if made with `make test` and clang++ if made with `make release`<br>
-This can be changed but I have found clang++ builds to be slightly faster - also test builds do not have the flags needed to be used system wide or any optimizations.<br>
+The makefile uses `clang++` by default.<br>
 Can remove `ccache` if you want from the makefile.<br>
 
 #### Compliling
@@ -105,8 +99,8 @@ make release
 
 ### Running
 
-Preferably add `bin` folder to PATH or move `bin/crib` to somewhere in PATH.<br>
-But make sure that `scripts/` and `grammar/` are at `../` relative to the binary or it will crash.<br>
+Preferably add the `bin` folder to PATH or move `bin/crib` to somewhere in PATH.<br>
+But make sure that `scripts/` are at `../` relative to the binary or it will crash.<br>
 `scripts/init.sh` and `scripts/exit.sh` can be used to add hooks to the editor on startup and exit
 (Make sure to remove my `kitty` hooks from them if you want).<br>
 For some LSP's to work properly `crib` needs to be run from the root folder of the project. *To be fixed*<br>
@@ -256,37 +250,38 @@ Activated by `:` or `;`.
 - hooks jumping (bookmarking)
 - color hex code highlighting
 - current line highlighting
-- current word under cursor highlighting
+<!-- - TODO: current word under cursor highlighting -->
 
-#### Tree-sitter syntax highlighting and filetype detection (using extention or libmagic) for:
-- bash
-- c/cpp (and headers)
-- css
-- fish
-- go/gomod
-- haskell
-- html/erb
-- javascript
-- typescript/tsx
-- json/jsonc
+#### syntax highlighting and filetype detection (using extention or libmagic) for:
 - ruby
-- lua
-- python
-- rust
-- php
-- markdown
-- nginx
-- toml
-- yaml
-- sql
-- make
-- gdscript
-- man pages
-- diff/patch
-- gitattributes/gitignore
-- tree-sitter queries
-- regex
-- ini
+<!-- TODO: -->
+<!-- - bash -->
+<!-- - c/cpp (and headers) -->
+<!-- - css -->
+<!-- - fish -->
+<!-- - go/gomod -->
+<!-- - haskell -->
+<!-- - html/erb -->
+<!-- - javascript -->
+<!-- - typescript/tsx -->
+<!-- - json/jsonc -->
+<!-- - lua -->
+<!-- - python -->
+<!-- - rust -->
+<!-- - php -->
+<!-- - markdown -->
+<!-- - nginx -->
+<!-- - toml -->
+<!-- - yaml -->
+<!-- - sql -->
+<!-- - make -->
+<!-- - gdscript -->
+<!-- - man pages -->
+<!-- - diff/patch -->
+<!-- - gitattributes/gitignore -->
+<!-- - tree-sitter queries -->
+<!-- - regex -->
+<!-- - ini -->
 
 #### LSP-powered features:
 - diagnostics

@@ -22,13 +22,29 @@ cjk_samples = [
 ]
 
 # Ruby regex with unicode
-$unicode_regex = /[一-龯ぁ-んァ-ヶー々〆〤]/
+$unicode_regex = /[一-龯ぁ-ん#{0x3000}ァ
+\-ヶー
 
+s wow
+
+々〆〤]/
+
+UNICORE = %r{
+    
+    {#{}}
+    
+  }
+  
+UNINITCORE = %{
+    
+    {{#{}}}
+    
+  }
 
 # Unicode identifiers (valid in Ruby)
 变量 = 0x5_4eddaee
 π = 3.14_159e+2, ?\u0234, ?\,, ?\x0A, ?s
-挨拶 = -> { "こんにちは" }
+挨拶 = -> { "こんに \n ちは" }
 
 # Method using unicode variable names
 def math_test
@@ -53,7 +69,7 @@ multi = <<BASH
     local n="$1"
     if ((n <= 1)); then
       echo 1
-    else
+    else\ns
       local prev
       prev=$(factorial $((n - 1)))
       echo $((n * prev))
@@ -82,8 +98,10 @@ mixed = [
 two_docs = <<DOC1 , <<DOC2
 stuff for doc2
 DOC1
-stuff for doc 2 with #{interpolation} and more
+stuff for doc 2 with \#{interpolation} and more
 DOC2
+
+p = 0 <<22
 
 mixed.each { |m| puts m }
 
@@ -100,6 +118,7 @@ end
 escaped = "Line1\nLine2\tTabbed 😀"
 puts escaped
 
+p = 0 <<2
 # Frozen string literal test
 # frozen_string_literal: true
 const_str = "定数文字列🔒".freeze
@@ -198,6 +217,8 @@ def greet_person(name)
     return "s"
   end
 end
+
+h = a / a
 
 # Calling methods
 greet_person("Alice")

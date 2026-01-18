@@ -8,18 +8,17 @@ Copyright 2025 Syed Daanish
 
 * [ ] **LSP Bug:** Check why `fish-lsp` is behaving so off with completions filtering.
 * [ ] **File IO:** Normalize/validate unicode on file open (enforce UTF-8, handle other types gracefully).
-* [ ] **Critical Crash:** Fix bug where closing immediately while LSP is still loading hangs and then segfaults (especially on slow ones like fish-lsp).
-* [ ] **Navigation Bug:** Fix bug where `Alt+Up` at EOF adds an extra line.
-* [ ] **Modularize handle_events functions:** The function is over 700 lines with a lot of repeating blocks. Split into smaller functions.
-* [ ] **Editor Indentation Fix:**
+* [ ] **Critical Crash:** Fix bug where closing immediately while LSP is still loading hangs and then segfaults (especially on slow ones like fish-lsp where quick edits and exit can hang).
+* [ ] **Line move:** fix the move line functions to work without the calculations from folds as folds are removed.
+* [ ] **Modularize handle_events and renderer functions:** The function is over 700 lines with a lot of repeating blocks. Split into smaller functions.
+* [ ] **Editor Indentation Fix:** - Main : merger indentation with the parser for more accurate results.
     * [ ] Keep cache of language maps in engine to reduce lookup time.
     * [ ] In indents add function to support tab which indents if before any content and inserts a pure \t otherwise.
     * [ ] And backspace which undents if before any content.
     * [ ] Add block indentation support.
-    * [ ] Ignore comments/strings (maybe as-set by tree-sitter) when auto-indenting.
-    * [ ] Just use span cursor to avoid strings/comments.. And use another map for c-style single line block and add stuff like operators to it.
+    * [ ] Ignore comments/strings from parser when auto-indenting.
     * [ ] These will dedent when the block immediately after them is dedented
-    * [ ] Dont dedent is ending is valid starting is invalid but also empty
+    * [ ] Dont dedent if ending is valid starting is invalid but also empty
     * [ ] Just leave asis if starting is empty
 * [ ] **Readme:** Update readme to show indetation mechanics.
 * [ ] **LSP Bug:** Try to find out why emojis are breaking lsp edits. (check the ruby sample)
@@ -35,8 +34,9 @@ Copyright 2025 Syed Daanish
 * make it faster for line inserts/deletes too (treeify the vector)
 * Try to make all functions better now that folds have been purged
 * Cleanup syntax and renderer files
+* Fix ruby regexp not living across lines when edits are made
 
-### Core Editing Mechanics
+* for ruby regex use hueristic where is a space is seen after the / it is not a regexp
 
 * [ ] **Undo/Redo:** Add support for undo/redo history.
 

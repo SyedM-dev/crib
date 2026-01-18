@@ -1,24 +1,28 @@
+#include "syntax/decl.h"
 #include "syntax/langs.h"
 
 const static std::vector<std::string> base_keywords = {
-    // style 4
-    "if",    "else",  "elsif", "case",  "rescue", "ensure", "do",  "for",
-    "while", "until", "def",   "class", "module", "begin",  "end", "unless",
+    "class", "module", "begin", "end", "else", "rescue", "ensure", "do", "when",
+};
+
+const static std::vector<std::string> expecting_keywords = {
+    "if", "elsif", "case", "for", "while", "until", "unless",
 };
 
 const static std::vector<std::string> operator_keywords = {
-    // style 5
-    "alias", "and", "BEGIN", "break",  "catch", "defined?", "in",    "next",
-    "not",   "or",  "redo",  "rescue", "retry", "return",   "super", "yield",
-    "self",  "nil", "true",  "false",  "undef", "when",
+    "alias", "BEGIN",  "break", "catch", "defined?", "in",  "next",
+    "redo",  "rescue", "retry", "super", "self",     "nil", "undef",
+};
+
+const static std::vector<std::string> expecting_operators = {
+    "and", "return", "not", "yield", "or",
 };
 
 const static std::vector<std::string> operators = {
-    "+",   "-",   "*",   "/",  "%",  "**", "==",  "!=",  "===",
-    "<=>", ">",   ">=",  "<",  "<=", "&&", "||",  "!",   "&",
-    "|",   "^",   "~",   "<<", ">>", "=",  "+=",  "-=",  "*=",
-    "/=",  "%=",  "**=", "&=", "|=", "^=", "<<=", ">>=", "..",
-    "...", "===", "=",   "=>", "&.", "[]", "[]=", "`",   "->",
+    "+",   "-",   "*",  "/",   "%",   "**", "==", "!=",  "===", "<=>", ">",
+    ">=",  "<",   "<=", "&&",  "||",  "!",  "&",  "|",   "^",   "~",   "<<",
+    ">>",  "=",   "+=", "-=",  "*=",  "/=", "%=", "**=", "&=",  "|=",  "^=",
+    "<<=", ">>=", "..", "...", "===", "=",  "=>", "&",   "`",   "->",  "=~",
 };
 
 struct HeredocInfo {
@@ -34,19 +38,16 @@ struct HeredocInfo {
 };
 
 struct RubyFullState {
-  // TODO: use this to highlight each level seperaletly like vscode colored
-  // braces extention thingy does
   int brace_level = 0;
-  int paren_level = 0;
-  int bracket_level = 0;
 
   enum : uint8_t { NONE, STRING, REGEXP, COMMENT, HEREDOC, END };
   uint8_t in_state = RubyFullState::NONE;
 
+  bool expecting_expr = false;
+
   struct Lit {
     char delim_start = '\0';
     char delim_end = '\0';
-    // For stuff like %Q{ { these braces are valid } this part is still str }
     int brace_level = 1;
     bool allow_interp = false;
 
@@ -60,12 +61,13 @@ struct RubyFullState {
   bool operator==(const RubyFullState &other) const {
     return in_state == other.in_state && lit == other.lit &&
            brace_level == other.brace_level &&
-           paren_level == other.paren_level &&
-           bracket_level == other.bracket_level;
+           expecting_expr == other.expecting_expr;
   }
 };
 
 struct RubyState {
+  using full_state_type = RubyFullState;
+
   int interp_level = 0;
   std::stack<std::shared_ptr<RubyFullState>> interp_stack;
   std::shared_ptr<RubyFullState> full_state;
@@ -80,32 +82,16 @@ struct RubyState {
   }
 };
 
-inline std::shared_ptr<RubyState>
-ensure_state(std::shared_ptr<RubyState> state) {
-  if (!state)
-    state = std::make_shared<RubyState>();
-  if (state.unique())
-    return state;
-  return std::make_shared<RubyState>(*state);
-}
-
-inline std::shared_ptr<RubyState>
-ensure_full_state(std::shared_ptr<RubyState> state) {
-  state = ensure_state(state);
-  if (!state->full_state)
-    state->full_state = std::make_shared<RubyFullState>();
-  else if (!state->full_state.unique())
-    state->full_state = std::make_shared<RubyFullState>(*state->full_state);
-  return state;
-}
-
-bool identifier_start_char(char c) {
+inline static bool identifier_start_char(char c) {
   return !isascii(c) || isalpha(c) || c == '_';
 }
 
-bool identifier_char(char c) { return !isascii(c) || isalnum(c) || c == '_'; }
+inline static bool identifier_char(char c) {
+  return !isascii(c) || isalnum(c) || c == '_';
+}
 
-uint32_t get_next_word(const char *text, uint32_t i, uint32_t len) {
+inline static uint32_t get_next_word(const char *text, uint32_t i,
+                                     uint32_t len) {
   if (i >= len || !identifier_start_char(text[i]))
     return 0;
   uint32_t width = 1;
@@ -116,12 +102,12 @@ uint32_t get_next_word(const char *text, uint32_t i, uint32_t len) {
   return width;
 }
 
-bool compare(const char *a, const char *b, size_t n) {
-  size_t i = 0;
-  for (; i < n; ++i)
-    if (a[i] != b[i])
-      return false;
-  return true;
+bool ruby_state_match(std::shared_ptr<void> state_1,
+                      std::shared_ptr<void> state_2) {
+  if (!state_1 || !state_2)
+    return false;
+  return *std::static_pointer_cast<RubyState>(state_1) ==
+         *std::static_pointer_cast<RubyState>(state_2);
 }
 
 std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
@@ -129,21 +115,20 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
                                  const char *text, uint32_t len) {
   static bool keywords_trie_init = false;
   static Trie base_keywords_trie;
+  static Trie expecting_keywords_trie;
   static Trie operator_keywords_trie;
+  static Trie expecting_operators_trie;
   static Trie operator_trie;
   if (!keywords_trie_init) {
     base_keywords_trie.build(base_keywords);
+    expecting_keywords_trie.build(expecting_keywords);
     operator_keywords_trie.build(operator_keywords);
+    expecting_operators_trie.build(expecting_operators);
     operator_trie.build(operators);
     keywords_trie_init = true;
   }
   tokens->clear();
-  if (!in_state)
-    in_state = std::make_shared<RubyState>();
-  std::shared_ptr<RubyState> state =
-      std::static_pointer_cast<RubyState>(in_state);
-  if (!state->full_state)
-    state->full_state = std::make_shared<RubyFullState>();
+  auto state = ensure_state(std::static_pointer_cast<RubyState>(in_state));
   uint32_t i = 0;
   while (len > 0 && (text[len - 1] == '\n' || text[len - 1] == '\r' ||
                      text[len - 1] == '\t' || text[len - 1] == ' '))
@@ -152,15 +137,12 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
     return state;
   bool heredoc_first = false;
   while (i < len) {
-    if (state->full_state->in_state == RubyFullState::END) {
-      tokens->clear();
+    if (state->full_state->in_state == RubyFullState::END)
       return state;
-    }
     if (state->full_state->in_state == RubyFullState::COMMENT) {
-      tokens->push_back({i, len, 1});
+      tokens->push_back({i, len, TokenKind::Comment});
       if (i == 0 && len == 4 && text[i] == '=' && text[i + 1] == 'e' &&
           text[i + 2] == 'n' && text[i + 3] == 'd') {
-        state = ensure_full_state(state);
         state->full_state->in_state = RubyFullState::NONE;
       }
       return state;
@@ -175,32 +157,32 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
         if (len - start == state->heredocs.front().delim.length() &&
             compare(text + start, state->heredocs.front().delim.c_str(),
                     state->heredocs.front().delim.length())) {
-          state = ensure_full_state(state);
           state->heredocs.pop_front();
           if (state->heredocs.empty())
             state->full_state->in_state = RubyFullState::NONE;
-          tokens->push_back({i, len, 10});
+          tokens->push_back({i, len, TokenKind::Annotation});
           return state;
         }
       }
       uint32_t start = i;
       if (!state->heredocs.front().allow_interpolation) {
-        tokens->push_back({i, len, 2});
+        tokens->push_back({i, len, TokenKind::String});
         return state;
       } else {
         while (i < len) {
           if (text[i] == '\\') {
-            // TODO: highlight the escape character
+            tokens->push_back({start, i, TokenKind::String});
+            start = i;
             i++;
             if (i < len)
               i++;
+            tokens->push_back({start, i, TokenKind::Escape});
             continue;
           }
           if (text[i] == '#' && i + 1 < len && text[i + 1] == '{') {
-            tokens->push_back({start, i, 2});
-            tokens->push_back({i, i + 2, 10});
+            tokens->push_back({start, i, TokenKind::String});
+            tokens->push_back({i, i + 2, TokenKind::Interpolation});
             i += 2;
-            state = ensure_state(state);
             state->interp_stack.push(state->full_state);
             state->full_state = std::make_shared<RubyFullState>();
             state->interp_level = 1;
@@ -209,7 +191,7 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
           i++;
         }
         if (i == len)
-          tokens->push_back({start, len, 2});
+          tokens->push_back({start, len, TokenKind::String});
         continue;
       }
     }
@@ -217,19 +199,20 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
       uint32_t start = i;
       while (i < len) {
         if (text[i] == '\\') {
-          // TODO: highlight the escape character - need to make priority work
-          // and this have higher
+          tokens->push_back({start, i, TokenKind::String});
+          start = i;
           i++;
           if (i < len)
             i++;
+          tokens->push_back({start, i, TokenKind::Escape});
+          continue;
           continue;
         }
         if (state->full_state->lit.allow_interp && text[i] == '#' &&
             i + 1 < len && text[i + 1] == '{') {
-          tokens->push_back({start, i, 2});
-          tokens->push_back({i, i + 2, 10});
+          tokens->push_back({start, i, TokenKind::String});
+          tokens->push_back({i, i + 2, TokenKind::Interpolation});
           i += 2;
-          state = ensure_state(state);
           state->interp_stack.push(state->full_state);
           state->full_state = std::make_shared<RubyFullState>();
           state->interp_level = 1;
@@ -238,23 +221,23 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
         if (text[i] == state->full_state->lit.delim_start &&
             state->full_state->lit.delim_start !=
                 state->full_state->lit.delim_end) {
-          state = ensure_full_state(state);
           state->full_state->lit.brace_level++;
         }
         if (text[i] == state->full_state->lit.delim_end) {
-          state = ensure_full_state(state);
           if (state->full_state->lit.delim_start ==
               state->full_state->lit.delim_end) {
             i++;
-            tokens->push_back({start, i, 2});
+            tokens->push_back({start, i, TokenKind::String});
             state->full_state->in_state = RubyFullState::NONE;
+            state->full_state->expecting_expr = false;
             break;
           } else {
             state->full_state->lit.brace_level--;
             if (state->full_state->lit.brace_level == 0) {
               i++;
-              tokens->push_back({start, i, 2});
+              tokens->push_back({start, i, TokenKind::String});
               state->full_state->in_state = RubyFullState::NONE;
+              state->full_state->expecting_expr = false;
               break;
             }
           }
@@ -262,15 +245,67 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
         i++;
       }
       if (i == len)
-        tokens->push_back({start, len, 2});
+        tokens->push_back({start, len, TokenKind::String});
+      continue;
+    }
+    if (state->full_state->in_state == RubyFullState::REGEXP) {
+      uint32_t start = i;
+      while (i < len) {
+        if (text[i] == '\\') {
+          tokens->push_back({start, i, TokenKind::Regexp});
+          ;
+          start = i;
+          i++;
+          if (i < len)
+            i++;
+          tokens->push_back({start, i, TokenKind::Escape});
+          continue;
+        }
+        if (text[i] == '#' && i + 1 < len && text[i + 1] == '{') {
+          tokens->push_back({start, i, TokenKind::Regexp});
+          tokens->push_back({i, i + 2, TokenKind::Interpolation});
+          i += 2;
+          state->interp_stack.push(state->full_state);
+          state->full_state = std::make_shared<RubyFullState>();
+          state->interp_level = 1;
+          break;
+        }
+        if (text[i] == state->full_state->lit.delim_start &&
+            state->full_state->lit.delim_start !=
+                state->full_state->lit.delim_end) {
+          state->full_state->lit.brace_level++;
+        }
+        if (text[i] == state->full_state->lit.delim_end) {
+          if (state->full_state->lit.delim_start ==
+              state->full_state->lit.delim_end) {
+            i += 1;
+            tokens->push_back({start, i, TokenKind::Regexp});
+            state->full_state->in_state = RubyFullState::NONE;
+            state->full_state->expecting_expr = false;
+            break;
+          } else {
+            state->full_state->lit.brace_level--;
+            if (state->full_state->lit.brace_level == 0) {
+              i += 1;
+              tokens->push_back({start, i, TokenKind::Regexp});
+              state->full_state->in_state = RubyFullState::NONE;
+              state->full_state->expecting_expr = false;
+              break;
+            }
+          }
+        }
+        i++;
+      }
+      if (i == len)
+        tokens->push_back({start, len, TokenKind::Regexp});
       continue;
     }
     if (i == 0 && len == 6) {
       if (text[i] == '=' && text[i + 1] == 'b' && text[i + 2] == 'e' &&
           text[i + 3] == 'g' && text[i + 4] == 'i' && text[i + 5] == 'n') {
-        state = ensure_full_state(state);
         state->full_state->in_state = RubyFullState::COMMENT;
-        tokens->push_back({0, len, 1});
+        state->full_state->expecting_expr = false;
+        tokens->push_back({0, len, TokenKind::Comment});
         return state;
       }
     }
@@ -278,9 +313,9 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
       if (text[i] == '_' && text[i + 1] == '_' && text[i + 2] == 'E' &&
           text[i + 3] == 'N' && text[i + 4] == 'D' && text[i + 5] == '_' &&
           text[i + 6] == '_') {
-        state = ensure_full_state(state);
         tokens->clear();
         state->full_state->in_state = RubyFullState::END;
+        state->full_state->expecting_expr = false;
         return state;
       }
     }
@@ -291,7 +326,7 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
         indented = true;
       if (text[j] == '~' || text[j] == '-')
         j++;
-      tokens->push_back({i, j, 10});
+      tokens->push_back({i, j, TokenKind::Operator});
       if (j >= len)
         continue;
       std::string delim;
@@ -304,12 +339,15 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
         while (j < len && text[j] != q)
           delim += text[j++];
       } else {
-        while (j < len && identifier_char(text[j]))
+        if (j < len && identifier_start_char(text[j])) {
           delim += text[j++];
+          while (j < len && identifier_char(text[j]))
+            delim += text[j++];
+        }
       }
+      state->full_state->expecting_expr = false;
       if (!delim.empty()) {
-        tokens->push_back({s, j, 10});
-        state = ensure_full_state(state);
+        tokens->push_back({s, j, TokenKind::Annotation});
         state->heredocs.push_back({delim, interpolation, indented});
         state->full_state->in_state = RubyFullState::HEREDOC;
         heredoc_first = true;
@@ -317,18 +355,47 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
       i = j;
       continue;
     }
-    if (text[i] == '#') {
-      tokens->push_back({i, len, 1});
+    if (text[i] == '/' && state->full_state->expecting_expr) {
+      tokens->push_back({i, i + 1, TokenKind::Regexp});
+      state->full_state->in_state = RubyFullState::REGEXP;
+      state->full_state->expecting_expr = false;
+      state->full_state->lit.delim_start = '/';
+      state->full_state->lit.delim_end = '/';
+      state->full_state->lit.allow_interp = true;
+      i++;
+      continue;
+    } else if (text[i] == '#') {
+      tokens->push_back({i, len, TokenKind::Comment});
+      state->full_state->expecting_expr = false;
       return state;
+    } else if (text[i] == '.') {
+      uint32_t start = i;
+      i++;
+      if (i < len && text[i] == '.') {
+        i++;
+        if (i < len && text[i] == '.') {
+          i++;
+        }
+      }
+      tokens->push_back({start, i, TokenKind::Operator});
+      state->full_state->expecting_expr = false;
+      continue;
     } else if (text[i] == ':') {
+      state->full_state->expecting_expr = false;
       uint32_t start = i;
       i++;
       if (i >= len) {
-        tokens->push_back({start, i, 3});
+        tokens->push_back({start, i, TokenKind::Operator});
+        state->full_state->expecting_expr = true;
+        continue;
+      }
+      if (text[i] == ':') {
+        i++;
         continue;
       }
       if (text[i] == '\'' || text[i] == '"') {
-        tokens->push_back({start, i, 6});
+        tokens->push_back({start, i, TokenKind::Operator});
+        state->full_state->expecting_expr = true;
         continue;
       }
       if (text[i] == '$' || text[i] == '@') {
@@ -338,24 +405,25 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
           i++;
         while (i < len && identifier_char(text[i]))
           i++;
-        tokens->push_back({start, i, 6});
+        tokens->push_back({start, i, TokenKind::Label});
         continue;
       }
       uint32_t op_len = operator_trie.match(text, i, len, identifier_char);
       if (op_len > 0) {
-        tokens->push_back({start, i + op_len, 6});
+        tokens->push_back({start, i + op_len, TokenKind::Label});
         i += op_len;
         continue;
       }
       if (identifier_start_char(text[i])) {
         uint32_t word_len = get_next_word(text, i, len);
-        tokens->push_back({start, i + word_len, 6});
+        tokens->push_back({start, i + word_len, TokenKind::Label});
         i += word_len;
         continue;
       }
-      tokens->push_back({start, i, 3});
+      tokens->push_back({start, i, TokenKind::Operator});
       continue;
     } else if (text[i] == '@') {
+      state->full_state->expecting_expr = false;
       uint32_t start = i;
       i++;
       if (i >= len)
@@ -368,9 +436,10 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
         continue;
       while (i < len && identifier_char(text[i]))
         i++;
-      tokens->push_back({start, i, 7});
+      tokens->push_back({start, i, TokenKind::VariableInstance});
       continue;
     } else if (text[i] == '$') {
+      state->full_state->expecting_expr = false;
       uint32_t start = i;
       i++;
       if (i >= len)
@@ -390,9 +459,10 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
       } else {
         continue;
       }
-      tokens->push_back({start, i, 8});
+      tokens->push_back({start, i, TokenKind::VariableGlobal});
       continue;
     } else if (text[i] == '?') {
+      state->full_state->expecting_expr = false;
       uint32_t start = i;
       i++;
       if (i < len && text[i] == '\\') {
@@ -405,7 +475,7 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
             continue;
           if (i < len && isxdigit(text[i]))
             i++;
-          tokens->push_back({start, i, 7});
+          tokens->push_back({start, i, TokenKind::Char});
           continue;
         } else if (i < len && text[i] == 'u') {
           i++;
@@ -425,42 +495,81 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
             i++;
           else
             continue;
-          tokens->push_back({start, i, 7});
+          tokens->push_back({start, i, TokenKind::Char});
           continue;
         } else if (i < len) {
           i++;
-          tokens->push_back({start, i, 7});
+          tokens->push_back({start, i, TokenKind::Char});
           continue;
         }
       } else if (i < len && text[i] != ' ') {
         i++;
-        tokens->push_back({start, i, 7});
+        tokens->push_back({start, i, TokenKind::Char});
         continue;
       } else {
-        tokens->push_back({start, i, 3});
+        state->full_state->expecting_expr = true;
+        tokens->push_back({start, i, TokenKind::Operator});
         continue;
       }
     } else if (text[i] == '{') {
-      tokens->push_back({i, i + 1, 3});
-      state = ensure_state(state);
+      state->full_state->expecting_expr = true;
+      uint8_t brace_color =
+          (uint8_t)TokenKind::Brace1 + (state->full_state->brace_level % 5);
+      tokens->push_back({i, i + 1, (TokenKind)brace_color});
       state->interp_level++;
+      state->full_state->brace_level++;
       i++;
       continue;
     } else if (text[i] == '}') {
-      state = ensure_full_state(state);
+      state->full_state->expecting_expr = false;
       state->interp_level--;
       if (state->interp_level == 0 && !state->interp_stack.empty()) {
         state->full_state = state->interp_stack.top();
         state->interp_stack.pop();
-        tokens->push_back({i, i + 1, 10});
+        tokens->push_back({i, i + 1, TokenKind::Interpolation});
       } else {
-        tokens->push_back({i, i + 1, 3});
+        state->full_state->brace_level--;
+        uint8_t brace_color =
+            (uint8_t)TokenKind::Brace1 + (state->full_state->brace_level % 5);
+        tokens->push_back({i, i + 1, (TokenKind)brace_color});
       }
       i++;
       continue;
+    } else if (text[i] == '(') {
+      state->full_state->expecting_expr = true;
+      uint8_t brace_color =
+          (uint8_t)TokenKind::Brace1 + (state->full_state->brace_level % 5);
+      tokens->push_back({i, i + 1, (TokenKind)brace_color});
+      state->full_state->brace_level++;
+      i++;
+      continue;
+    } else if (text[i] == ')') {
+      state->full_state->expecting_expr = false;
+      state->full_state->brace_level--;
+      uint8_t brace_color =
+          (uint8_t)TokenKind::Brace1 + (state->full_state->brace_level % 5);
+      tokens->push_back({i, i + 1, (TokenKind)brace_color});
+      i++;
+      continue;
+    } else if (text[i] == '[') {
+      state->full_state->expecting_expr = true;
+      uint8_t brace_color =
+          (uint8_t)TokenKind::Brace1 + (state->full_state->brace_level % 5);
+      tokens->push_back({i, i + 1, (TokenKind)brace_color});
+      state->full_state->brace_level++;
+      i++;
+      continue;
+    } else if (text[i] == ']') {
+      state->full_state->expecting_expr = false;
+      state->full_state->brace_level--;
+      uint8_t brace_color =
+          (uint8_t)TokenKind::Brace1 + (state->full_state->brace_level % 5);
+      tokens->push_back({i, i + 1, (TokenKind)brace_color});
+      i++;
+      continue;
     } else if (text[i] == '\'') {
-      tokens->push_back({i, i + 1, 2});
-      state = ensure_full_state(state);
+      state->full_state->expecting_expr = false;
+      tokens->push_back({i, i + 1, TokenKind::String});
       state->full_state->in_state = RubyFullState::STRING;
       state->full_state->lit.delim_start = '\'';
       state->full_state->lit.delim_end = '\'';
@@ -468,8 +577,8 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
       i++;
       continue;
     } else if (text[i] == '"') {
-      tokens->push_back({i, i + 1, 2});
-      state = ensure_full_state(state);
+      state->full_state->expecting_expr = false;
+      tokens->push_back({i, i + 1, TokenKind::String});
       state->full_state->in_state = RubyFullState::STRING;
       state->full_state->lit.delim_start = '"';
       state->full_state->lit.delim_end = '"';
@@ -477,8 +586,8 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
       i++;
       continue;
     } else if (text[i] == '`') {
-      tokens->push_back({i, i + 1, 2});
-      state = ensure_full_state(state);
+      state->full_state->expecting_expr = false;
+      tokens->push_back({i, i + 1, TokenKind::String});
       state->full_state->in_state = RubyFullState::STRING;
       state->full_state->lit.delim_start = '`';
       state->full_state->lit.delim_end = '`';
@@ -486,6 +595,7 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
       i++;
       continue;
     } else if (text[i] == '%') {
+      state->full_state->expecting_expr = false;
       if (i + 1 >= len) {
         i++;
         continue;
@@ -495,15 +605,24 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
       char delim_end = '\0';
       bool allow_interp = true;
       int prefix_len = 1;
+      bool is_regexp = false;
       switch (type) {
+      case 'r':
+        is_regexp = true;
+        allow_interp = true;
+        prefix_len = 2;
+        break;
       case 'Q':
       case 'x':
+      case 'I':
+      case 'W':
         allow_interp = true;
         prefix_len = 2;
         break;
       case 'w':
       case 'q':
       case 'i':
+      case 's':
         allow_interp = false;
         prefix_len = 2;
         break;
@@ -539,9 +658,10 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
         delim_end = delim_start;
         break;
       }
-      tokens->push_back({i, i + prefix_len + 1, 2});
-      state = ensure_full_state(state);
-      state->full_state->in_state = RubyFullState::STRING;
+      tokens->push_back({i, i + prefix_len + 1,
+                         (is_regexp ? TokenKind::Regexp : TokenKind::String)});
+      state->full_state->in_state =
+          is_regexp ? RubyFullState::REGEXP : RubyFullState::STRING;
       state->full_state->lit.delim_start = delim_start;
       state->full_state->lit.delim_end = delim_end;
       state->full_state->lit.allow_interp = allow_interp;
@@ -549,6 +669,7 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
       i += prefix_len + 1;
       continue;
     } else if (isdigit(text[i])) {
+      state->full_state->expecting_expr = false;
       uint32_t start = i;
       if (text[i] == '0') {
         i++;
@@ -646,85 +767,137 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
             i--;
         }
       }
-      tokens->push_back({start, i, 9});
+      tokens->push_back({start, i, TokenKind::Number});
       continue;
     } else if (identifier_start_char(text[i])) {
+      state->full_state->expecting_expr = false;
       uint32_t length;
-      if ((length = base_keywords_trie.match(text, i, len, identifier_char)) >
-          0) {
-        tokens->push_back({i, i + length, 4});
+      if ((length = base_keywords_trie.match(text, i, len, identifier_char))) {
+        tokens->push_back({i, i + length, TokenKind::Keyword});
+        i += length;
+        continue;
+      } else if ((length = expecting_keywords_trie.match(text, i, len,
+                                                         identifier_char))) {
+        state->full_state->expecting_expr = true;
+        tokens->push_back({i, i + length, TokenKind::Keyword});
         i += length;
         continue;
       } else if ((length = operator_keywords_trie.match(text, i, len,
-                                                        identifier_char)) > 0) {
-        tokens->push_back({i, i + length, 5});
+                                                        identifier_char))) {
+        tokens->push_back({i, i + length, TokenKind::KeywordOperator});
+        i += length;
+        continue;
+      } else if ((length = expecting_operators_trie.match(
+                      text, i, len, identifier_char)) > 0) {
+        state->full_state->expecting_expr = true;
+        tokens->push_back({i, i + length, TokenKind::KeywordOperator});
         i += length;
         continue;
       } else if (text[i] >= 'A' && text[i] <= 'Z') {
         uint32_t start = i;
         i += get_next_word(text, i, len);
-        tokens->push_back({start, i, 10});
+        tokens->push_back({start, i, TokenKind::Constant});
         continue;
       } else {
         uint32_t start = i;
+        if (i + 4 < len && text[i] == 't' && text[i + 1] == 'r' &&
+            text[i + 2] == 'u' && text[i + 3] == 'e') {
+          i += 4;
+          tokens->push_back({start, i, TokenKind::True});
+          continue;
+        }
+        if (i + 5 < len && text[i] == 'f' && text[i + 1] == 'a' &&
+            text[i + 2] == 'l' && text[i + 3] == 's' && text[i + 4] == 'e') {
+          i += 5;
+          tokens->push_back({start, i, TokenKind::False});
+          continue;
+        }
+        if (i + 3 < len && text[i] == 'd' && text[i + 1] == 'e' &&
+            text[i + 2] == 'f') {
+          i += 3;
+          tokens->push_back({start, i, TokenKind::Keyword});
+          while (i < len && (text[i] == ' ' || text[i] == '\t'))
+            i++;
+          while (i < len) {
+            if (identifier_start_char(text[i])) {
+              uint32_t width = get_next_word(text, i, len);
+              if (text[i] >= 'A' && text[i] <= 'Z')
+                tokens->push_back({i, i + width, TokenKind::Constant});
+              else if (width == 4 && (text[i] >= 's' && text[i + 1] == 'e' &&
+                                      text[i + 2] == 'l' && text[i + 3] == 'f'))
+                tokens->push_back({i, i + width, TokenKind::Keyword});
+              i += width;
+              if (i < len && text[i] == '.') {
+                i++;
+                continue;
+              }
+              tokens->push_back({i - width, i, TokenKind::Function});
+              break;
+            } else {
+              break;
+            }
+          }
+          continue;
+        }
         while (i < len && identifier_char(text[i]))
           i++;
         if (i < len && text[i] == ':') {
           i++;
-          tokens->push_back({start, i, 6});
+          tokens->push_back({start, i, TokenKind::Label});
           continue;
         } else if (i < len && (text[i] == '!' || text[i] == '?')) {
           i++;
+          tokens->push_back({start, i, TokenKind::Function});
+        } else {
+          uint32_t tmp = i;
+          if (tmp < len && (text[tmp] == '(' || text[tmp] == '{')) {
+            tokens->push_back({start, i, TokenKind::Function});
+            continue;
+          } else if (tmp < len && (text[tmp] == ' ' || text[tmp] == '\t')) {
+            tmp++;
+          } else {
+            continue;
+          }
+          while (tmp < len && (text[tmp] == ' ' || text[tmp] == '\t'))
+            tmp++;
+          if (tmp >= len)
+            continue;
+          if (!isascii(text[tmp])) {
+            tokens->push_back({start, i, TokenKind::Function});
+            continue;
+          } else if (text[tmp] == '-' || text[tmp] == '&' || text[tmp] == '%' ||
+                     text[tmp] == ':') {
+            if (tmp + 1 >= len ||
+                (text[tmp + 1] == ' ' || text[tmp + 1] == '>'))
+              continue;
+          } else if (text[tmp] == ']' || text[tmp] == '}' || text[tmp] == ')' ||
+                     text[tmp] == ',' || text[tmp] == ';' || text[tmp] == '.' ||
+                     text[tmp] == '+' || text[tmp] == '*' || text[tmp] == '/' ||
+                     text[tmp] == '=' || text[tmp] == '?' || text[tmp] == '|' ||
+                     text[tmp] == '^' || text[tmp] == '<' || text[tmp] == '>') {
+            continue;
+          }
+          tokens->push_back({start, i, TokenKind::Function});
         }
         continue;
       }
     } else {
       uint32_t op_len;
-      if ((op_len = operator_trie.match(text, i, len,
-                                        [](char) { return false; })) > 0) {
-        tokens->push_back({i, i + op_len, 3});
+      if ((op_len =
+               operator_trie.match(text, i, len, [](char) { return false; }))) {
+        tokens->push_back({i, i + op_len, TokenKind::Operator});
         i += op_len;
+        state->full_state->expecting_expr = true;
+        continue;
+      } else {
+        i += utf8_codepoint_width(text[i]);
         continue;
       }
     }
-    i += utf8_codepoint_width(text[i]);
   }
   return state;
 }
 
-bool ruby_state_match(std::shared_ptr<void> state_1,
-                      std::shared_ptr<void> state_2) {
-  if (!state_1 || !state_2)
-    return false;
-  return *std::static_pointer_cast<RubyState>(state_1) ==
-         *std::static_pointer_cast<RubyState>(state_2);
-}
-
-//    function calls matched with alphanumeric names followed immediately by !
-//      or ? or `(` immediately or siwth space or are followed by a non-keyword
-//      or non-operator (some operators like - for negating and ! for not or {
-//      for block might be allowed?)
-//    a word following :: or . is matched as a property
-//    and any random word is matched as a variable name
-//      or as a class/module name if it starts with a capital letter
-//
-//    regex are matched as text within / and / as long as
-//    the first / is not
-//      following a literal (int/float/string) or variable or brace close
-//      and is following a keyword or operator liek return /regex/  or  x =
-//      /regex/ . so maybe add feild expecting_expr to state that is true right
-//      after keyword or some operators like = , =~ , `,` etc?
-//
-//    (left to implement) -
-//
-//        words - breaks up into these submatches
-//          - Constants that start with a capital letter
-//          - a word following :: or . is matched as a property
-//          - function call if ending with ! or ? or ( or are followed by a
-//            non-keyword or non-operator . ill figure it out
-//
-//        regex (and distinguish between / for division and / for regex) and
-//        %r{} ones too
-//
-//        Matching brace colors by brace depth
-//
+// TODO: Add trie's for builtins and highlight them separately liek (Array /
+// self etc)
+// And in regex better highlighting of regex structures

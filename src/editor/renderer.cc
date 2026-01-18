@@ -1,5 +1,7 @@
 #include "editor/editor.h"
 #include "main.h"
+#include "syntax/decl.h"
+#include "syntax/parser.h"
 
 void render_editor(Editor *editor) {
   uint32_t sel_start = 0, sel_end = 0;
@@ -23,6 +25,15 @@ void render_editor(Editor *editor) {
   std::unique_lock<std::mutex> lock;
   if (editor->parser)
     lock = std::unique_lock<std::mutex>(editor->parser->mutex);
+  LineData *line_data = nullptr;
+  auto get_type = [&](uint32_t col) {
+    if (!line_data)
+      return 0;
+    for (auto const &token : line_data->tokens)
+      if (token.start <= col && token.end > col)
+        return (int)token.type;
+    return 0;
+  };
   std::shared_lock knot_lock(editor->knot_mtx);
   if (editor->selection_active) {
     Coord start, end;
@@ -82,6 +93,10 @@ void render_editor(Editor *editor) {
   while (rendered_rows < editor->size.row) {
     uint32_t line_len;
     char *line = next_line(it, &line_len);
+    if (line_data)
+      line_data = editor->parser->line_tree.next();
+    else
+      line_data = editor->parser->line_tree.start_iter(line_index);
     if (!line)
       break;
     if (line_len > 0 && line[line_len - 1] == '\n')
@@ -140,9 +155,8 @@ void render_editor(Editor *editor) {
         uint32_t absolute_byte_pos =
             global_byte_offset + current_byte_offset + local_render_offset;
         const Highlight *hl = nullptr;
-        if (editor->parser && editor->parser->line_data.size() > line_index)
-          hl = &highlight_map.at(editor->parser->get_type(
-              {line_index, current_byte_offset + local_render_offset}));
+        if (editor->parser)
+          hl = &highlights[get_type(current_byte_offset + local_render_offset)];
         uint32_t fg = hl ? hl->fg : 0xFFFFFF;
         uint32_t bg = hl ? hl->bg : 0;
         uint8_t fl = hl ? hl->flags : 0;

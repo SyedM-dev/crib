@@ -16,19 +16,11 @@ static bool init_lsp(std::shared_ptr<LSPInstance> lsp) {
   if (pid == 0) {
     dup2(in_pipe[0], STDIN_FILENO);
     dup2(out_pipe[1], STDOUT_FILENO);
-#ifdef __clang__
     int devnull = open("/dev/null", O_WRONLY);
     if (devnull >= 0) {
       dup2(devnull, STDERR_FILENO);
       close(devnull);
     }
-#else
-    int log = open("/tmp/lsp.log", O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    if (log >= 0) {
-      dup2(log, STDERR_FILENO);
-      close(log);
-    }
-#endif
     close(in_pipe[0]);
     close(in_pipe[1]);
     close(out_pipe[0]);

@@ -32,8 +32,8 @@ Editor *new_editor(const char *filename_arg, Coord position, Coord size) {
   if (editor->lang.name != "unknown")
     editor->parser = new Parser(editor->root, &editor->knot_mtx,
                                 editor->lang.name, size.row + 5);
-  // if (len <= (1024 * 28))
-  //   request_add_to_lsp(editor->lang, editor);
+  if (len <= (1024 * 28))
+    request_add_to_lsp(editor->lang, editor);
   editor->indents.compute_indent(editor);
   return editor;
 }

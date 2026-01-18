@@ -1,0 +1,82 @@
+{
+  "Default": {
+    "fg": "#EEEEEE"
+  },
+  "Comment": {
+    "fg": "#AAAAAA",
+    "italic": true
+  },
+  "String": {
+    "fg": "#AAD94C"
+  },
+  "Escape": {
+    "fg": "#7dcfff"
+  },
+  "Interpolation": {
+    "fg": "#7dcfff"
+  },
+  "Regexp": {
+    "fg": "#D2A6FF"
+  },
+  "Number": {
+    "fg": "#E6C08A"
+  },
+  "True": {
+    "fg": "#0FFF0F"
+  },
+  "False": {
+    "fg": "#FF0F0F"
+  },
+  "Char": {
+    "fg": "#FFAF70"
+  },
+  "Keyword": {
+    "fg": "#FF8F40"
+  },
+  "KeywordOperator": {
+    "fg": "#F07178"
+  },
+  "Operator": {
+    "fg": "#FFFFFF",
+    "italic": true
+  },
+  "Function": {
+    "fg": "#FFAF70"
+  },
+  "Type": {
+    "fg": "#F07178"
+  },
+  "Constant": {
+    "fg": "#7dcfff"
+  },
+  "VariableInstance": {
+    "fg": "#95E6CB"
+  },
+  "VariableGlobal": {
+    "fg": "#F07178"
+  },
+  "Annotation": {
+    "fg": "#7dcfff"
+  },
+  "Directive": {
+    "fg": "#FF8F40"
+  },
+  "Label": {
+    "fg": "#D2A6FF"
+  },
+  "Brace1": {
+    "fg": "#D2A6FF"
+  },
+  "Brace2": {
+    "fg": "#FFAFAF"
+  },
+  "Brace3": {
+    "fg": "#FFFF00"
+  },
+  "Brace4": {
+    "fg": "#0FFF0F"
+  },
+  "Brace5": {
+    "fg": "#FF0F0F"
+  }
+}

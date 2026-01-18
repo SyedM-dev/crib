@@ -71,6 +71,14 @@ struct Language {
 #define UNUSED(x) (void)(x)
 #define USING(x) UNUSED(sizeof(x))
 
+inline uint32_t HEX(const std::string &s) {
+  if (s.empty())
+    return 0xFFFFFF;
+  size_t start = (s.front() == '#') ? 1 : 0;
+  return static_cast<uint32_t>(std::stoul(s.substr(start), nullptr, 16));
+}
+
+bool compare(const char *a, const char *b, size_t n);
 std::string clean_text(const std::string &input);
 std::string percent_encode(const std::string &s);
 std::string percent_decode(const std::string &s);

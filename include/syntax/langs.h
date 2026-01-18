@@ -10,9 +10,27 @@
   bool name##_state_match(std::shared_ptr<void> state_1,                       \
                           std::shared_ptr<void> state_2);
 
-#define LANG_A(name) {name##_parse, name##_state_match}
+#define LANG_A(name)                                                           \
+  {                                                                            \
+    #name, { name##_parse, name##_state_match }                                \
+  }
+
+template <typename T>
+inline std::shared_ptr<T> ensure_state(std::shared_ptr<T> state) {
+  using U = typename T::full_state_type;
+  if (!state)
+    state = std::make_shared<T>();
+  if (!state.unique())
+    state = std::make_shared<T>(*state);
+  if (!state->full_state)
+    state->full_state = std::make_shared<U>();
+  else if (!state->full_state.unique())
+    state->full_state = std::make_shared<U>(*state->full_state);
+  return state;
+}
 
 DEF_LANG(ruby);
+DEF_LANG(bash);
 
 inline static const std::unordered_map<
     std::string,
@@ -22,7 +40,8 @@ inline static const std::unordered_map<
                bool (*)(std::shared_ptr<void> state_1,
                         std::shared_ptr<void> state_2)>>
     parsers = {
-        {"ruby", LANG_A(ruby)},
+        LANG_A(ruby),
+        LANG_A(bash),
 };
 
 #endif

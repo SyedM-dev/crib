@@ -1,5 +1,13 @@
 #include "utils/utils.h"
 
+bool compare(const char *a, const char *b, size_t n) {
+  size_t i = 0;
+  for (; i < n; ++i)
+    if (a[i] != b[i])
+      return false;
+  return true;
+}
+
 std::string percent_decode(const std::string &s) {
   std::string out;
   out.reserve(s.size());
