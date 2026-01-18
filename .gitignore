@@ -12,8 +12,6 @@ samples/tmp*
 build
 bin
 
-grammar/.*.scm
-
 .thinlto-cache/
 
 __old__
