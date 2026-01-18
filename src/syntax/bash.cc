@@ -65,7 +65,6 @@ std::shared_ptr<void> bash_parse(std::vector<Token> *tokens,
     len--;
   if (len == 0)
     return state;
-  bool heredoc_first = false;
   while (i < len) {
     i += utf8_codepoint_width(text[i]);
   }

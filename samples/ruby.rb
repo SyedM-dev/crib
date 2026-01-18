@@ -43,7 +43,7 @@ UNINITCORE = %{
 
 # Unicode identifiers (valid in Ruby)
 变量 = 0x5_4eddaee
-π = 3.14_159e+2, ?\u0234, ?\,, ?\x0A, ?s
+π = 3.14_159e+2, ?\u0234, ?\,, ?\x0A, ?s, trued, falsess
 挨拶 = -> { "こんに \n ちは" }
 
 # Method using unicode variable names

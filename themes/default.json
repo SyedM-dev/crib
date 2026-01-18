@@ -22,10 +22,10 @@
     "fg": "#E6C08A"
   },
   "True": {
-    "fg": "#0FFF0F"
+    "fg": "#7AE93C"
   },
   "False": {
-    "fg": "#FF0F0F"
+    "fg": "#F03138"
   },
   "Char": {
     "fg": "#FFAF70"

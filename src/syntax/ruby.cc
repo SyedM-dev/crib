@@ -800,14 +800,16 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
         continue;
       } else {
         uint32_t start = i;
-        if (i + 4 < len && text[i] == 't' && text[i + 1] == 'r' &&
-            text[i + 2] == 'u' && text[i + 3] == 'e') {
+        if (i + 3 < len && text[i] == 't' && text[i + 1] == 'r' &&
+            text[i + 2] == 'u' && text[i + 3] == 'e' && i + 4 < len &&
+            !identifier_char(text[i + 4])) {
           i += 4;
           tokens->push_back({start, i, TokenKind::True});
           continue;
         }
-        if (i + 5 < len && text[i] == 'f' && text[i + 1] == 'a' &&
-            text[i + 2] == 'l' && text[i + 3] == 's' && text[i + 4] == 'e') {
+        if (i + 4 < len && text[i] == 'f' && text[i + 1] == 'a' &&
+            text[i + 2] == 'l' && text[i + 3] == 's' && text[i + 4] == 'e' &&
+            i + 5 < len && !identifier_char(text[i + 5])) {
           i += 5;
           tokens->push_back({start, i, TokenKind::False});
           continue;
