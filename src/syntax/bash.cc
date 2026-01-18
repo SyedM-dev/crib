@@ -70,3 +70,9 @@ std::shared_ptr<void> bash_parse(std::vector<Token> *tokens,
   }
   return state;
 }
+
+// String literals surrounded by   '  strictly with no escaping inside
+// double quoted strings "  allow interpolation and escaping - with $var and
+// ${var}  and $((math)) $(command) and `command` expansions ANSI-C quoted
+// stirngs - $''  backslash escapes but with \xHH and \uHHHH and \uHHHHHHHH \cX
+// too

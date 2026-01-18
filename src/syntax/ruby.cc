@@ -1,6 +1,182 @@
 #include "syntax/decl.h"
 #include "syntax/langs.h"
 
+// TODO: in regex better highlighting of regex structures
+
+const static std::vector<std::string> types = {
+    "BasicObject", "Object",     "NilClass",
+    "TrueClass",   "FalseClass", "Integer",
+    "Fixnum",      "Bignum",     "Float",
+    "Rational",    "Complex",    "Numeric",
+    "String",      "Symbol",     "Array",
+    "Hash",        "Range",      "Regexp",
+    "Struct",      "Enumarator", "Enumerable",
+    "Time",        "Date",       "IO",
+    "File",        "Dir",        "Thread",
+    "Proc",        "Method",     "Module",
+    "Class",       "Mutex",      "ConditionVariable",
+    "MatchData",   "Encoding",   "Fiber",
+};
+
+const static std::vector<std::string> builtins = {
+    "ARGF",
+    "ARGV",
+    "ENV",
+    "STDIN",
+    "STDOUT",
+    "STDERR",
+    "DATA",
+    "TOPLEVEL_BINDING",
+    "RUBY_PLATFORM",
+    "RUBY_VERSION",
+    "RUBY_RELEASE_DATE",
+    "RUBY_PATCHLEVEL",
+    "RUBY_ENGINE",
+    "__LINE__",
+    "__FILE__",
+    "__ENCODING__",
+    "__dir__",
+    "__callee__",
+    "__method__",
+    "__id__",
+    "__send__",
+};
+
+const static std::vector<std::string> methods = {
+    "abort",
+    "at_exit",
+    "binding",
+    "block_given?",
+    "caller",
+    "catch",
+    "chomp",
+    "chomp!",
+    "chop",
+    "chop!",
+    "eval",
+    "exec",
+    "exit",
+    "exit!",
+    "fail",
+    "fork",
+    "format",
+    "gets",
+    "global_variables",
+    "gsub",
+    "gsub!",
+    "iterator?",
+    "lambda",
+    "load",
+    "loop",
+    "open",
+    "print",
+    "printf",
+    "proc",
+    "putc",
+    "puts",
+    "raise",
+    "rand",
+    "readline",
+    "readlines",
+    "require",
+    "require_relative",
+    "select",
+    "sleep",
+    "spawn",
+    "split",
+    "sprintf",
+    "srand",
+    "sub",
+    "sub!",
+    "syscall",
+    "system",
+    "test",
+    "throw",
+    "trace_var",
+    "trap",
+    "untrace_var",
+    "attr",
+    "attr_reader",
+    "attr_writer",
+    "attr_accessor",
+    "class_variable_get",
+    "class_variable_set",
+    "define_method",
+    "instance_variable_get",
+    "instance_variable_set",
+    "private",
+    "protected",
+    "public",
+    "public_class_method",
+    "module_function",
+    "remove_method",
+    "undef_method",
+    "method",
+    "methods",
+    "singleton_methods",
+    "private_methods",
+    "protected_methods",
+    "public_methods",
+    "send",
+    "extend",
+    "include",
+    "prepend",
+    "clone",
+    "dup",
+    "freeze",
+    "taint",
+    "untaint",
+    "trust",
+    "untrust",
+    "untaint?",
+    "trust?",
+    "each",
+    "each_with_index",
+    "each_with_object",
+    "map",
+    "collect",
+    "select",
+    "reject",
+    "reduce",
+    "inject",
+    "find",
+    "detect",
+    "all?",
+    "any?",
+    "none?",
+    "one?",
+    "count",
+    "cycle",
+    "drop",
+    "drop_while",
+    "take",
+    "take_while",
+    "chunk",
+    "chunk_while",
+    "group_by",
+    "partition",
+    "slice_before",
+    "slice_after",
+    "nil?",
+    "is_a?",
+    "kind_of?",
+    "instance_of?",
+    "respond_to?",
+    "equal?",
+    "object_id",
+    "class",
+    "singleton_class",
+    "clone",
+    "freeze",
+    "tap",
+    "then",
+};
+
+const static std::vector<std::string> errors = {
+    "Exception", "SignalException", "Interrupt", "StopIteration",
+    "Errno",     "SystemExit",      "fatal",
+};
+
 const static std::vector<std::string> base_keywords = {
     "class", "module", "begin", "end", "else", "rescue", "ensure", "do", "when",
 };
@@ -119,12 +295,20 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
   static Trie operator_keywords_trie;
   static Trie expecting_operators_trie;
   static Trie operator_trie;
+  static Trie types_trie;
+  static Trie builtins_trie;
+  static Trie methods_trie;
+  static Trie errors_trie;
   if (!keywords_trie_init) {
     base_keywords_trie.build(base_keywords);
     expecting_keywords_trie.build(expecting_keywords);
     operator_keywords_trie.build(operator_keywords);
     expecting_operators_trie.build(expecting_operators);
     operator_trie.build(operators);
+    types_trie.build(types);
+    builtins_trie.build(builtins);
+    methods_trie.build(methods);
+    errors_trie.build(errors);
     keywords_trie_init = true;
   }
   tokens->clear();
@@ -174,8 +358,60 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
             tokens->push_back({start, i, TokenKind::String});
             start = i;
             i++;
-            if (i < len)
+            if (i < len && text[i] == 'x') {
               i++;
+              if (i < len && isxdigit(text[i]))
+                i++;
+              if (i < len && isxdigit(text[i]))
+                i++;
+            } else if (i < len && text[i] == 'u') {
+              i++;
+              if (i < len && text[i] == '{') {
+                i++;
+                while (i < len && text[i] != '}')
+                  i++;
+                if (i < len)
+                  i++;
+              } else {
+                if (i < len && isxdigit(text[i]))
+                  i++;
+                if (i < len && isxdigit(text[i]))
+                  i++;
+                if (i < len && isxdigit(text[i]))
+                  i++;
+                if (i < len && isxdigit(text[i]))
+                  i++;
+              }
+            } else if (i < len && text[i] >= '0' && text[i] <= '7') {
+              i++;
+              if (i < len && text[i] >= '0' && text[i] <= '7')
+                i++;
+              if (i < len && text[i] >= '0' && text[i] <= '7')
+                i++;
+            } else if (i < len && text[i] == 'c') {
+              i++;
+              if (i < len && text[i] != '\\')
+                i++;
+            } else if (i < len && (text[i] == 'M' || text[i] == 'C')) {
+              i++;
+              if (i < len && text[i] == '-') {
+                i++;
+                if (i < len && text[i] != '\\')
+                  i++;
+              }
+            } else if (i < len && text[i] == 'N') {
+              i++;
+              if (i < len && text[i] == '{') {
+                i++;
+                while (i < len && text[i] != '}')
+                  i++;
+                if (i < len)
+                  i++;
+              }
+            } else {
+              if (i < len)
+                i++;
+            }
             tokens->push_back({start, i, TokenKind::Escape});
             continue;
           }
@@ -202,10 +438,61 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
           tokens->push_back({start, i, TokenKind::String});
           start = i;
           i++;
-          if (i < len)
+          if (i < len && text[i] == 'x') {
             i++;
+            if (i < len && isxdigit(text[i]))
+              i++;
+            if (i < len && isxdigit(text[i]))
+              i++;
+          } else if (i < len && text[i] == 'u') {
+            i++;
+            if (i < len && text[i] == '{') {
+              i++;
+              while (i < len && text[i] != '}')
+                i++;
+              if (i < len)
+                i++;
+            } else {
+              if (i < len && isxdigit(text[i]))
+                i++;
+              if (i < len && isxdigit(text[i]))
+                i++;
+              if (i < len && isxdigit(text[i]))
+                i++;
+              if (i < len && isxdigit(text[i]))
+                i++;
+            }
+          } else if (i < len && text[i] >= '0' && text[i] <= '7') {
+            i++;
+            if (i < len && text[i] >= '0' && text[i] <= '7')
+              i++;
+            if (i < len && text[i] >= '0' && text[i] <= '7')
+              i++;
+          } else if (i < len && text[i] == 'c') {
+            i++;
+            if (i < len && text[i] != '\\')
+              i++;
+          } else if (i < len && (text[i] == 'M' || text[i] == 'C')) {
+            i++;
+            if (i < len && text[i] == '-') {
+              i++;
+              if (i < len && text[i] != '\\')
+                i++;
+            }
+          } else if (i < len && text[i] == 'N') {
+            i++;
+            if (i < len && text[i] == '{') {
+              i++;
+              while (i < len && text[i] != '}')
+                i++;
+              if (i < len)
+                i++;
+            }
+          } else {
+            if (i < len)
+              i++;
+          }
           tokens->push_back({start, i, TokenKind::Escape});
-          continue;
           continue;
         }
         if (state->full_state->lit.allow_interp && text[i] == '#' &&
@@ -253,11 +540,62 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
       while (i < len) {
         if (text[i] == '\\') {
           tokens->push_back({start, i, TokenKind::Regexp});
-          ;
           start = i;
           i++;
-          if (i < len)
+          if (i < len && text[i] == 'x') {
             i++;
+            if (i < len && isxdigit(text[i]))
+              i++;
+            if (i < len && isxdigit(text[i]))
+              i++;
+          } else if (i < len && text[i] == 'u') {
+            i++;
+            if (i < len && text[i] == '{') {
+              i++;
+              while (i < len && text[i] != '}')
+                i++;
+              if (i < len)
+                i++;
+            } else {
+              if (i < len && isxdigit(text[i]))
+                i++;
+              if (i < len && isxdigit(text[i]))
+                i++;
+              if (i < len && isxdigit(text[i]))
+                i++;
+              if (i < len && isxdigit(text[i]))
+                i++;
+            }
+          } else if (i < len && text[i] >= '0' && text[i] <= '7') {
+            i++;
+            if (i < len && text[i] >= '0' && text[i] <= '7')
+              i++;
+            if (i < len && text[i] >= '0' && text[i] <= '7')
+              i++;
+          } else if (i < len && text[i] == 'c') {
+            i++;
+            if (i < len && text[i] != '\\')
+              i++;
+          } else if (i < len && (text[i] == 'M' || text[i] == 'C')) {
+            i++;
+            if (i < len && text[i] == '-') {
+              i++;
+              if (i < len && text[i] != '\\')
+                i++;
+            }
+          } else if (i < len && text[i] == 'N') {
+            i++;
+            if (i < len && text[i] == '{') {
+              i++;
+              while (i < len && text[i] != '}')
+                i++;
+              if (i < len)
+                i++;
+            }
+          } else {
+            if (i < len)
+              i++;
+          }
           tokens->push_back({start, i, TokenKind::Escape});
           continue;
         }
@@ -365,6 +703,11 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
       i++;
       continue;
     } else if (text[i] == '#') {
+      if (i == 0 && len > 4 && text[i + 1] == '!') {
+        state->full_state->expecting_expr = false;
+        tokens->push_back({0, len, TokenKind::Shebang});
+        return state;
+      }
       tokens->push_back({i, len, TokenKind::Comment});
       state->full_state->expecting_expr = false;
       return state;
@@ -394,7 +737,7 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
         continue;
       }
       if (text[i] == '\'' || text[i] == '"') {
-        tokens->push_back({start, i, TokenKind::Operator});
+        tokens->push_back({start, i, TokenKind::Label});
         state->full_state->expecting_expr = true;
         continue;
       }
@@ -793,9 +1136,31 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
         tokens->push_back({i, i + length, TokenKind::KeywordOperator});
         i += length;
         continue;
+      } else if ((length = types_trie.match(text, i, len, identifier_char))) {
+        tokens->push_back({i, i + length, TokenKind::Type});
+        i += length;
+        continue;
+      } else if ((length = methods_trie.match(text, i, len, identifier_char))) {
+        tokens->push_back({i, i + length, TokenKind::Function});
+        i += length;
+        continue;
+      } else if ((length =
+                      builtins_trie.match(text, i, len, identifier_char))) {
+        tokens->push_back({i, i + length, TokenKind::Constant});
+        i += length;
+        continue;
+      } else if ((length = errors_trie.match(text, i, len, identifier_char))) {
+        tokens->push_back({i, i + length, TokenKind::Error});
+        i += length;
+        continue;
       } else if (text[i] >= 'A' && text[i] <= 'Z') {
         uint32_t start = i;
         i += get_next_word(text, i, len);
+        if (i - start >= 5 && text[i - 5] == 'E' && text[i - 4] == 'r' &&
+            text[i - 3] == 'r' && text[i - 2] == 'o' && text[i - 1] == 'r') {
+          tokens->push_back({start, i, TokenKind::Error});
+          continue;
+        }
         tokens->push_back({start, i, TokenKind::Constant});
         continue;
       } else {
@@ -899,7 +1264,3 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
   }
   return state;
 }
-
-// TODO: Add trie's for builtins and highlight them separately liek (Array /
-// self etc)
-// And in regex better highlighting of regex structures

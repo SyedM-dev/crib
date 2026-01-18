@@ -2,6 +2,12 @@
   "Default": {
     "fg": "#EEEEEE"
   },
+  "Shebang": {
+    "fg": "#7dcfff"
+  },
+  "Error": {
+    "fg": "#EF5168"
+  },
   "Comment": {
     "fg": "#AAAAAA",
     "italic": true

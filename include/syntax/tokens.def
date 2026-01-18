@@ -1,5 +1,7 @@
 ADD(Data)
+ADD(Shebang)
 ADD(Comment)
+ADD(Error)
 ADD(String)
 ADD(Escape)
 ADD(Interpolation)

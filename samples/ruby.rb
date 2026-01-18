@@ -22,7 +22,7 @@ cjk_samples = [
 ]
 
 # Ruby regex with unicode
-$unicode_regex = /[一-龯ぁ-ん#{0x3000}ァ
+$unicode_regex_multiline = /[一-龯ぁ-ん#{0x3000}ァ
 \-ヶー
 
 s wow
@@ -30,21 +30,28 @@ s wow
 々〆〤]/
 
 UNICORE = %r{
-    
+    [s]
     {#{}}
-    
+    \C-s\u{10}
   }
   
 UNINITCORE = %{
     
     {{#{}}}
     
+    test = "A:\x41 B:\101 C:\u0043 D:\u{44 45} NUL:\0 DEL:\c? CTRL_A:\cA META_X:\M-x CTRL_META_X:\C-\M-x MIX:\C-\M-z N:\N{UNICODE NAME}"
+    
   }
 
 # Unicode identifiers (valid in Ruby)
 变量 = 0x5_4eddaee
-π = 3.14_159e+2, ?\u0234, ?\,, ?\x0A, ?s, true, false
+π = 3.14_159e+2, ?\u0234, ?\,, ?\x0A, ?s, true, false, 0
 挨拶 = -> { "こんに \n ちは" }
+
+arr = Array.new()
+not_arr = NotArray.new()
+
+raise NameError or SystemExit or CustomError or Errno or ErrorNotAtAll
 
 # Method using unicode variable names
 def math_test
@@ -57,6 +64,7 @@ cjk_samples.each_with_index do |str, idx:|
   symbol = :"
   a
   "
+  sym2 = :hello
 end
 
 # Test emoji width behaviors
@@ -98,10 +106,10 @@ mixed = [
 two_docs = <<DOC1 , <<DOC2
 stuff for doc2
 DOC1
-stuff for doc 2 with \#{interpolation} and more
+stuff for doc 2 with \#{not interpolation} and more
 DOC2
 
-p = 0 <<22
+p = 0 <<22 # not a heredoc
 
 mixed.each { |m| puts m }
 
@@ -169,6 +177,8 @@ class TestObject
   def display
     puts "#{@name}: #{@value}"
   end
+
+  private
 
   def double_value
     @value * 2
@@ -297,7 +307,7 @@ TEXT
 puts multi_line
 
 # Symbols and strings
-sym = :my_symbol
+sym = :my_symbol == __dir__
 str = "my string"
 puts "Symbol: #{sym}, String: #{str}"
 
@@ -336,3 +346,9 @@ puts "Match 'fox'?" if sample_text =~ /fox/
 
 # End of test script
 puts "Ruby syntax highlighting test complete."
+
+__END__
+
+
+Anything here should be ignored >><<
+{{{}}}[[[]]](((000)))
