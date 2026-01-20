@@ -1,5 +1,6 @@
 #include "ui/completionbox.h"
 #include "editor/completions.h"
+#include "io/sysio.h"
 #include "utils/utils.h"
 
 std::string item_kind_name(uint8_t kind) {
@@ -139,11 +140,12 @@ void CompletionBox::render(Coord pos) {
   if (start_row < 0)
     start_row = pos.row + 1;
   int32_t start_col = pos.col;
-  // if (start_col + size.col > cols) {
-  //   start_col = cols - size.col;
-  //   if (start_col < 0)
-  //     start_col = 0;
-  // }
+  Coord screen_size = get_size();
+  if (start_col + size.col > screen_size.col) {
+    start_col = screen_size.col - size.col;
+    if (start_col < 0)
+      start_col = 0;
+  }
   position = {(uint32_t)start_row, (uint32_t)start_col};
   for (uint32_t r = 0; r < size.row; r++)
     for (uint32_t c = 0; c < size.col; c++)

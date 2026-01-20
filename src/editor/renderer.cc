@@ -1,10 +1,13 @@
 #include "editor/editor.h"
+#include "io/sysio.h"
 #include "main.h"
 #include "syntax/decl.h"
 #include "syntax/parser.h"
+#include <cstdint>
 
 void render_editor(Editor *editor) {
   uint32_t sel_start = 0, sel_end = 0;
+  std::shared_lock knot_lock(editor->knot_mtx);
   uint32_t numlen =
       EXTRA_META + static_cast<int>(std::log10(editor->root->line_count + 1));
   uint32_t render_width = editor->size.col - numlen;
@@ -34,7 +37,6 @@ void render_editor(Editor *editor) {
         return (int)token.type;
     return 0;
   };
-  std::shared_lock knot_lock(editor->knot_mtx);
   if (editor->selection_active) {
     Coord start, end;
     if (editor->cursor >= editor->selection) {
@@ -88,6 +90,18 @@ void render_editor(Editor *editor) {
   LineIterator *it = begin_l_iter(editor->root, line_index);
   if (!it)
     return;
+  uint32_t prev_col, next_col;
+  std::string word;
+  word_boundaries_exclusive(editor, editor->cursor, &prev_col, &next_col);
+  if (next_col - prev_col > 0 && next_col - prev_col < 256 - 4) {
+    uint32_t offset = line_to_byte(editor->root, editor->cursor.row, nullptr);
+    char *word_ptr = read(editor->root, offset + prev_col, next_col - prev_col);
+    if (word_ptr) {
+      word = std::string(word_ptr, next_col - prev_col);
+      free(word_ptr);
+    }
+  }
+  editor->extra_hl.render(editor->root, line_index, word, editor->is_css_color);
   uint32_t rendered_rows = 0;
   uint32_t global_byte_offset = line_to_byte(editor->root, line_index, nullptr);
   while (rendered_rows < editor->size.row) {
@@ -157,9 +171,19 @@ void render_editor(Editor *editor) {
         const Highlight *hl = nullptr;
         if (editor->parser)
           hl = &highlights[get_type(current_byte_offset + local_render_offset)];
-        uint32_t fg = hl ? hl->fg : 0xFFFFFF;
-        uint32_t bg = hl ? hl->bg : 0;
-        uint8_t fl = hl ? hl->flags : 0;
+        std::optional<std::pair<uint32_t, uint32_t>> extra =
+            editor->extra_hl.get(
+                {line_index, current_byte_offset + local_render_offset});
+        uint32_t fg = extra && extra->second != UINT32_MAX
+                          ? extra->first
+                          : (hl ? hl->fg : 0xFFFFFF);
+        uint32_t bg = extra && extra->second != UINT32_MAX
+                          ? extra->second
+                          : (hl ? hl->bg : 0x000000);
+        uint8_t fl =
+            (hl ? hl->flags : 0) |
+            (extra ? (extra->second != UINT32_MAX ? CF_BOLD : CF_UNDERLINE)
+                   : 0);
         if (editor->selection_active && absolute_byte_pos >= sel_start &&
             absolute_byte_pos < sel_end)
           bg = 0x555555;

@@ -30,8 +30,11 @@ Editor *new_editor(const char *filename_arg, Coord position, Coord size) {
   free(str);
   editor->lang = language_for_file(filename.c_str());
   if (editor->lang.name != "unknown")
-    editor->parser = new Parser(editor->root, &editor->knot_mtx,
-                                editor->lang.name, size.row + 5);
+    editor->parser = new Parser(editor, editor->lang.name, size.row + 5);
+  if (editor->lang.name == "css" || editor->lang.name == "html" ||
+      editor->lang.name == "javascript" || editor->lang.name == "markdown" ||
+      editor->lang.name == "typescript")
+    editor->is_css_color = true;
   if (len <= (1024 * 28))
     request_add_to_lsp(editor->lang, editor);
   editor->indents.compute_indent(editor);
@@ -52,12 +55,13 @@ void save_file(Editor *editor) {
     return;
   std::shared_lock lock(editor->knot_mtx);
   int version = editor->lsp_version;
-  char *str = read(editor->root, 0, editor->root->char_count);
+  uint32_t char_count = editor->root->char_count;
+  char *str = read(editor->root, 0, char_count);
   if (!str)
     return;
   lock.unlock();
   std::ofstream out(editor->filename);
-  out.write(str, editor->root->char_count);
+  out.write(str, char_count);
   out.close();
   free(str);
   if (editor->lsp) {
@@ -99,12 +103,14 @@ void save_file(Editor *editor) {
           apply_lsp_edits(editor, t_edits, false);
           ensure_scroll(editor);
           std::shared_lock lock(editor->knot_mtx);
-          char *str = read(editor->root, 0, editor->root->char_count);
+          uint32_t char_count = editor->root->char_count;
+          char *str = read(editor->root, 0, char_count);
           if (!str)
             return;
           lock.unlock();
           std::ofstream out(editor->filename);
-          out.write(str, editor->root->char_count);
+          out.write(str, char_count);
+          out.close();
           free(str);
           lsp_send(editor->lsp, save_msg, nullptr);
         }

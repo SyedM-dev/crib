@@ -1,6 +1,6 @@
 #include "syntax/decl.h"
 #include "syntax/langs.h"
-#include "utils/utils.h"
+#include <cstdint>
 
 struct BashFullState {
   int brace_level = 0;
@@ -11,13 +11,11 @@ struct BashFullState {
   bool line_cont = false;
 
   struct Lit {
-    std::string delim = "";
-    int brace_level = 1;
+    std::string delim = ""; // Only 1 wide for strings
     bool allow_interp = false;
 
     bool operator==(const BashFullState::Lit &other) const {
-      return delim == other.delim && brace_level == other.brace_level &&
-             allow_interp == other.allow_interp;
+      return delim == other.delim && allow_interp == other.allow_interp;
     }
   } lit;
 
@@ -66,7 +64,35 @@ std::shared_ptr<void> bash_parse(std::vector<Token> *tokens,
   if (len == 0)
     return state;
   while (i < len) {
-    i += utf8_codepoint_width(text[i]);
+    if (state->full_state->in_state == BashFullState::STRING) {
+      uint32_t start = i;
+      while (i < len) {
+        if (text[i] == state->full_state->lit.delim[0]) {
+          tokens->push_back({start, i, TokenKind::String});
+          state->full_state->in_state = BashFullState::NONE;
+          break;
+        }
+        i++;
+      }
+      if (i == len)
+        tokens->push_back({start, i, TokenKind::String});
+      continue;
+    }
+    if (text[i] == '#') {
+      if (i == 0 && len > 4 && text[i + 1] == '!') {
+        tokens->push_back({0, len, TokenKind::Shebang});
+        return state;
+      }
+      tokens->push_back({i, len, TokenKind::Comment});
+      return state;
+    } else if (text[i] == '\'') {
+      state->full_state->in_state = BashFullState::STRING;
+      state->full_state->lit.delim = "'";
+      state->full_state->lit.allow_interp = false;
+      tokens->push_back({i, ++i, TokenKind::String});
+      continue;
+    }
+    i++;
   }
   return state;
 }
@@ -76,3 +102,6 @@ std::shared_ptr<void> bash_parse(std::vector<Token> *tokens,
 // ${var}  and $((math)) $(command) and `command` expansions ANSI-C quoted
 // stirngs - $''  backslash escapes but with \xHH and \uHHHH and \uHHHHHHHH \cX
 // too
+//
+// Lock edit_replace across both delete and insert instead of within to keep the
+// parser from glitching

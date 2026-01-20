@@ -148,11 +148,12 @@ void DiagnosticBox::render(Coord pos) {
   if (start_row < 0)
     start_row = pos.row + 1;
   int32_t start_col = pos.col;
-  // if (start_col + size.col > cols) {
-  //   start_col = cols - size.col;
-  //   if (start_col < 0)
-  //     start_col = 0;
-  // }
+  Coord screen_size = get_size();
+  if (start_col + size.col > screen_size.col) {
+    start_col = screen_size.col - size.col;
+    if (start_col < 0)
+      start_col = 0;
+  }
   for (uint32_t r = 0; r < size.row; r++)
     for (uint32_t c = 0; c < size.col; c++)
       update(start_row + r, start_col + c, cells[r * size.col + c].utf8,

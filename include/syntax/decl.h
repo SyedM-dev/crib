@@ -3,69 +3,7 @@
 
 #include "io/knot.h"
 #include "io/sysio.h"
-
-struct Trie {
-  struct TrieNode {
-    bool is_word = false;
-    std::array<TrieNode *, 128> children{};
-    TrieNode() { children.fill(nullptr); }
-  };
-
-  Trie() : root(new TrieNode()) {}
-  ~Trie() { clear_trie(root); }
-
-  void build(const std::vector<std::string> &words) {
-    for (const auto &word : words) {
-      TrieNode *node = root;
-      for (char c : word) {
-        unsigned char uc = static_cast<unsigned char>(c);
-        if (!node->children[uc])
-          node->children[uc] = new TrieNode();
-        node = node->children[uc];
-      }
-      node->is_word = true;
-    }
-  }
-
-  uint32_t match(const char *text, uint32_t pos, uint32_t len,
-                 bool (*is_word_char)(char c)) const {
-    const TrieNode *node = root;
-    uint32_t max_len = 0;
-    for (uint32_t i = pos; i < len; ++i) {
-      unsigned char uc = static_cast<unsigned char>(text[i]);
-      if (uc >= 128)
-        return 0;
-      if (!node->children[uc]) {
-        if (node->is_word && !is_word_char(text[i]))
-          return i - pos;
-        break;
-      }
-      node = node->children[uc];
-      if (node->is_word)
-        max_len = i - pos + 1;
-    }
-    if (max_len > 0)
-      if (pos + max_len < len && is_word_char(text[pos + max_len]))
-        return 0;
-    return max_len;
-  }
-
-  void clear() {
-    clear_trie(root);
-    root = new TrieNode();
-  }
-
-private:
-  TrieNode *root;
-
-  void clear_trie(TrieNode *node) {
-    if (!node)
-      return;
-    for (auto *child : node->children)
-      clear_trie(child);
-    delete node;
-  }
-};
+#include "syntax/trie.h"
 
 struct Highlight {
   uint32_t fg;

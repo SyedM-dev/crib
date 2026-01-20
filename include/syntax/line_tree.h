@@ -74,10 +74,14 @@ struct LineTree {
   }
   void insert(uint32_t x, uint32_t y) {
     std::unique_lock lock(mtx);
+    if (x > subtree_size(root))
+      x = subtree_size(root);
     root = insert_node(root, x, y);
   }
   void erase(uint32_t x, uint32_t y) {
     std::unique_lock lock(mtx);
+    if (x + y > subtree_size(root))
+      x = subtree_size(root) - y;
     root = erase_node(root, x, y);
   }
   uint32_t count() {
@@ -116,18 +120,26 @@ private:
   std::shared_mutex mtx;
   static constexpr uint32_t LEAF_TARGET = 256;
   LineTree::LineNode *erase_node(LineNode *n, uint32_t x, uint32_t y) {
-    if (!n)
-      return nullptr;
-    if (!n->left && !n->right) {
-      n->data.erase(n->data.begin() + x, n->data.begin() + x + y);
-      fix(n);
+    if (!n || y == 0)
       return n;
+    uint32_t left_sz = subtree_size(n->left);
+    uint32_t mid_sz = n->data.size();
+    if (x < left_sz) {
+      uint32_t len = std::min(y, left_sz - x);
+      n->left = erase_node(n->left, x, len);
+      y -= len;
+      x = left_sz;
     }
-    uint32_t left_size = subtree_size(n->left);
-    if (x < left_size)
-      n->left = erase_node(n->left, x, y);
-    else
-      n->right = erase_node(n->right, x - left_size - n->data.size(), y);
+    if (y > 0 && x < left_sz + mid_sz) {
+      uint32_t mid_x = x - left_sz;
+      uint32_t len = std::min(y, mid_sz - mid_x);
+      n->data.erase(n->data.begin() + mid_x, n->data.begin() + mid_x + len);
+      y -= len;
+      x += len;
+    }
+    if (y > 0) {
+      n->right = erase_node(n->right, x - left_sz - n->data.size(), y);
+    }
     if (n->left && n->right &&
         subtree_size(n->left) + subtree_size(n->right) < 256) {
       return merge(n->left, n->right);
@@ -142,7 +154,7 @@ private:
       return leaf;
     }
     if (!n->left && !n->right) {
-      n->data.insert(n->data.begin() + x, y, LineData{});
+      n->data.insert(n->data.begin() + x, y, LineData());
       fix(n);
       if (n->data.size() > 512)
         return split_leaf(n);

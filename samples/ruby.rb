@@ -21,6 +21,13 @@ cjk_samples = [
   "大量の文字列🚀🚀🚀"
 ]
 
+
+
+
+# a hex color: #FFFFFF hsl(147rad, 50%, 47%)
+
+0x603010 # another hex color
+
 # Ruby regex with unicode
 $unicode_regex_multiline = /[一-龯ぁ-ん#{0x3000}ァ
 \-ヶー
@@ -49,7 +56,7 @@ UNINITCORE = %{
 挨拶 = -> { "こんに \n ちは" }
 
 arr = Array.new()
-not_arr = NotArray.new()
+not_arr = NotABuiltin.new()
 
 raise NameError or SystemExit or CustomError or Errno or ErrorNotAtAll
 

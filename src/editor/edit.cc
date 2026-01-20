@@ -1,7 +1,6 @@
 #include "editor/editor.h"
 #include "lsp/lsp.h"
 #include "utils/utils.h"
-#include <cstdint>
 
 void edit_erase(Editor *editor, Coord pos, int64_t len) {
   if (len == 0)
@@ -52,7 +51,7 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     editor->root = erase(editor->root, start, byte_pos - start);
     lock_2.unlock();
     if (editor->parser)
-      editor->parser->edit(editor->root, start_row, end_row, start_row);
+      editor->parser->edit(start_row, end_row, 0);
     if (do_lsp) {
       if (editor->lsp->incremental_sync) {
         json message = {
@@ -124,7 +123,7 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     editor->root = erase(editor->root, byte_pos, end - byte_pos);
     lock_2.unlock();
     if (editor->parser)
-      editor->parser->edit(editor->root, start_row, end_row, start_row);
+      editor->parser->edit(start_row, end_row, 0);
     if (do_lsp) {
       if (editor->lsp->incremental_sync) {
         json message = {
@@ -175,7 +174,7 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
   apply_hook_insertion(editor, pos.row, rows);
   lock_2.unlock();
   if (editor->parser)
-    editor->parser->edit(editor->root, pos.row, pos.row, pos.row + rows);
+    editor->parser->edit(pos.row, pos.row, rows);
   if (editor->lsp) {
     if (editor->lsp->incremental_sync) {
       lock_1.lock();
@@ -218,19 +217,64 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
 
 void edit_replace(Editor *editor, Coord start, Coord end, const char *text,
                   uint32_t len) {
-  std::shared_lock lock(editor->knot_mtx);
+  std::unique_lock lock(editor->knot_mtx);
   uint32_t start_byte =
       line_to_byte(editor->root, start.row, nullptr) + start.col;
   uint32_t end_byte = line_to_byte(editor->root, end.row, nullptr) + end.col;
-  char *buf = read(editor->root, start_byte, end_byte - start_byte);
-  if (!buf)
-    return;
-  lock.unlock();
-  uint32_t erase_len =
-      count_clusters(buf, end_byte - start_byte, 0, end_byte - start_byte);
-  free(buf);
-  if (erase_len != 0)
-    edit_erase(editor, start, erase_len);
+  LineIterator *it = begin_l_iter(editor->root, start.row);
+  char *line = next_line(it, nullptr);
+  int utf16_start = 0;
+  if (line)
+    utf16_start = utf8_byte_offset_to_utf16(line, start.col);
+  free(it->buffer);
+  free(it);
+  it = begin_l_iter(editor->root, end.row);
+  line = next_line(it, nullptr);
+  int utf16_end = 0;
+  if (line)
+    utf16_end = utf8_byte_offset_to_utf16(line, end.col);
+  free(it->buffer);
+  free(it);
+  if (start_byte != end_byte)
+    editor->root = erase(editor->root, start_byte, end_byte - start_byte);
   if (len > 0)
-    edit_insert(editor, start, const_cast<char *>(text), len);
+    editor->root = insert(editor->root, start_byte, (char *)text, len);
+  uint32_t rows = 0;
+  for (uint32_t i = 0; i < len; i++)
+    if (text[i] == '\n')
+      rows++;
+  if (editor->parser) {
+    editor->parser->edit(start.row, end.row - 1, 0);
+    editor->parser->edit(start.row, start.row, rows);
+  }
+  if (editor->lsp) {
+    if (editor->lsp->incremental_sync) {
+      json message = {
+          {"jsonrpc", "2.0"},
+          {"method", "textDocument/didChange"},
+          {"params",
+           {{"textDocument",
+             {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
+            {"contentChanges",
+             json::array(
+                 {{{"range",
+                    {{"start",
+                      {{"line", start.row}, {"character", utf16_start}}},
+                     {"end", {{"line", end.row}, {"character", utf16_end}}}}},
+                   {"text", std::string(text, len)}}})}}}};
+      lsp_send(editor->lsp, message, nullptr);
+    } else {
+      char *buf = read(editor->root, 0, editor->root->char_count);
+      std::string full_text(buf);
+      free(buf);
+      json message = {
+          {"jsonrpc", "2.0"},
+          {"method", "textDocument/didChange"},
+          {"params",
+           {{"textDocument",
+             {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
+            {"contentChanges", json::array({{{"text", full_text}}})}}}};
+      lsp_send(editor->lsp, message, nullptr);
+    }
+  }
 }

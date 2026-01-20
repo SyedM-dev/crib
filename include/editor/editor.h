@@ -5,6 +5,7 @@
 #include "editor/indents.h"
 #include "io/knot.h"
 #include "io/sysio.h"
+#include "syntax/extras.h"
 #include "syntax/parser.h"
 #include "ui/completionbox.h"
 #include "ui/diagnostics.h"
@@ -50,6 +51,8 @@ struct Editor {
   CompletionSession completion;
   IndentationEngine indents;
   Parser *parser;
+  ExtraHighlighter extra_hl;
+  bool is_css_color;
 };
 
 Editor *new_editor(const char *filename_arg, Coord position, Coord size);

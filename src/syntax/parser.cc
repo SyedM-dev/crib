@@ -1,4 +1,5 @@
 #include "syntax/parser.h"
+#include "editor/editor.h"
 #include "io/knot.h"
 #include "main.h"
 #include "syntax/decl.h"
@@ -6,10 +7,9 @@
 
 std::array<Highlight, TOKEN_KIND_COUNT> highlights = {};
 
-Parser::Parser(Knot *n_root, std::shared_mutex *n_knot_mutex,
-               std::string n_lang, uint32_t n_scroll_max) {
+Parser::Parser(Editor *n_editor, std::string n_lang, uint32_t n_scroll_max) {
+  editor = n_editor;
   scroll_max = n_scroll_max;
-  knot_mutex = n_knot_mutex;
   lang = n_lang;
   auto pair = parsers.find(n_lang);
   if (pair != parsers.end()) {
@@ -18,22 +18,26 @@ Parser::Parser(Knot *n_root, std::shared_mutex *n_knot_mutex,
   } else {
     assert("unknown lang should be checked by caller" && 0);
   }
-  edit(n_root, 0, 0, n_root->line_count);
+  edit(0, 0, editor->root->line_count);
 }
 
-void Parser::edit(Knot *n_root, uint32_t start_line, uint32_t old_end_line,
-                  uint32_t new_end_line) {
+void Parser::edit(uint32_t start_line, uint32_t old_end_line,
+                  uint32_t inserted_rows) {
   std::lock_guard lock(data_mutex);
-  root = n_root;
   if (((int64_t)old_end_line - (int64_t)start_line) > 0)
-    line_tree.erase(start_line + 1, old_end_line - start_line);
-  if (((int64_t)new_end_line - (int64_t)old_end_line) > 0)
-    line_tree.insert(start_line + 1, new_end_line - start_line);
+    line_tree.erase(start_line, old_end_line - start_line);
+  if (inserted_rows > 0)
+    line_tree.insert(start_line, inserted_rows);
+  if (start_line > 0)
+    dirty_lines.insert(start_line - 1);
   dirty_lines.insert(start_line);
+  dirty_lines.insert(start_line + 1);
 }
 
 void Parser::work() {
-  std::shared_lock k_lock(*knot_mutex);
+  if (!editor || !editor->root)
+    return;
+  std::shared_lock k_lock(editor->knot_mtx);
   k_lock.unlock();
   uint32_t capacity = 256;
   char *text = (char *)calloc((capacity + 1), sizeof(char));
@@ -45,14 +49,16 @@ void Parser::work() {
   std::unique_lock lock(mutex);
   lock.unlock();
   for (uint32_t c_line : tmp_dirty) {
-    if (c_line > scroll_max) {
+    if (c_line > scroll_max + 40) {
       remaining_dirty.insert(c_line);
       continue;
     }
     uint32_t line_count = line_tree.count();
     lock_data.lock();
     std::shared_ptr<void> prev_state =
-        (c_line > 0) ? line_tree.at(c_line - 1)->out_state : nullptr;
+        (c_line > 0) && c_line < line_tree.count()
+            ? line_tree.at(c_line - 1)->out_state
+            : nullptr;
     lock_data.unlock();
     while (c_line < line_count) {
       if (!running.load(std::memory_order_relaxed)) {
@@ -60,14 +66,18 @@ void Parser::work() {
         return;
       }
       k_lock.lock();
+      if (c_line > editor->root->line_count) {
+        k_lock.unlock();
+        continue;
+      }
       uint32_t r_offset, r_len;
-      r_offset = line_to_byte(root, c_line, &r_len);
+      r_offset = line_to_byte(editor->root, c_line, &r_len);
       if (r_len > capacity) {
         capacity = r_len;
         text = (char *)realloc(text, capacity + 1);
         memset(text, 0, capacity + 1);
       }
-      read_into(root, r_offset, r_len, text);
+      read_into(editor->root, r_offset, r_len, text);
       k_lock.unlock();
       if (c_line < scroll_max &&
           ((scroll_max > 100 && c_line > scroll_max - 100) || c_line < 100))
@@ -79,6 +89,12 @@ void Parser::work() {
       }
       lock_data.lock();
       LineData *line_data = line_tree.at(c_line);
+      if (!line_data) {
+        lock_data.unlock();
+        if (lock.owns_lock())
+          lock.unlock();
+        continue;
+      }
       std::shared_ptr<void> new_state =
           parse_func(&line_data->tokens, prev_state, text, r_len);
       line_data->in_state = prev_state;
@@ -98,8 +114,8 @@ void Parser::work() {
         remaining_dirty.insert(c_line);
         break;
       }
-      if (c_line < line_count &&
-          state_match_func(prev_state, line_tree.at(c_line)->in_state)) {
+      if (c_line < line_count && (line_data = line_tree.at(c_line)) &&
+          state_match_func(prev_state, line_data->in_state)) {
         lock_data.unlock();
         if (lock.owns_lock())
           lock.unlock();
@@ -129,7 +145,7 @@ void Parser::scroll(uint32_t line) {
     if (line_tree.at(c_line)->in_state || line_tree.at(c_line)->out_state)
       return;
     lock_data.unlock();
-    std::shared_lock k_lock(*knot_mutex);
+    std::shared_lock k_lock(editor->knot_mtx);
     k_lock.unlock();
     uint32_t capacity = 256;
     char *text = (char *)calloc((capacity + 1), sizeof(char));
@@ -144,14 +160,18 @@ void Parser::scroll(uint32_t line) {
         return;
       }
       k_lock.lock();
+      if (c_line > editor->root->line_count) {
+        k_lock.unlock();
+        continue;
+      }
       uint32_t r_offset, r_len;
-      r_offset = line_to_byte(root, c_line, &r_len);
+      r_offset = line_to_byte(editor->root, c_line, &r_len);
       if (r_len > capacity) {
         capacity = r_len;
         text = (char *)realloc(text, capacity + 1);
         memset(text, 0, capacity + 1);
       }
-      read_into(root, r_offset, r_len, text);
+      read_into(editor->root, r_offset, r_len, text);
       k_lock.unlock();
       if (c_line < scroll_max &&
           ((scroll_max > 100 && c_line > scroll_max - 100) || c_line < 100))
@@ -163,6 +183,12 @@ void Parser::scroll(uint32_t line) {
       }
       lock_data.lock();
       LineData *line_data = line_tree.at(c_line);
+      if (!line_data) {
+        lock_data.unlock();
+        if (lock.owns_lock())
+          lock.unlock();
+        continue;
+      }
       std::shared_ptr<void> new_state =
           parse_func(&line_data->tokens, prev_state, text, r_len);
       line_data->in_state = nullptr;

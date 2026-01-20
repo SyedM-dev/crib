@@ -34,9 +34,13 @@ Copyright 2025 Syed Daanish
 * make it faster for line inserts/deletes too (treeify the vector)
 * Try to make all functions better now that folds have been purged
 * Cleanup syntax and renderer files
-* Fix ruby regexp not living across lines when edits are made
 
-* for ruby regex use hueristic where is a space is seen after the / it is not a regexp
+* finish bash then do all the directive-like ones like jsonc (first to help with theme files) / toml / yaml / ini / nginx
+* then markdown / html
+* then gitignore / gitattributes
+* then fish then sql then css and [jt]sx? then python then lua (make with type annotations for lsp results)
+* then [ch](++)? then gdscript then erb then php
+* then haskell then gomod then go then rust
 
 * [ ] **Undo/Redo:** Add support for undo/redo history.
 

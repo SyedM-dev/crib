@@ -290,15 +290,15 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
                                  std::shared_ptr<void> in_state,
                                  const char *text, uint32_t len) {
   static bool keywords_trie_init = false;
-  static Trie base_keywords_trie;
-  static Trie expecting_keywords_trie;
-  static Trie operator_keywords_trie;
-  static Trie expecting_operators_trie;
-  static Trie operator_trie;
-  static Trie types_trie;
-  static Trie builtins_trie;
-  static Trie methods_trie;
-  static Trie errors_trie;
+  static Trie<void> base_keywords_trie;
+  static Trie<void> expecting_keywords_trie;
+  static Trie<void> operator_keywords_trie;
+  static Trie<void> expecting_operators_trie;
+  static Trie<void> operator_trie;
+  static Trie<void> types_trie;
+  static Trie<void> builtins_trie;
+  static Trie<void> methods_trie;
+  static Trie<void> errors_trie;
   if (!keywords_trie_init) {
     base_keywords_trie.build(base_keywords);
     expecting_keywords_trie.build(expecting_keywords);

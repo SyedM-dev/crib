@@ -5,8 +5,7 @@
 #include "syntax/line_tree.h"
 
 struct Parser {
-  Knot *root;
-  std::shared_mutex *knot_mutex;
+  struct Editor *editor = nullptr;
   std::string lang;
   std::shared_ptr<void> (*parse_func)(std::vector<Token> *tokens,
                                       std::shared_ptr<void> in_state,
@@ -19,10 +18,8 @@ struct Parser {
   LineTree line_tree;
   std::set<uint32_t> dirty_lines;
 
-  Parser(Knot *n_root, std::shared_mutex *n_knot_mutex, std::string n_lang,
-         uint32_t n_scroll_max);
-  void edit(Knot *n_root, uint32_t start_line, uint32_t old_end_line,
-            uint32_t new_end_line);
+  Parser(Editor *editor, std::string n_lang, uint32_t n_scroll_max);
+  void edit(uint32_t start_line, uint32_t old_end_line, uint32_t inserted_rows);
   void work();
   void scroll(uint32_t line);
 };
