@@ -2,7 +2,6 @@
 #include "editor/editor.h"
 #include "io/sysio.h"
 #include "lsp/lsp.h"
-#include "syntax/decl.h"
 #include "ui/bar.h"
 #include "utils/utils.h"
 
@@ -60,9 +59,15 @@ int main(int argc, char *argv[]) {
   Coord screen = start_screen();
   const char *filename = (argc > 1) ? argv[1] : "";
 
-  system(("bash " + get_exe_dir() + "/../scripts/init.sh").c_str());
+  int state;
+  VALUE result;
+  result = rb_eval_string_protect("puts 'Hello, world!'", &state);
 
-  load_theme(get_exe_dir() + "/../themes/default.json");
+  if (state) {
+    /* handle exception */
+  }
+
+  load_theme();
 
   Editor *editor = new_editor(filename, {0, 0}, {screen.row - 2, screen.col});
   Bar bar(screen);

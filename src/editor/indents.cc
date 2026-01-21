@@ -323,13 +323,14 @@ void IndentationEngine::insert_new_line(Coord cursor) {
       LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
       if (!it)
         return;
-      char *line = next_line(it, nullptr);
+      uint32_t line_len;
+      char *line = next_line(it, &line_len);
       if (!line) {
         free(it->buffer);
         free(it);
         return;
       }
-      uint32_t col = utf8_byte_offset_to_utf16(line, editor->cursor.col);
+      uint32_t col = utf8_offset_to_utf16(line, line_len, editor->cursor.col);
       free(it->buffer);
       free(it);
       int version = editor->lsp_version;

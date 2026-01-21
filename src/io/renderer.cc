@@ -154,7 +154,7 @@ void render() {
               }
             }
         }
-        last_change_col = MIN(cols + 1, col + 4);
+        last_change_col = MIN(cols - 1, col + 4);
       }
     }
     if (first_change_col == -1)

@@ -12,7 +12,6 @@ NotImplemented
 Ellipsis
 __name__  # builtin constant
 
-
 # ==============================
 # Imports
 # ==============================

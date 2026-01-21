@@ -60,10 +60,10 @@ void editor_lsp_handle(Editor *editor, json msg) {
       if (len > 0 && line[len - 1] == '\n')
         --len;
       lock.unlock();
-      w.start = utf16_offset_to_utf8(line, w.start);
+      w.start = utf16_offset_to_utf8(line, len, w.start);
       uint32_t end = d["range"]["end"]["character"];
       if (d["range"]["end"]["line"] == w.line)
-        w.end = utf16_offset_to_utf8(line, end);
+        w.end = utf16_offset_to_utf8(line, len, end);
       free(it->buffer);
       free(it);
       std::string text = trim(d["message"].get<std::string>());

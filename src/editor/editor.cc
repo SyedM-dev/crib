@@ -1,8 +1,8 @@
 #include "editor/editor.h"
 #include "editor/decl.h"
 #include "lsp/lsp.h"
+#include "syntax/langs.h"
 #include "utils/utils.h"
-#include <shared_mutex>
 
 Editor *new_editor(const char *filename_arg, Coord position, Coord size) {
   Editor *editor = new Editor();
@@ -29,7 +29,7 @@ Editor *new_editor(const char *filename_arg, Coord position, Coord size) {
   editor->root = load(str, len, optimal_chunk_size(len));
   free(str);
   editor->lang = language_for_file(filename.c_str());
-  if (editor->lang.name != "unknown")
+  if (parsers.find(editor->lang.name) != parsers.end())
     editor->parser = new Parser(editor, editor->lang.name, size.row + 5);
   if (editor->lang.name == "css" || editor->lang.name == "html" ||
       editor->lang.name == "javascript" || editor->lang.name == "markdown" ||

@@ -12,15 +12,14 @@ inline static std::string completion_prefix(Editor *editor) {
   if (hook.row != cur.row || cur.col < hook.col)
     return "";
   LineIterator *it = begin_l_iter(editor->root, hook.row);
-  char *line = next_line(it, nullptr);
+  uint32_t line_len;
+  char *line = next_line(it, &line_len);
   if (!line) {
     free(it->buffer);
     free(it);
     return "";
   }
-  uint32_t start = utf16_offset_to_utf8(line, hook.col);
-  uint32_t end = editor->cursor.col;
-  std::string prefix(line + start, end - start);
+  std::string prefix(line + hook.col, cur.col - hook.col);
   free(it->buffer);
   free(it);
   return prefix;
@@ -212,13 +211,14 @@ void completion_request(Editor *editor) {
   };
   std::shared_lock lock(editor->knot_mtx);
   LineIterator *it = begin_l_iter(editor->root, hook.row);
-  char *line = next_line(it, nullptr);
+  uint32_t length;
+  char *line = next_line(it, &length);
   if (!line) {
     free(it->buffer);
     free(it);
     return;
   }
-  uint32_t col = utf8_byte_offset_to_utf16(line, editor->cursor.col);
+  uint32_t col = utf8_offset_to_utf16(line, length, editor->cursor.col);
   free(it->buffer);
   free(it);
   lock.unlock();

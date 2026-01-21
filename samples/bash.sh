@@ -22,6 +22,7 @@ colorize() {
 }
 
 # Example of error handling
+
 handle_error() {
   log ERROR "An error occurred on line $1"
 }

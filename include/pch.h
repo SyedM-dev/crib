@@ -4,6 +4,7 @@
 #define PCRE2_CODE_UNIT_WIDTH 8
 #define PCRE_WORKSPACE_SIZE 512
 
+#include "ruby.h"
 #include <magic.h>
 #include <nlohmann/json.hpp>
 #include <pcre2.h>

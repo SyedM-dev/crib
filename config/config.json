@@ -1,0 +1,8 @@
+{
+  "startup": "bash $CRIB_CONFIG_DIR/startup.sh",
+  "shutdown": "bash $CRIB_CONFIG_DIR/shutdown.sh",
+
+  "theme": "theme.json",
+
+  "lsp_config": "lsp_config.json"
+}

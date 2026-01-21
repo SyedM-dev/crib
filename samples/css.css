@@ -21,6 +21,7 @@ a:focus-visible {
 
 input::placeholder {
   color: #999;
+  background-color: #523;
 }
 
 /* CSS variables */

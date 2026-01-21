@@ -107,10 +107,12 @@ void render_editor(Editor *editor) {
   while (rendered_rows < editor->size.row) {
     uint32_t line_len;
     char *line = next_line(it, &line_len);
-    if (line_data)
-      line_data = editor->parser->line_tree.next();
-    else
-      line_data = editor->parser->line_tree.start_iter(line_index);
+    if (editor->parser) {
+      if (line_data)
+        line_data = editor->parser->line_tree.next();
+      else
+        line_data = editor->parser->line_tree.start_iter(line_index);
+    }
     if (!line)
       break;
     if (line_len > 0 && line[line_len - 1] == '\n')
@@ -186,7 +188,7 @@ void render_editor(Editor *editor) {
                    : 0);
         if (editor->selection_active && absolute_byte_pos >= sel_start &&
             absolute_byte_pos < sel_end)
-          bg = 0x555555;
+          bg = bg | 0x555555;
         uint32_t u_color = 0;
         for (const auto &w : line_warnings) {
           if (w.start <= current_byte_offset + local_render_offset &&

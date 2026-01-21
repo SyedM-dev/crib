@@ -76,6 +76,7 @@ void edit_replace(Editor *editor, Coord start, Coord end, const char *text,
                   uint32_t len);
 Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y);
 char *get_selection(Editor *editor, uint32_t *out_len, Coord *out_start);
+void selection_bounds(Editor *editor, Coord *out_start, Coord *out_end);
 void editor_worker(Editor *editor);
 void move_line_down(Editor *editor);
 void move_line_up(Editor *editor);
@@ -127,12 +128,12 @@ inline static void utf8_normalize_edit(Editor *editor, TextEdit *edit) {
     return;
   }
   if (edit->start.col < len)
-    edit->start.col = utf16_offset_to_utf8(line, edit->start.col);
+    edit->start.col = utf16_offset_to_utf8(line, len, edit->start.col);
   else
     edit->start.col = len;
   if (edit->end.row == edit->start.row) {
     if (edit->end.col < len)
-      edit->end.col = utf16_offset_to_utf8(line, edit->end.col);
+      edit->end.col = utf16_offset_to_utf8(line, len, edit->end.col);
     else
       edit->end.col = len;
     free(it->buffer);
@@ -151,7 +152,7 @@ inline static void utf8_normalize_edit(Editor *editor, TextEdit *edit) {
     return;
   }
   if (edit->end.col < len)
-    edit->end.col = utf16_offset_to_utf8(line, edit->end.col);
+    edit->end.col = utf16_offset_to_utf8(line, len, edit->end.col);
   else
     edit->end.col = len;
   free(it->buffer);

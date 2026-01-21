@@ -17,7 +17,8 @@ CFLAGS_DEBUG :=\
 	-O0 -fno-inline -gsplit-dwarf\
 	-g -fsanitize=address -fno-omit-frame-pointer\
 	-Wno-unused-command-line-argument \
-	-I./include -I./libs
+	-I./include -I./libs \
+	-I/usr/include/ruby-3.4.0 -I/usr/include/ruby-3.4.0/x86_64-linux
 CFLAGS_RELEASE :=\
 	-std=c++20 -O3 -march=native \
 	-fno-exceptions -fno-rtti -fstrict-aliasing \
@@ -27,7 +28,8 @@ CFLAGS_RELEASE :=\
 	-mllvm -vectorize-loops \
 	-fno-unwind-tables -fno-asynchronous-unwind-tables\
 	-Wno-unused-command-line-argument \
-	-I./include -I./libs
+	-I./include -I./libs \
+	-I/usr/include/ruby-3.4.0 -I/usr/include/ruby-3.4.0/x86_64-linux
 
 PCH_CFLAGS_DEBUG := $(CFLAGS_DEBUG) -x c++-header
 PCH_CFLAGS_RELEASE := $(CFLAGS_RELEASE) -x c++-header

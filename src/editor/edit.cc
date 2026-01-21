@@ -16,17 +16,18 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     bool do_lsp = (editor->lsp != nullptr);
     if (do_lsp) {
       LineIterator *it = begin_l_iter(editor->root, point.row);
-      char *line = next_line(it, nullptr);
+      uint32_t len;
+      char *line = next_line(it, &len);
       int utf16_start = 0;
       if (line)
-        utf16_start = utf8_byte_offset_to_utf16(line, point.col);
+        utf16_start = utf8_offset_to_utf16(line, len, point.col);
       free(it->buffer);
       free(it);
       it = begin_l_iter(editor->root, pos.row);
-      line = next_line(it, nullptr);
+      line = next_line(it, &len);
       int utf16_end = 0;
       if (line)
-        utf16_end = utf8_byte_offset_to_utf16(line, pos.col);
+        utf16_end = utf8_offset_to_utf16(line, len, pos.col);
       free(it->buffer);
       free(it);
       lsp_range = {{"start", {{"line", point.row}, {"character", utf16_start}}},
@@ -88,17 +89,18 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     bool do_lsp = (editor->lsp != nullptr);
     if (do_lsp) {
       LineIterator *it = begin_l_iter(editor->root, pos.row);
-      char *line = next_line(it, nullptr);
+      uint32_t line_len;
+      char *line = next_line(it, &line_len);
       int utf16_start = 0;
       if (line)
-        utf16_start = utf8_byte_offset_to_utf16(line, pos.col);
+        utf16_start = utf8_offset_to_utf16(line, line_len, pos.col);
       free(it->buffer);
       free(it);
       it = begin_l_iter(editor->root, point.row);
-      line = next_line(it, nullptr);
+      line = next_line(it, &line_len);
       int utf16_end = 0;
       if (line)
-        utf16_end = utf8_byte_offset_to_utf16(line, point.col);
+        utf16_end = utf8_offset_to_utf16(line, line_len, point.col);
       free(it->buffer);
       free(it);
       lsp_range = {{"start", {{"line", pos.row}, {"character", utf16_start}}},
@@ -164,6 +166,14 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
     uint32_t new_row = byte_to_line(editor->root, cursor_new, &new_col);
     editor->cursor = {new_row, new_col};
   }
+  LineIterator *it = begin_l_iter(editor->root, pos.row);
+  uint32_t line_len;
+  char *line = next_line(it, &line_len);
+  int utf16_col = 0;
+  if (line)
+    utf16_col = utf8_offset_to_utf16(line, line_len, pos.col);
+  free(it->buffer);
+  free(it);
   lock_1.unlock();
   std::unique_lock lock_2(editor->knot_mtx);
   editor->root = insert(editor->root, byte_pos, data, len);
@@ -177,15 +187,6 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
     editor->parser->edit(pos.row, pos.row, rows);
   if (editor->lsp) {
     if (editor->lsp->incremental_sync) {
-      lock_1.lock();
-      LineIterator *it = begin_l_iter(editor->root, pos.row);
-      char *line = next_line(it, nullptr);
-      int utf16_col = 0;
-      if (line)
-        utf16_col = utf8_byte_offset_to_utf16(line, pos.col);
-      free(it->buffer);
-      free(it);
-      lock_1.unlock();
       json message = {
           {"jsonrpc", "2.0"},
           {"method", "textDocument/didChange"},
@@ -222,17 +223,18 @@ void edit_replace(Editor *editor, Coord start, Coord end, const char *text,
       line_to_byte(editor->root, start.row, nullptr) + start.col;
   uint32_t end_byte = line_to_byte(editor->root, end.row, nullptr) + end.col;
   LineIterator *it = begin_l_iter(editor->root, start.row);
-  char *line = next_line(it, nullptr);
+  uint32_t line_len;
+  char *line = next_line(it, &line_len);
   int utf16_start = 0;
   if (line)
-    utf16_start = utf8_byte_offset_to_utf16(line, start.col);
+    utf16_start = utf8_offset_to_utf16(line, line_len, start.col);
   free(it->buffer);
   free(it);
   it = begin_l_iter(editor->root, end.row);
-  line = next_line(it, nullptr);
+  line = next_line(it, &line_len);
   int utf16_end = 0;
   if (line)
-    utf16_end = utf8_byte_offset_to_utf16(line, end.col);
+    utf16_end = utf8_offset_to_utf16(line, line_len, end.col);
   free(it->buffer);
   free(it);
   if (start_byte != end_byte)
@@ -243,10 +245,8 @@ void edit_replace(Editor *editor, Coord start, Coord end, const char *text,
   for (uint32_t i = 0; i < len; i++)
     if (text[i] == '\n')
       rows++;
-  if (editor->parser) {
-    editor->parser->edit(start.row, end.row - 1, 0);
-    editor->parser->edit(start.row, start.row, rows);
-  }
+  if (editor->parser)
+    editor->parser->edit(start.row, end.row - 1, rows);
   if (editor->lsp) {
     if (editor->lsp->incremental_sync) {
       json message = {

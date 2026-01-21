@@ -92,8 +92,10 @@ uint32_t get_visual_col_from_bytes(const char *line, uint32_t len,
                                    uint32_t byte_limit);
 uint32_t get_bytes_from_visual_col(const char *line, uint32_t len,
                                    uint32_t target_visual_col);
-uint32_t utf8_byte_offset_to_utf16(const char *s, uint32_t byte_pos);
-uint32_t utf16_offset_to_utf8(const char *s, uint32_t utf16_pos);
+size_t utf8_offset_to_utf16(const char *utf8, size_t utf8_len,
+                            size_t byte_offset);
+size_t utf16_offset_to_utf8(const char *utf8, size_t utf8_len,
+                            size_t utf16_offset);
 uint8_t utf8_codepoint_width(unsigned char c);
 
 void log(const char *fmt, ...);

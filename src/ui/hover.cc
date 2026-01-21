@@ -24,6 +24,7 @@ void HoverBox::scroll(int32_t number) {
 
 void HoverBox::render_first(bool scroll) {
   if (!scroll) {
+    // TODO: call syntax highlighter here
   }
   uint32_t longest_line = 0;
   uint32_t current_width = 0;

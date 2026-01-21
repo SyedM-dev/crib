@@ -37,6 +37,7 @@ struct LSPInstance {
   bool allow_resolve = false;
   bool allow_formatting = false;
   bool allow_formatting_on_type = false;
+  bool is_utf8 = false;
   std::vector<char> format_chars;
   std::vector<char> trigger_chars;
   std::vector<char> end_chars;
@@ -53,6 +54,7 @@ extern std::unordered_map<uint8_t, std::shared_ptr<LSPInstance>> active_lsps;
 extern Queue<LSPOpenRequest> lsp_open_queue;
 
 static json client_capabilities = {
+    {"general", {{"positionEncodings", {"utf-16"}}}},
     {"textDocument",
      {{"publishDiagnostics", {{"relatedInformation", true}}},
       {"hover", {{"contentFormat", {"markdown", "plaintext"}}}},

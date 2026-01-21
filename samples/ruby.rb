@@ -4,27 +4,16 @@
 # Purpose: Test syntax highlighting + width calculation in your editor
 # ---------------------------------------------------------------
 
-# Basic output
-def greet
-  puts "Hello, 世界! 👋🌏"
-end
-
-# Emoji-heavy strings
-emojis = "👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏👋🌏"
 
 # Mixed-width CJKssssssssssssssss LoadErssssssssssssssssssssssss
 cjk_samples = [
   "漢字テスト",
   "測試中文字串",
   "한국어 테스트",
-  "ひらがなカタカナ😀混合",
-  "大量の文字列🚀🚀🚀"
+  "ひらがなカタカナ混合",
 ]
 
-
-
-
-# a hex color: #FFFFFF hsl(147rad, 50%, 47%)
+# a hex color: #FFFFFF shouldn't hl here: hsl(147rad, 50%, 47%)  as it is not css-style file
 
 0x603010 # another hex color
 
@@ -38,7 +27,7 @@ s wow
 
 UNICORE = %r{
     [s]
-    {#{}}
+    {#{ss}}
     \C-s\u{10}
   }
   
@@ -112,8 +101,12 @@ mixed = [
 
 two_docs = <<DOC1 , <<DOC2
 stuff for doc2
+
+
+rdvajehvbaejbfh
+
 DOC1
-stuff for doc 2 with \#{not interpolation} and more
+stuff for doc 2 with #{not interpolation} and more
 DOC2
 
 p = 0 <<22 # not a heredoc
@@ -154,9 +147,6 @@ This is a wrapped line test, This is a wrapped line test, This is a wrapped line
 =end
 
 # Constants
-
-__END_
-
 
 PI = 3.14159
 MAX_ITER = 5

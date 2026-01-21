@@ -35,6 +35,10 @@ Copyright 2025 Syed Daanish
 * Try to make all functions better now that folds have been purged
 * Cleanup syntax and renderer files
 
+probably remove solargraph support and use ruby-lsp (or sorbet?) instead
+
+move lsp configs to json and also allow configs for windows-style vs unix-style line endings and utf-8 vs utf-16
+
 * finish bash then do all the directive-like ones like jsonc (first to help with theme files) / toml / yaml / ini / nginx
 * then markdown / html
 * then gitignore / gitattributes

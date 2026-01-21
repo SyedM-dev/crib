@@ -453,7 +453,7 @@ private:
     uint8_t g = (color >> 8) & 0xFF;
     uint8_t b = color & 0xFF;
     double luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-    return (luminance > 128) ? 0x000000 : 0xFFFFFF;
+    return (luminance > 128) ? 0x010101 : 0xFFFFFF;
   }
 
   uint32_t hslToRgb(double h, double s, double l) {

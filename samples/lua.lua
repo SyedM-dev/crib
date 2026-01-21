@@ -117,4 +117,3 @@ local tpl = `Value: ${counter}`
 
 -- Regex-like string (for testing injection highlighting)
 local re = "/^%a+$/"
-

@@ -2,3 +2,7 @@
 	path = libs/libgrapheme
 	url = git://git.suckless.org/libgrapheme
   ignore = dirty
+[submodule "libs/utfcpp"]
+	path = libs/utfcpp
+  url = https://github.com/nemtrif/utfcpp.git
+  ignore = dirty
