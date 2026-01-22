@@ -7,7 +7,7 @@ void request_add_to_lsp(Language language, Editor *editor) {
 }
 
 void add_to_lsp(Language language, Editor *editor) {
-  std::shared_ptr<LSPInstance> lsp = get_or_init_lsp(language.lsp_id);
+  std::shared_ptr<LSPInstance> lsp = get_or_init_lsp(language.lsp_name);
   if (!lsp)
     return;
   std::unique_lock lock(lsp->mtx);
@@ -41,11 +41,11 @@ void open_editor(std::shared_ptr<LSPInstance> lsp,
   lsp_send(lsp, message, nullptr);
 }
 
-static uint8_t find_lsp_id(std::shared_ptr<LSPInstance> needle) {
+static std::string find_lsp_id(std::shared_ptr<LSPInstance> needle) {
   for (const auto &[id, lsp] : active_lsps)
     if (lsp == needle)
       return id;
-  return 0;
+  return "";
 }
 
 void remove_from_lsp(Editor *editor) {
@@ -64,8 +64,8 @@ void remove_from_lsp(Editor *editor) {
                   {"method", "textDocument/didClose"},
                   {"params", {{"textDocument", {{"uri", editor->uri}}}}}};
   lsp_send(lsp, message, nullptr);
-  uint8_t lsp_id = find_lsp_id(lsp);
-  if (lsp_id && lsp->editors.empty())
+  std::string lsp_id = find_lsp_id(lsp);
+  if (!lsp_id.empty() && lsp->editors.empty())
     close_lsp(lsp_id);
 }
 

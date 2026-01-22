@@ -39,6 +39,8 @@ probably remove solargraph support and use ruby-lsp (or sorbet?) instead
 
 move lsp configs to json and also allow configs for windows-style vs unix-style line endings and utf-8 vs utf-16
 
+* the ruby should have an api to be able to draw windows and add mappings to them
+
 * finish bash then do all the directive-like ones like jsonc (first to help with theme files) / toml / yaml / ini / nginx
 * then markdown / html
 * then gitignore / gitattributes

@@ -68,28 +68,28 @@ std::shared_ptr<void> bash_parse(std::vector<Token> *tokens,
       uint32_t start = i;
       while (i < len) {
         if (text[i] == state->full_state->lit.delim[0]) {
-          tokens->push_back({start, i, TokenKind::String});
+          tokens->push_back({start, i, TokenKind::K_STRING});
           state->full_state->in_state = BashFullState::NONE;
           break;
         }
         i++;
       }
       if (i == len)
-        tokens->push_back({start, i, TokenKind::String});
+        tokens->push_back({start, i, TokenKind::K_STRING});
       continue;
     }
     if (text[i] == '#') {
       if (i == 0 && len > 4 && text[i + 1] == '!') {
-        tokens->push_back({0, len, TokenKind::Shebang});
+        tokens->push_back({0, len, TokenKind::K_SHEBANG});
         return state;
       }
-      tokens->push_back({i, len, TokenKind::Comment});
+      tokens->push_back({i, len, TokenKind::K_COMMENT});
       return state;
     } else if (text[i] == '\'') {
       state->full_state->in_state = BashFullState::STRING;
       state->full_state->lit.delim = "'";
       state->full_state->lit.allow_interp = false;
-      tokens->push_back({i, ++i, TokenKind::String});
+      tokens->push_back({i, ++i, TokenKind::K_STRING});
       continue;
     }
     i++;

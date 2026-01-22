@@ -2,6 +2,7 @@
 #include "editor/editor.h"
 #include "io/sysio.h"
 #include "lsp/lsp.h"
+#include "scripting/decl.h"
 #include "ui/bar.h"
 #include "utils/utils.h"
 
@@ -12,32 +13,12 @@ std::vector<Editor *> editors;
 uint8_t current_editor = 0;
 std::atomic<uint8_t> mode = NORMAL;
 
-void background_worker() {
-  while (running)
-    throttle(16ms, editor_worker, editors[current_editor]);
-}
-
 void background_lsp() {
   while (running)
     throttle(8ms, lsp_worker);
 }
 
-void input_listener() {
-  while (running) {
-    KeyEvent event = throttle(1ms, read_key);
-    if (event.key_type == KEY_NONE)
-      continue;
-    if (event.key_type == KEY_CHAR && event.len == 1 &&
-        event.c[0] == CTRL('q')) {
-      free(event.c);
-      running = false;
-      return;
-    }
-    event_queue.push(event);
-  }
-}
-
-Editor *editor_at(uint8_t x, uint8_t y) {
+inline Editor *editor_at(uint8_t x, uint8_t y) {
   for (Editor *ed : editors) {
     Coord pos = ed->position;
     Coord size = ed->size;
@@ -48,29 +29,72 @@ Editor *editor_at(uint8_t x, uint8_t y) {
   return nullptr;
 }
 
-uint8_t index_of(Editor *ed) {
+inline uint8_t index_of(Editor *ed) {
   for (uint8_t i = 0; i < editors.size(); i++)
     if (editors[i] == ed)
       return i;
   return 0;
 }
 
+void input_listener(Bar bar) {
+  while (running) {
+    KeyEvent event = throttle(1ms, read_key);
+    if (event.key_type == KEY_NONE)
+      goto render;
+    if (event.key_type == KEY_CHAR && event.len == 1 &&
+        event.c[0] == CTRL('q')) {
+      free(event.c);
+      running = false;
+      break;
+    }
+    if (mode != RUNNER) {
+      if (event.key_type == KEY_MOUSE) {
+        Editor *target = editor_at(event.mouse_x, event.mouse_y);
+        if (target) {
+          if (event.mouse_state == PRESS)
+            current_editor = index_of(target);
+
+          event.mouse_x -= target->position.col;
+          event.mouse_y -= target->position.row;
+          handle_editor_event(target, event);
+        }
+      } else {
+        handle_editor_event(editors[current_editor], event);
+      }
+    } else {
+      bar.handle(event);
+    }
+  render:
+    render_editor(editors[current_editor]);
+    bar.render();
+    throttle(4ms, render);
+  }
+}
+
 int main(int argc, char *argv[]) {
+  auto start = std::chrono::high_resolution_clock::now();
+
+  ruby_init();
+
+  ruby_start((get_exe_dir() + "/../config/main.rb").c_str());
+  load_theme();
+  load_languages_info();
+  load_custom_highlighters();
+
   Coord screen = start_screen();
   const char *filename = (argc > 1) ? argv[1] : "";
 
-  int state;
-  VALUE result;
-  result = rb_eval_string_protect("puts 'Hello, world!'", &state);
+  bool unix_eol = read_line_endings();
 
-  if (state) {
-    /* handle exception */
-  }
-
-  load_theme();
-
-  Editor *editor = new_editor(filename, {0, 0}, {screen.row - 2, screen.col});
+  Editor *editor =
+      new_editor(filename, {0, 0}, {screen.row - 2, screen.col}, unix_eol);
   Bar bar(screen);
+
+  auto end = std::chrono::high_resolution_clock::now();
+  auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
+                .count();
+  ruby_log("[LOG] STARTUP_TIME: " + std::to_string(static_cast<long long>(ms)) +
+           "ms");
 
   if (!editor) {
     end_screen();
@@ -81,47 +105,21 @@ int main(int argc, char *argv[]) {
   editors.push_back(editor);
   current_editor = editors.size() - 1;
 
-  std::thread input_thread(input_listener);
-  std::thread work_thread(background_worker);
+  std::thread input_thread(input_listener, bar);
   std::thread lsp_thread(background_lsp);
 
-  while (running) {
-    KeyEvent event;
-    while (event_queue.pop(event)) {
-      if (mode != RUNNER) {
-        if (event.key_type == KEY_MOUSE) {
-          Editor *target = editor_at(event.mouse_x, event.mouse_y);
-          if (!target)
-            continue;
-          if (event.mouse_state == PRESS)
-            current_editor = index_of(target);
-          event.mouse_x -= target->position.col;
-          event.mouse_y -= target->position.row;
-          handle_editor_event(target, event);
-        } else {
-          handle_editor_event(editors[current_editor], event);
-        }
-      } else {
-        bar.handle(event);
-      }
-    }
-    render_editor(editors[current_editor]);
-    bar.render();
-    throttle(4ms, render);
-  }
+  while (running)
+    throttle(16ms, editor_worker, editors[current_editor]);
 
   if (input_thread.joinable())
     input_thread.join();
 
-  if (work_thread.joinable())
-    work_thread.join();
-
   if (lsp_thread.joinable())
     lsp_thread.join();
 
-  system(("bash " + get_exe_dir() + "/../scripts/exit.sh").c_str());
-
   end_screen();
+
+  ruby_shutdown();
 
   for (auto editor : editors)
     free_editor(editor);
@@ -136,5 +134,7 @@ int main(int argc, char *argv[]) {
     throttle(16ms, lsp_worker);
   }
 
-  return 0;
+  rb_gc_start();
+
+  return ruby_cleanup(0);
 }

@@ -1,3 +1,4 @@
+// When updating this file with new types do not forget to update libcrib.rb to parallel changes
 ADD(K_DATA)
 ADD(K_SHEBANG)
 ADD(K_COMMENT)

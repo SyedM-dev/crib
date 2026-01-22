@@ -40,4 +40,10 @@ struct LineData {
   std::shared_ptr<void> out_state{nullptr};
 };
 
+struct CustomState {
+  VALUE state;
+  CustomState(VALUE s) : state(s) { rb_gc_register_address(&state); }
+  ~CustomState() { rb_gc_unregister_address(&state); }
+};
+
 #endif

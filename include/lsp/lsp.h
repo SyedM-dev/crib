@@ -5,11 +5,6 @@
 #include "pch.h"
 #include "utils/utils.h"
 
-struct LSP {
-  const char *command;
-  std::vector<const char *> args;
-};
-
 struct LSPPending {
   std::string method;
   Editor *editor = nullptr;
@@ -50,7 +45,8 @@ struct LSPInstance {
 };
 
 extern std::shared_mutex active_lsps_mtx;
-extern std::unordered_map<uint8_t, std::shared_ptr<LSPInstance>> active_lsps;
+extern std::unordered_map<std::string, std::shared_ptr<LSPInstance>>
+    active_lsps;
 extern Queue<LSPOpenRequest> lsp_open_queue;
 
 static json client_capabilities = {
@@ -81,9 +77,9 @@ void lsp_send(std::shared_ptr<LSPInstance> lsp, json message,
               LSPPending *pending);
 void lsp_worker();
 
-std::shared_ptr<LSPInstance> get_or_init_lsp(uint8_t lsp_id);
-void clean_lsp(std::shared_ptr<LSPInstance> lsp, uint8_t lsp_id);
-void close_lsp(uint8_t lsp_id);
+std::shared_ptr<LSPInstance> get_or_init_lsp(std::string lsp_id);
+void clean_lsp(std::shared_ptr<LSPInstance> lsp, std::string lsp_id);
+void close_lsp(std::string lsp_id);
 
 void open_editor(std::shared_ptr<LSPInstance> lsp,
                  std::pair<Language, Editor *> entry);

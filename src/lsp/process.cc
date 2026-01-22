@@ -1,4 +1,3 @@
-#include "config.h"
 #include "lsp/lsp.h"
 
 static bool init_lsp(std::shared_ptr<LSPInstance> lsp) {
@@ -25,7 +24,12 @@ static bool init_lsp(std::shared_ptr<LSPInstance> lsp) {
     close(in_pipe[1]);
     close(out_pipe[0]);
     close(out_pipe[1]);
-    execvp(lsp->lsp->command, (char *const *)(lsp->lsp->args.data()));
+    std::vector<char *> argv;
+    argv.push_back(const_cast<char *>(lsp->lsp->command.c_str()));
+    for (auto &arg : lsp->lsp->args)
+      argv.push_back(const_cast<char *>(arg.c_str()));
+    argv.push_back(nullptr);
+    execvp(lsp->lsp->command.c_str(), argv.data());
     perror("execvp");
     _exit(127);
   }
@@ -37,12 +41,12 @@ static bool init_lsp(std::shared_ptr<LSPInstance> lsp) {
   return true;
 }
 
-std::shared_ptr<LSPInstance> get_or_init_lsp(uint8_t lsp_id) {
+std::shared_ptr<LSPInstance> get_or_init_lsp(std::string lsp_id) {
   std::unique_lock lock(active_lsps_mtx);
   auto it = active_lsps.find(lsp_id);
   if (it == active_lsps.end()) {
-    auto map_it = kLsps.find(lsp_id);
-    if (map_it == kLsps.end())
+    auto map_it = lsps.find(lsp_id);
+    if (map_it == lsps.end())
       return nullptr;
     std::shared_ptr<LSPInstance> lsp = std::make_shared<LSPInstance>();
     lsp->lsp = &map_it->second;
@@ -54,12 +58,13 @@ std::shared_ptr<LSPInstance> get_or_init_lsp(uint8_t lsp_id) {
     pending->callback = [lsp, lsp_id](Editor *, std::string, json msg) {
       if (msg.contains("result") && msg["result"].contains("capabilities")) {
         auto &caps = msg["result"]["capabilities"];
-        if (caps.contains("positionEncoding")) {
-          std::string s = caps["positionEncoding"].get<std::string>();
-          if (s == "utf-8")
-            lsp->is_utf8 = true;
-          log("Lsp name: %s, supports: %s", lsp->lsp->command, s.c_str());
-        }
+        // if (caps.contains("positionEncoding")) {
+        //   std::string s = caps["positionEncoding"].get<std::string>();
+        //   if (s == "utf-8")
+        //     lsp->is_utf8 = true;
+        //   log("Lsp name: %s, supports: %s", lsp->lsp->command.c_str(),
+        //       s.c_str());
+        // }
         if (caps.contains("textDocumentSync")) {
           auto &sync = caps["textDocumentSync"];
           if (sync.is_number()) {
@@ -71,8 +76,8 @@ std::shared_ptr<LSPInstance> get_or_init_lsp(uint8_t lsp_id) {
           }
         }
         lsp->allow_formatting = caps.value("documentFormattingProvider", false);
-        if (lsp_id !=
-                LUA_LS /* Lua ls gives terrible ontype formatting so disable */
+        if (lsp_id != "lua-language-server" /* Lua ls gives terrible ontype
+                                               formatting so disable */
             && caps.contains("documentOnTypeFormattingProvider")) {
           auto &fmt = caps["documentOnTypeFormattingProvider"];
           if (fmt.is_object()) {
@@ -149,7 +154,7 @@ std::shared_ptr<LSPInstance> get_or_init_lsp(uint8_t lsp_id) {
   return it->second;
 }
 
-void close_lsp(uint8_t lsp_id) {
+void close_lsp(std::string lsp_id) {
   std::shared_lock active_lsps_lock(active_lsps_mtx);
   auto it = active_lsps.find(lsp_id);
   if (it == active_lsps.end())
@@ -186,7 +191,7 @@ void close_lsp(uint8_t lsp_id) {
   t.detach();
 }
 
-void clean_lsp(std::shared_ptr<LSPInstance> lsp, uint8_t lsp_id) {
+void clean_lsp(std::shared_ptr<LSPInstance> lsp, std::string lsp_id) {
   for (auto &kv : lsp->pending)
     delete kv.second;
   lsp->pid = -1;

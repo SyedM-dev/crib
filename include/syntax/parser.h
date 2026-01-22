@@ -1,6 +1,7 @@
 #ifndef SYNTAX_PARSER_H
 #define SYNTAX_PARSER_H
 
+#include "scripting/decl.h"
 #include "syntax/decl.h"
 #include "syntax/line_tree.h"
 
@@ -12,11 +13,15 @@ struct Parser {
                                       const char *text, uint32_t len);
   bool (*state_match_func)(std::shared_ptr<void> state_1,
                            std::shared_ptr<void> state_2);
+  VALUE parser_block = Qnil;
+  VALUE match_block = Qnil;
+  bool is_custom{false};
   std::atomic<uint32_t> scroll_max{UINT32_MAX - 2048};
+  std::atomic<bool> scroll_dirty{false};
   std::mutex mutex;
   std::mutex data_mutex;
   LineTree line_tree;
-  std::set<uint32_t> dirty_lines;
+  UniqueQueue<uint32_t> dirty_lines;
 
   Parser(Editor *editor, std::string n_lang, uint32_t n_scroll_max);
   void edit(uint32_t start_line, uint32_t old_end_line, uint32_t inserted_rows);

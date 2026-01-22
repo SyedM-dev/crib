@@ -15,13 +15,13 @@ CXX := $(CCACHE) clang++
 CFLAGS_DEBUG :=\
 	-std=c++20 -Wall -Wextra \
 	-O0 -fno-inline -gsplit-dwarf\
-	-g -fsanitize=address -fno-omit-frame-pointer\
+	-g -fno-omit-frame-pointer\
 	-Wno-unused-command-line-argument \
 	-I./include -I./libs \
 	-I/usr/include/ruby-3.4.0 -I/usr/include/ruby-3.4.0/x86_64-linux
 CFLAGS_RELEASE :=\
 	-std=c++20 -O3 -march=native \
-	-fno-exceptions -fno-rtti -fstrict-aliasing \
+  -fno-rtti -fstrict-aliasing \
 	-ffast-math -flto=thin \
 	-fvisibility=hidden -fuse-ld=lld \
 	-fomit-frame-pointer -DNDEBUG -s \
@@ -41,7 +41,7 @@ UNICODE_OBJ_RELEASE := $(patsubst libs/unicode_width/%.c,$(OBJ_DIR)/release/unic
 
 LIBS := \
 	libs/libgrapheme/libgrapheme.a \
-	-lpcre2-8 -lmagic
+	-lpcre2-8 -lmagic -lruby
 
 SRC := $(wildcard $(SRC_DIR)/**/*.cc) $(wildcard $(SRC_DIR)/*.cc)
 OBJ_DEBUG := $(patsubst $(SRC_DIR)/%.cc,$(OBJ_DIR)/debug/%.o,$(SRC))

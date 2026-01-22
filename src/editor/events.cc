@@ -186,8 +186,6 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
     break;
   case SELECT:
     if (event.key_type == KEY_CHAR && event.len == 1) {
-      uint32_t len;
-      char *text;
       switch (event.c[0]) {
       case 0x1B:
       case 's':

@@ -1,5 +1,9 @@
-#include "config.h"
 #include "utils/utils.h"
+
+std::unordered_map<std::string, Language> languages;
+std::unordered_map<std::string, std::string> language_extensions;
+std::unordered_map<std::string, std::string> language_mimetypes;
+std::unordered_map<std::string, LSP> lsps;
 
 void log(const char *fmt, ...) {
   FILE *fp = fopen("/tmp/log.txt", "a");
@@ -41,33 +45,39 @@ std::string get_exe_dir() {
 }
 
 char *load_file(const char *path, uint32_t *out_len) {
-  std::ifstream file(path, std::ios::in | std::ios::binary | std::ios::ate);
+  std::ifstream file(path, std::ios::binary | std::ios::ate);
   if (!file.is_open())
     return nullptr;
   std::streamsize len = file.tellg();
-  if (len < 0 || static_cast<uint32_t>(len) > 0xFFFFFFFF)
+  if (len < 0 || static_cast<uint64_t>(len) > 0xFFFFFFFF)
     return nullptr;
   file.seekg(0, std::ios::beg);
-  bool add_newline = false;
-  if (len > 0) {
-    file.seekg(-1, std::ios::end);
-    char last_char;
-    file.read(&last_char, 1);
-    if (last_char != '\n')
-      add_newline = true;
-  }
-  file.seekg(0, std::ios::beg);
-  uint32_t alloc_size = static_cast<uint32_t>(len) + (add_newline ? 1 : 0);
-  char *buf = (char *)malloc(alloc_size);
+  unsigned char bom[3] = {0};
+  file.read(reinterpret_cast<char *>(bom), 3);
+  if ((bom[0] == 0xFF && bom[1] == 0xFE) || (bom[0] == 0xFE && bom[1] == 0xFF))
+    return nullptr;
+  bool has_utf8_bom = (bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF);
+  uint32_t skip = has_utf8_bom ? 3 : 0;
+  uint32_t data_len = static_cast<uint32_t>(len) - skip;
+  file.seekg(skip, std::ios::beg);
+  char *buf = (char *)malloc(data_len + 1);
   if (!buf)
     return nullptr;
-  if (!file.read(buf, len)) {
-    free(buf);
-    return nullptr;
+  file.read(buf, data_len);
+  if (memchr(buf, '\r', data_len) == nullptr) {
+    uint32_t write = data_len;
+    if (write == 0 || buf[write - 1] != '\n')
+      buf[write++] = '\n';
+    *out_len = write;
+    return buf;
   }
-  if (add_newline)
-    buf[len++] = '\n';
-  *out_len = static_cast<uint32_t>(len);
+  uint32_t write = 0;
+  for (uint32_t i = 0; i < data_len; ++i)
+    if (buf[i] != '\r')
+      buf[write++] = buf[i];
+  if (write == 0 || buf[write - 1] != '\n')
+    buf[write++] = '\n';
+  *out_len = write;
   return buf;
 }
 
@@ -108,17 +118,17 @@ Language language_for_file(const char *filename) {
   std::string ext = file_extension(filename);
   std::string lang_name;
   if (!ext.empty()) {
-    auto it = kExtToLang.find(ext);
-    if (it != kExtToLang.end())
-      return kLanguages.find(it->second)->second;
+    auto it = language_extensions.find(ext);
+    if (it != language_extensions.end())
+      return languages.find(it->second)->second;
   }
   char *mime = detect_file_type(filename);
   if (mime) {
     std::string mime_type(mime);
     free(mime);
-    auto it = kMimeToLang.find(mime_type);
-    if (it != kMimeToLang.end())
-      return kLanguages.find(it->second)->second;
+    auto it = language_mimetypes.find(mime_type);
+    if (it != language_mimetypes.end())
+      return languages.find(it->second)->second;
   }
   return Language{};
 }

@@ -4,9 +4,6 @@
 #include "pch.h"
 
 template <typename T> struct Queue {
-  std::queue<T> q;
-  std::mutex m;
-
   void push(T val) {
     std::lock_guard<std::mutex> lock(m);
     q.push(val);
@@ -32,6 +29,49 @@ template <typename T> struct Queue {
     std::lock_guard<std::mutex> lock(m);
     return q.empty();
   }
+
+private:
+  std::queue<T> q;
+  std::mutex m;
+};
+
+template <typename T> struct UniqueQueue {
+  bool push(const T &value) {
+    std::lock_guard<std::mutex> lock(m);
+    if (set.contains(value))
+      return false;
+
+    dq.push_back(value);
+    set.insert(value);
+    return true;
+  }
+  bool pop(T &out) {
+    std::lock_guard<std::mutex> lock(m);
+    if (dq.empty())
+      return false;
+    out = dq.front();
+    dq.pop_front();
+    set.erase(out);
+    return true;
+  }
+  bool empty() const {
+    std::lock_guard<std::mutex> lock(m);
+    return dq.empty();
+  }
+  void clear() {
+    std::lock_guard<std::mutex> lock(m);
+    dq.clear();
+    set.clear();
+  }
+  size_t size() const {
+    std::lock_guard<std::mutex> lock(m);
+    return dq.size();
+  }
+
+private:
+  std::deque<T> dq;
+  std::set<T> set;
+  mutable std::mutex m;
 };
 
 struct Coord {
@@ -60,10 +100,20 @@ struct Match {
 
 struct Language {
   std::string name;
-  uint8_t lsp_id;
+  std::string lsp_name;
   uint32_t color;
-  const char *symbol;
+  std::string symbol;
 };
+
+struct LSP {
+  std::string command;
+  std::vector<std::string> args;
+};
+
+extern std::unordered_map<std::string, Language> languages;
+extern std::unordered_map<std::string, std::string> language_extensions;
+extern std::unordered_map<std::string, std::string> language_mimetypes;
+extern std::unordered_map<std::string, LSP> lsps;
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))

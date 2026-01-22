@@ -4,7 +4,8 @@
 #include "syntax/langs.h"
 #include "utils/utils.h"
 
-Editor *new_editor(const char *filename_arg, Coord position, Coord size) {
+Editor *new_editor(const char *filename_arg, Coord position, Coord size,
+                   bool unix_eol) {
   Editor *editor = new Editor();
   if (!editor)
     return nullptr;
@@ -15,6 +16,7 @@ Editor *new_editor(const char *filename_arg, Coord position, Coord size) {
     free_editor(editor);
     return nullptr;
   }
+  editor->unix_eol = unix_eol;
   editor->filename = filename;
   editor->uri = path_to_file_uri(filename);
   editor->position = position;
@@ -61,7 +63,15 @@ void save_file(Editor *editor) {
     return;
   lock.unlock();
   std::ofstream out(editor->filename);
-  out.write(str, char_count);
+  if (!editor->unix_eol) {
+    for (uint32_t i = 0; i < char_count; ++i) {
+      if (str[i] == '\n')
+        out.put('\r');
+      out.put(str[i]);
+    }
+  } else {
+    out.write(str, char_count);
+  }
   out.close();
   free(str);
   if (editor->lsp) {
@@ -109,7 +119,15 @@ void save_file(Editor *editor) {
             return;
           lock.unlock();
           std::ofstream out(editor->filename);
-          out.write(str, char_count);
+          if (!editor->unix_eol) {
+            for (uint32_t i = 0; i < char_count; ++i) {
+              if (str[i] == '\n')
+                out.put('\r');
+              out.put(str[i]);
+            }
+          } else {
+            out.write(str, char_count);
+          }
           out.close();
           free(str);
           lsp_send(editor->lsp, save_msg, nullptr);

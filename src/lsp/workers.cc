@@ -1,7 +1,7 @@
 #include "lsp/lsp.h"
 
 std::shared_mutex active_lsps_mtx;
-std::unordered_map<uint8_t, std::shared_ptr<LSPInstance>> active_lsps;
+std::unordered_map<std::string, std::shared_ptr<LSPInstance>> active_lsps;
 
 void lsp_send(std::shared_ptr<LSPInstance> lsp, json message,
               LSPPending *pending) {

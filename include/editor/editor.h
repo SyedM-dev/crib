@@ -30,6 +30,7 @@ struct Editor {
   uint32_t cursor_preffered;
   Coord selection;
   bool selection_active;
+  bool unix_eol; // false for windows
   int selection_type;
   Coord position;
   Coord size;
@@ -55,7 +56,8 @@ struct Editor {
   bool is_css_color;
 };
 
-Editor *new_editor(const char *filename_arg, Coord position, Coord size);
+Editor *new_editor(const char *filename_arg, Coord position, Coord size,
+                   bool unix_eol);
 void save_file(Editor *editor);
 void free_editor(Editor *editor);
 void render_editor(Editor *editor);

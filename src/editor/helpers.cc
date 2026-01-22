@@ -357,7 +357,6 @@ void handle_mouse(Editor *editor, KeyEvent event) {
       std::chrono::steady_clock::now();
   static uint32_t click_count = 0;
   static Coord last_click_pos = {UINT32_MAX, UINT32_MAX};
-  uint8_t old_mode = mode;
   if (event.key_type == KEY_MOUSE) {
     auto now = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
