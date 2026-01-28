@@ -31,7 +31,7 @@ if [ -z "$RUBY_VERSION" ]; then
   elif [ "$HAVE_32" = "1" ]; then
     RUBY_VERSION="3.2"
   else
-    echo "No compatible Ruby library found (need Ruby 3.2 or 3.4)."
+    echo "No compatible Ruby library found need Ruby 3.2 or 3.4."
     exit 1
   fi
 fi
@@ -53,22 +53,29 @@ fi
 
 echo "Installing Crib (Ruby $RUBY_VERSION)"
 
-echo "Install locally (~/.local/bin) or globally (/usr/bin)? [l/g]"
+echo "Install locally ~/.local/bin or globally /usr/bin? [l/g]"
 read -r choice
 case "$choice" in
-l | L) INSTALL_DIR="$HOME/.local/bin" ;;
-g | G) INSTALL_DIR="/usr/bin" ;;
+l | L)
+  INSTALL_DIR="$HOME/.local/bin"
+  SUDO=""
+  ;;
+g | G)
+  INSTALL_DIR="/usr/bin"
+  SUDO="sudo"
+  ;;
 *)
   echo "Invalid choice"
   exit 1
   ;;
 esac
 
-mkdir -p "$INSTALL_DIR"
+$SUDO mkdir -p "$INSTALL_DIR"
 
 echo "Downloading binary..."
-curl -L "$GITHUB_URL" -o "$INSTALL_DIR/$BINARY_NAME"
-chmod +x "$INSTALL_DIR/$BINARY_NAME"
+curl -L "$GITHUB_URL" -o /tmp/"$BINARY_NAME"
+$SUDO install -m 755 /tmp/"$BINARY_NAME" "$INSTALL_DIR/$BINARY_NAME"
+rm -f /tmp/"$BINARY_NAME"
 
 echo
 echo "✔ Crib installed to $INSTALL_DIR"
