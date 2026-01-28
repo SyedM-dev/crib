@@ -288,7 +288,8 @@ bool ruby_state_match(std::shared_ptr<void> state_1,
 
 std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
                                  std::shared_ptr<void> in_state,
-                                 const char *text, uint32_t len) {
+                                 const char *text, uint32_t len,
+                                 uint32_t line_num) {
   static bool keywords_trie_init = false;
   static Trie<void> base_keywords_trie;
   static Trie<void> expecting_keywords_trie;
@@ -703,7 +704,7 @@ std::shared_ptr<void> ruby_parse(std::vector<Token> *tokens,
       i++;
       continue;
     } else if (text[i] == '#') {
-      if (i == 0 && len > 4 && text[i + 1] == '!') {
+      if (line_num == 0 && i == 0 && len > 4 && text[i + 1] == '!') {
         state->full_state->expecting_expr = false;
         tokens->push_back({0, len, TokenKind::K_SHEBANG});
         return state;

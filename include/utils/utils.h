@@ -154,7 +154,7 @@ std::string path_abs(const std::string &path_str);
 std::string path_to_file_uri(const std::string &path_str);
 std::string filename_from_path(const std::string &path);
 std::string get_exe_dir();
-char *load_file(const char *path, uint32_t *out_len);
+char *load_file(const char *path, uint32_t *out_len, bool *out_eol);
 char *detect_file_type(const char *filename);
 Language language_for_file(const char *filename);
 

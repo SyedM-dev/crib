@@ -64,6 +64,10 @@ void Parser::work() {
       dirty_lines.push(c_line);
       continue;
     }
+    if (scroll_max > 50 && c_line < scroll_max - 50) {
+      dirty_lines.push(c_line);
+      continue;
+    }
     uint32_t line_count = line_tree.count();
     lock_data.lock();
     std::shared_ptr<void> prev_state =
@@ -118,13 +122,14 @@ void Parser::work() {
               std::static_pointer_cast<CustomState>(prev_state);
           state = state_ptr->state;
         }
-        VALUE out_state =
-            parse_custom(&line_data->tokens, parser_block, text, r_len, state);
+        VALUE out_state = parse_custom(&line_data->tokens, parser_block, text,
+                                       r_len, state, c_line);
         std::shared_ptr<CustomState> out_state_ptr =
             std::make_shared<CustomState>(out_state);
         new_state = out_state_ptr;
       } else {
-        new_state = parse_func(&line_data->tokens, prev_state, text, r_len);
+        new_state =
+            parse_func(&line_data->tokens, prev_state, text, r_len, c_line);
       }
       line_data->in_state = prev_state;
       line_data->out_state = new_state;
@@ -134,7 +139,8 @@ void Parser::work() {
       }
       prev_state = new_state;
       c_line++;
-      if (c_line < line_count && c_line > scroll_max + 50) {
+      if (c_line < line_count && c_line > scroll_max + 50 && scroll_max < 50 &&
+          c_line < scroll_max + 50) {
         lock_data.unlock();
         if (lock.owns_lock())
           lock.unlock();

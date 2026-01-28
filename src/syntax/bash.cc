@@ -1,11 +1,10 @@
 #include "syntax/decl.h"
 #include "syntax/langs.h"
-#include <cstdint>
 
 struct BashFullState {
   int brace_level = 0;
 
-  enum : uint8_t { NONE, STRING, HEREDOC };
+  enum : uint8_t { NONE, STRING, HEREDOC, PARAMETER };
   uint8_t in_state = BashFullState::NONE;
 
   bool line_cont = false;
@@ -50,7 +49,8 @@ bool bash_state_match(std::shared_ptr<void> state_1,
 
 std::shared_ptr<void> bash_parse(std::vector<Token> *tokens,
                                  std::shared_ptr<void> in_state,
-                                 const char *text, uint32_t len) {
+                                 const char *text, uint32_t len,
+                                 uint32_t line_num) {
   static bool keywords_trie_init = false;
   if (!keywords_trie_init) {
     keywords_trie_init = true;
@@ -64,10 +64,44 @@ std::shared_ptr<void> bash_parse(std::vector<Token> *tokens,
   if (len == 0)
     return state;
   while (i < len) {
+    if (state->full_state->in_state == BashFullState::PARAMETER) {
+      uint32_t start = i;
+      while (i < len) {
+        if (text[i] == '{') {
+          i++;
+          state->full_state->brace_level++;
+          continue;
+        }
+        if (text[i] == '}') {
+          if (--state->full_state->brace_level == 0 &&
+              !state->interp_stack.empty()) {
+            tokens->push_back({i - 1, i, TokenKind::K_INTERPOLATION});
+            state->full_state = state->interp_stack.top();
+            state->interp_stack.pop();
+            i++;
+            break;
+          }
+        }
+        i++;
+      }
+      continue;
+    }
     if (state->full_state->in_state == BashFullState::STRING) {
       uint32_t start = i;
       while (i < len) {
+        if (state->full_state->lit.allow_interp && text[i] == '$') {
+          if (++i < len && text[i] == '{') {
+            tokens->push_back({start, i - 1, TokenKind::K_STRING});
+            tokens->push_back({i - 1, i, TokenKind::K_INTERPOLATION});
+            state->interp_stack.push(state->full_state);
+            state->full_state = std::make_shared<BashFullState>();
+            state->full_state->in_state = BashFullState::PARAMETER;
+            state->full_state->brace_level = 1;
+            break;
+          }
+        }
         if (text[i] == state->full_state->lit.delim[0]) {
+          i++;
           tokens->push_back({start, i, TokenKind::K_STRING});
           state->full_state->in_state = BashFullState::NONE;
           break;
@@ -79,7 +113,7 @@ std::shared_ptr<void> bash_parse(std::vector<Token> *tokens,
       continue;
     }
     if (text[i] == '#') {
-      if (i == 0 && len > 4 && text[i + 1] == '!') {
+      if (line_num == 0 && i == 0 && len > 4 && text[i + 1] == '!') {
         tokens->push_back({0, len, TokenKind::K_SHEBANG});
         return state;
       }
@@ -89,6 +123,12 @@ std::shared_ptr<void> bash_parse(std::vector<Token> *tokens,
       state->full_state->in_state = BashFullState::STRING;
       state->full_state->lit.delim = "'";
       state->full_state->lit.allow_interp = false;
+      tokens->push_back({i, ++i, TokenKind::K_STRING});
+      continue;
+    } else if (text[i] == '"') {
+      state->full_state->in_state = BashFullState::STRING;
+      state->full_state->lit.delim = "\"";
+      state->full_state->lit.allow_interp = true;
       tokens->push_back({i, ++i, TokenKind::K_STRING});
       continue;
     }

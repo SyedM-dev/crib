@@ -5,18 +5,21 @@
 #include "utils/utils.h"
 
 Editor *new_editor(const char *filename_arg, Coord position, Coord size,
-                   bool unix_eol) {
+                   uint8_t eol) {
   Editor *editor = new Editor();
   if (!editor)
     return nullptr;
   uint32_t len = 0;
   std::string filename = path_abs(filename_arg);
-  char *str = load_file(filename.c_str(), &len);
+  editor->unix_eol = eol & 1;
+  char *str = load_file(filename.c_str(), &len, &editor->unix_eol);
   if (!str) {
-    free_editor(editor);
-    return nullptr;
+    str = (char *)malloc(1);
+    *str = '\n';
+    len = 1;
   }
-  editor->unix_eol = unix_eol;
+  if ((eol >> 1) & 1)
+    editor->unix_eol = eol & 1;
   editor->filename = filename;
   editor->uri = path_to_file_uri(filename);
   editor->position = position;

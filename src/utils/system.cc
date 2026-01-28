@@ -44,7 +44,7 @@ std::string get_exe_dir() {
   return path.substr(0, path.find_last_of('/'));
 }
 
-char *load_file(const char *path, uint32_t *out_len) {
+char *load_file(const char *path, uint32_t *out_len, bool *out_eol) {
   std::ifstream file(path, std::ios::binary | std::ios::ate);
   if (!file.is_open())
     return nullptr;
@@ -64,18 +64,28 @@ char *load_file(const char *path, uint32_t *out_len) {
   if (!buf)
     return nullptr;
   file.read(buf, data_len);
-  if (memchr(buf, '\r', data_len) == nullptr) {
+  bool has_cr = memchr(buf, '\r', data_len) != nullptr;
+  bool has_lf = memchr(buf, '\n', data_len) != nullptr;
+  if (!has_cr && !has_lf) {
     uint32_t write = data_len;
-    if (write == 0 || buf[write - 1] != '\n')
+    buf[write++] = '\n';
+    *out_len = write;
+    return buf;
+  }
+  if (!has_cr) {
+    *out_eol = true;
+    uint32_t write = data_len;
+    if (buf[write - 1] != '\n')
       buf[write++] = '\n';
     *out_len = write;
     return buf;
   }
+  *out_eol = false;
   uint32_t write = 0;
   for (uint32_t i = 0; i < data_len; ++i)
     if (buf[i] != '\r')
       buf[write++] = buf[i];
-  if (write == 0 || buf[write - 1] != '\n')
+  if (buf[write - 1] != '\n')
     buf[write++] = '\n';
   *out_len = write;
   return buf;

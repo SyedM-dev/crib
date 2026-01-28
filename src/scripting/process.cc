@@ -1,5 +1,3 @@
-#include "ruby/internal/gc.h"
-#include "ruby/internal/value.h"
 #include "scripting/decl.h"
 #include "utils/utils.h"
 
@@ -28,16 +26,55 @@ struct R_Language {
 VALUE C_module = Qnil;
 std::mutex ruby_mutex;
 
-void ruby_start(const char *main_file) {
+namespace fs = std::filesystem;
+
+static void ruby_load(const char *main_file) {
   std::lock_guard lock(ruby_mutex);
   ruby_init_loadpath();
   int state = 0;
   rb_load_protect(rb_str_new_cstr(main_file), 0, &state);
   if (state) {
-    rb_errinfo();
+    VALUE err = rb_errinfo();
     rb_set_errinfo(Qnil);
-    fprintf(stderr, "%d: Failed to load Ruby file\n", state);
-    return;
+    fprintf(stderr, "%d: Failed to load Ruby file %s\n", state, main_file);
+  }
+}
+
+static void ruby_eval_string(const char *code) {
+  int state = 0;
+  rb_eval_string_protect(code, &state);
+  if (state) {
+    VALUE err = rb_errinfo();
+    rb_set_errinfo(Qnil);
+    fprintf(stderr, "Ruby eval failed\n");
+  }
+}
+
+void ruby_start() {
+  fs::path exe_dir = get_exe_dir();
+  std::vector<fs::path> candidates;
+  candidates.emplace_back("./crib.rb");
+  const char *xdg = std::getenv("XDG_CONFIG_HOME");
+  const char *home = std::getenv("HOME");
+  if (xdg) {
+    candidates.emplace_back(fs::path(xdg) / "crib/crib.rb");
+    candidates.emplace_back(fs::path(xdg) / "crib/main.rb");
+    candidates.emplace_back(fs::path(xdg) / "crib.rb");
+  } else if (home) {
+    fs::path base = fs::path(home) / ".config";
+    candidates.emplace_back(base / "crib/crib.rb");
+    candidates.emplace_back(base / "crib/main.rb");
+    candidates.emplace_back(base / "crib.rb");
+  }
+  candidates.emplace_back(exe_dir / "../config/main.rb");
+  candidates.emplace_back(exe_dir / "../config/crib.rb");
+  ruby_eval_string(crib_module);
+  ruby_eval_string(tokens_def);
+  for (const auto &p : candidates) {
+    if (fs::exists(p) && fs::is_regular_file(p)) {
+      ruby_load(p.string().c_str());
+      break;
+    }
   }
   C_module = rb_const_get(rb_cObject, rb_intern("C"));
   if (C_module == Qnil)
@@ -102,14 +139,16 @@ bool custom_compare(VALUE match_block, VALUE state1, VALUE state2) {
 }
 
 VALUE parse_custom(std::vector<Token> *tokens, VALUE parser_block,
-                   const char *line, uint32_t len, VALUE state) {
+                   const char *line, uint32_t len, VALUE state,
+                   uint32_t c_line) {
   std::lock_guard lock(ruby_mutex);
   tokens->clear();
   if (NIL_P(parser_block))
     return {};
   VALUE ruby_line = rb_str_new(line, len);
-  VALUE tokens_and_state_hash =
-      rb_funcall(parser_block, rb_intern("call"), 2, ruby_line, state);
+  VALUE line_idx = UINT2NUM(c_line);
+  VALUE tokens_and_state_hash = rb_funcall(parser_block, rb_intern("call"), 3,
+                                           ruby_line, state, line_idx);
   VALUE tokens_rb =
       rb_hash_aref(tokens_and_state_hash, ID2SYM(rb_intern("tokens")));
   for (long i = 0; i < RARRAY_LEN(tokens_rb); ++i) {
@@ -287,12 +326,22 @@ void load_languages_info() {
     lsps[lsp.command] = lsp;
 }
 
-bool read_line_endings() {
+uint8_t read_line_endings() {
   std::lock_guard lock(ruby_mutex);
   if (C_module == Qnil)
-    return true;
+    return 1;
   VALUE le = rb_funcall(C_module, rb_intern("line_endings"), 0);
-  if (SYMBOL_P(le))
-    return std::string(rb_id2name(SYM2ID(le))) == "unix";
-  return true;
+  if (!SYMBOL_P(le))
+    return 1;
+  uint8_t flags = 1;
+  const char *name = rb_id2name(SYM2ID(le));
+  if (std::strcmp(name, "unix") == 0)
+    flags = 0b01;
+  else if (std::strcmp(name, "windows") == 0)
+    flags = 0b00;
+  else if (std::strcmp(name, "auto_unix") == 0)
+    flags = 0b11;
+  else if (std::strcmp(name, "auto_windows") == 0)
+    flags = 0b10;
+  return flags;
 }

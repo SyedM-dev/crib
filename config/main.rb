@@ -1,6 +1,6 @@
-require_relative "libcrib"
-
 # basic configuration
+# This can also be used to do speacail configs for different projects.
+# its ruby guys script whatever you want.
 
 C.startup do
   puts "Starting crib..."
@@ -86,7 +86,7 @@ C.theme = {
 #   lsp: "solargraph"
 # }
 
-C.line_endings = :unix # or :windows
+C.line_endings = :auto_unix # or :unix or :windows or :auto_windows
 
 # C.extra_highlights do |_line, _idx|
 #   # the return can be an array of
@@ -99,7 +99,7 @@ C.line_endings = :unix # or :windows
 
 # The highlighter will be aplied to the language as long as the langauge is defined in C.languages
 C.highlighters[:ruby_n] = {
-  parser: ->(line, state) {
+  parser: ->(line, state, line_idx) {
     # the return value is a hash
     # it contains the state and the highlights
     # state can be of any type but will be consistent between calls
@@ -108,14 +108,14 @@ C.highlighters[:ruby_n] = {
     # the highlights can be an array of
     # [K_type, start, end]
     # K_type is a constant from the constants defined in libcrib.rb
-    # for ex: for strings it would be C::K_STRING or for numbers C::K_NUMBER etc.
+    # for ex: for strings it would be Tokens::K_STRING or for numbers Tokens::K_NUMBER etc.
     # and start and end are integers strictly inside the line
     return {
       state: "",
       tokens: [
         # This will highlight the entire line as a string
         # Any wrong format will not be handled and lead to crashes
-        { type: C::K_STRING, start: 0, end: line.length }
+        { type: Tokens::K_STRING, start: 0, end: line.length }
       ]
     }
   },

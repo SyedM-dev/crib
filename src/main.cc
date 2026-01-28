@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
 
   ruby_init();
 
-  ruby_start((get_exe_dir() + "/../config/main.rb").c_str());
+  ruby_start();
   load_theme();
   load_languages_info();
   load_custom_highlighters();
@@ -84,10 +84,10 @@ int main(int argc, char *argv[]) {
   Coord screen = start_screen();
   const char *filename = (argc > 1) ? argv[1] : "";
 
-  bool unix_eol = read_line_endings();
+  uint8_t eol = read_line_endings();
 
   Editor *editor =
-      new_editor(filename, {0, 0}, {screen.row - 2, screen.col}, unix_eol);
+      new_editor(filename, {0, 0}, {screen.row - 2, screen.col}, eol);
   Bar bar(screen);
 
   auto end = std::chrono::high_resolution_clock::now();

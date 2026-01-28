@@ -1,57 +1,4 @@
 module C
-  K_DATA               = 0
-  K_SHEBANG            = 1
-  K_COMMENT            = 2
-  K_ERROR              = 3
-  K_STRING             = 4
-  K_ESCAPE             = 5
-  K_INTERPOLATION      = 6
-  K_REGEXP             = 7
-  K_NUMBER             = 8
-  K_TRUE               = 9
-  K_FALSE              = 10
-  K_CHAR               = 11
-  K_KEYWORD            = 12
-  K_KEYWORDOPERATOR    = 13
-  K_OPERATOR           = 14
-  K_FUNCTION           = 15
-  K_TYPE               = 16
-  K_CONSTANT           = 17
-  K_VARIABLEINSTANCE   = 18
-  K_VARIABLEGLOBAL     = 19
-  K_ANNOTATION         = 20
-  K_DIRECTIVE          = 21
-  K_LABEL              = 22
-  K_BRACE1             = 23
-  K_BRACE2             = 24
-  K_BRACE3             = 25
-  K_BRACE4             = 26
-  K_BRACE5             = 27
-  K_HEADING1           = 28
-  K_HEADING2           = 29
-  K_HEADING3           = 30
-  K_HEADING4           = 31
-  K_HEADING5           = 32
-  K_HEADING6           = 33
-  K_BLOCKQUOTE         = 34
-  K_LIST               = 35
-  K_LISTITEM           = 36
-  K_CODE               = 37
-  K_LANGUAGENAME       = 38
-  K_LINKLABEL          = 39
-  K_IMAGELABEL         = 40
-  K_LINK               = 41
-  K_TABLE              = 42
-  K_TABLEHEADER        = 43
-  K_ITALIC             = 44
-  K_BOLD               = 45
-  K_UNDERLINE          = 46
-  K_STRIKETHROUGH      = 47
-  K_HORIXONTALRULE     = 48
-  K_TAG                = 49
-  K_ATTRIBUTE          = 50
-  K_CHECKDONE          = 51
-  K_CHECKNOTDONE       = 52
   @lsp_config = {
     "clangd" => [
       "--background-index",
@@ -195,7 +142,7 @@ module C
       extensions: ["erb"],
       filenames: [],
       mimetypes: ["text/x-erb"],
-      lsp: "emmet-language-server"
+      lsp: "ruby-lsp"
     },
     lua: {
       color: 0x36a3d9,
@@ -350,11 +297,45 @@ module C
       lsp: "bash-language-server"
     }
   }
+  @theme = {
+    :default => { fg: 0xEEEEEE },
+    :shebang => { fg: 0x7DCFFF },
+    :error => { fg: 0xEF5168 },
+    :comment => { fg: 0xAAAAAA, italic: true },
+    :string => { fg: 0xAAD94C },
+    :escape => { fg: 0x7DCFFF },
+    :interpolation => { fg: 0x7DCFFF },
+    :regexp => { fg: 0xD2A6FF },
+    :number => { fg: 0xE6C08A },
+    # rubocop:disable Lint/BooleanSymbol
+    :true => { fg: 0x7AE93C },
+    :false => { fg: 0xEF5168 },
+    # rubocop:enable Lint/BooleanSymbol
+    :char => { fg: 0xFFAF70 },
+    :keyword => { fg: 0xFF8F40 },
+    :keywordoperator => { fg: 0xF07178 },
+    :operator => { fg: 0xFFFFFF, italic: true },
+    :function => { fg: 0xFFAF70 },
+    :type => { fg: 0xF07178 },
+    :constant => { fg: 0x7DCFFF },
+    :variableinstance => { fg: 0x95E6CB },
+    :variableglobal => { fg: 0xF07178 },
+    :annotation => { fg: 0x7DCFFF },
+    :directive => { fg: 0xFF8F40 },
+    :label => { fg: 0xD2A6FF },
+    :brace1 => { fg: 0xD2A6FF },
+    :brace2 => { fg: 0xFFAFAF },
+    :brace3 => { fg: 0xFFFF00 },
+    :brace4 => { fg: 0x0FFF0F },
+    :brace5 => { fg: 0xFF0F0F }
+  }
+  @line_endings = :auto_unix
   @key_handlers = {}
   @key_binds = {}
   @highlighters = {}
   @log_queue = []
-  @line_endings = :unix
+  @b_startup = nil
+  @b_shutdown = nil
 
   class << self
     attr_accessor :theme, :lsp_config, :languages,

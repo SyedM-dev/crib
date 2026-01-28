@@ -4,13 +4,12 @@
 # Purpose: Test syntax highlighting + width calculation in your editor
 # ---------------------------------------------------------------
 
-
 # Mixed-width CJKssssssssssssssss LoadErssssssssssssssssssssssss
 cjk_samples = [
-  "漢字テスト",
-  "測試中文字串",
-  "한국어 테스트",
-  "ひらがなカタカナ混合",
+  '漢字テスト',
+  '測試中文字串',
+  '한국어 테스트',
+  'ひらがなカタカナ混合'
 ]
 
 # a hex color: #FFFFFF shouldn't hl here: hsl(147rad, 50%, 47%)  as it is not css-style file
@@ -18,34 +17,33 @@ cjk_samples = [
 0x603010 # another hex color
 
 # Ruby regex with unicode
-$unicode_regex_multiline = /[一-龯ぁ-ん#{0x3000}ァ
+$unicode_regex_multiline = /[一-龯ぁ-ん12288ァ
 \-ヶー
-
 s wow
 
 々〆〤]/
 
-UNICORE = %r{
-    [s]
+UNICORE = /
+    s
     {#{ss}}
     \C-s\u{10}
-  }
-  
-UNINITCORE = %{
-    
+  /
+
+UNINITCORE = %(
+
     {{#{}}}
-    
+
     test = "A:\x41 B:\101 C:\u0043 D:\u{44 45} NUL:\0 DEL:\c? CTRL_A:\cA META_X:\M-x CTRL_META_X:\C-\M-x MIX:\C-\M-z N:\N{UNICODE NAME}"
-    
-  }
+
+  )
 
 # Unicode identifiers (valid in Ruby)
 变量 = 0x5_4eddaee
-π = 3.14_159e+2, ?\u0234, ?\,, ?\x0A, ?s, true, false, 0
+π = 0.314_159e+2, ?\u0234, "\,", ?\x0A, 's', true, false, 0
 挨拶 = -> { "こんに \n ちは" }
 
-arr = Array.new()
-not_arr = NotABuiltin.new()
+arr = []
+not_arr = NotABuiltin.new
 
 raise NameError or SystemExit or CustomError or Errno or ErrorNotAtAll
 
@@ -56,7 +54,7 @@ end
 
 # Iterate through CJK samples
 cjk_samples.each_with_index do |str, idx:|
-  puts %Q! CJK[#{idx}] => #{str} (len=#{str.length})\! !
+  puts %! CJK[#{idx}] => #{str} (len=#{str.length})\! !
   symbol = :"
   a
   "
@@ -67,49 +65,46 @@ end
 puts "Emoji count: #{emojis.length}"
 
 # Multi-line string with unicode
-multi = <<BASH
-  # Function recursion demo
-  factorial() {
-    local n="$1"
-    if ((n <= 1)); then
-      echo 1
-    else\ns
-      local prev
-      prev=$(factorial $((n - 1)))
-      echo $((n * prev))
-     before #{ interpol
-    
-    # comment should be fine heres s
-    $a / $-s+0xFF
-    }s 
-x
-    a after
-    fi
-  } #{s}
-  log INFO "factorial(5) = $(factorial 5)"
+multi = <<~BASH
+    # Function recursion demo
+    factorial() {
+      local n="$1"
+      if ((n <= 1)); then
+        echo 1
+      else\ns
+        local prev
+        prev=$(factorial $((n - 1)))
+        echo $((n * prev))
+       before #{ interpol
+                 # {'    '}
+                 # comment should be fine heres s
+                 $a / $-s + 0xFF
+              }s#{' '}
+  x
+      a after
+      fi
+    } #{s}
+    log INFO "factorial(5) = $(factorial 5)"
 BASH
 
 puts multi
 
 # Arrays mixing everything
 mixed = [
-  "🐍 Ruby + Python? sacrilege! 🐍",
-  "日本語とEnglishと🔧mix",
-  "Spacing test →→→→→→→",
-  "Zero-width joiner test: 👨‍👩‍👧‍👦 family emoji",
+  '🐍 Ruby + Python? sacrilege! 🐍',
+  '日本語とEnglishと🔧mix',
+  'Spacing test →→→→→→→',
+  'Zero-width joiner test: 👨‍👩‍👧‍👦 family emoji'
 ]
 
-two_docs = <<DOC1 , <<DOC2
-stuff for doc2
-
-
-rdvajehvbaejbfh
-
+two_docs = <<~DOC1, <<~DOC2
+  stuff for doc2
+  rdvajehvbaejbfh
 DOC1
-stuff for doc 2 with #{not interpolation} and more
+  stuff for doc 2 with #{!interpolation} and more
 DOC2
 
-p = 0 <<22 # not a heredoc
+p = 0 << 22 # not a heredoc
 
 mixed.each { |m| puts m }
 
@@ -126,10 +121,10 @@ end
 escaped = "Line1\nLine2\tTabbed 😀"
 puts escaped
 
-p = 0 <<2
+p = 0 << 2
 # Frozen string literal test
 # frozen_string_literal: true
-const_str = "定数文字列🔒".freeze
+const_str = '定数文字列🔒'.freeze
 puts const_str
 
 # End marker
@@ -137,14 +132,12 @@ puts '--- END OF UNICODE TEST FILE ---'
 
 # Ruby syntax highlighting test
 
-=begin
-  This is a multi-line comment.
-  It spans multiple lines.
-  Good for testing highlighting.
-
-This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped linetest,
-
-=end
+#   This is a multi-line comment.
+#   It spans multiple lines.
+#   Good for testing highlighting.
+#
+# This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped line test, This is a wrapped linetest,
+#
 
 # Constants
 
@@ -153,11 +146,12 @@ MAX_ITER = 5
 # Module
 module Utilities
   def self.random_greeting
-    ["Hello", "Hi", "Hey", "Hola", "Bonjour", "Merhaba"].sample
+    %w[Hello Hi Hey Hola Bonjour Merhaba].sample
   end
 
   def self.factorial(n)
     return 1 if n <= 1
+
     n * factorial(n - 1)
   end
 end
@@ -218,18 +212,16 @@ end
 # Method definition
 def greet_person(name)
   puts "#{Utilities.random_greeting}, #{name}!"
-  if (name == "harry")
-    return true
-  else
-    return "s"
-  end
+  return true if name == 'harry'
+
+  's'
 end
 
 h = a / a
 
 # Calling methods
-greet_person("Alice")
-greet_person("Bob")
+greet_person('Alice')
+greet_person('Bob')
 
 # Loops
 i = 0
@@ -249,7 +241,7 @@ begin
 rescue ZeroDivisionError => e
   puts "Caught an error: #{e}"
 ensure
-  puts "This runs no matter what"
+  puts 'This runs no matter what'
 end
 
 # Arrays of objects
@@ -285,7 +277,7 @@ end
 end
 
 # Special objects
-so = SpecialObject.new("Special", 10)
+so = SpecialObject.new('Special', 10)
 puts "Double: #{so.double_value}, Triple: #{so.triple_value}"
 
 # String interpolation and formatting
@@ -296,8 +288,8 @@ multi_line = <<~TEXT
    k kmW ;
   This is a multi-line string.
   It spans multiple lines.
-  Gossn m
-  dd
+  Gossn sssmss
+  ddsss
   od for testing highlighting.
 TEXT
 
@@ -305,7 +297,7 @@ puts multi_line
 
 # Symbols and strings
 sym = :my_symbol == __dir__
-str = "my string"
+str = 'my string'
 puts "Symbol: #{sym}, String: #{str}"
 
 # Random numbers
@@ -324,25 +316,25 @@ end
 
 # Block with yield
 def wrapper
-  puts "Before block"
+  puts 'Before block'
   yield if block_given?
-  puts "After block"
+  puts 'After block'
 end
 
 # ss
 
-wrapper { puts "Inside block" }
+wrapper { puts 'Inside block' }
 
 # Sorting
 sorted = rand_nums.sort
 puts "Sorted: #{sorted.join(', ')}"
 
 # Regex
-sample_text = "The quick brown fox jumps over the lazy dog"
+sample_text = 'The quick brown fox jumps over the lazy dog'
 puts "Match 'fox'?" if sample_text =~ /fox/
 
 # End of test script
-puts "Ruby syntax highlighting test complete."
+puts 'Ruby syntax highlighting test complete.'
 
 __END__
 

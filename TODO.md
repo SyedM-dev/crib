@@ -2,15 +2,12 @@ Copyright 2025 Syed Daanish
 
 # TODO
 
-### Critical Fixes
+##### BTW Check each lsp with each of the features implemented
 
-##### Check each lsp with each of the features implemented
-
+* Static link pcre2-8 and libmagic and add precompiled libmagic magic database for better file detection
 * [ ] **LSP Bug:** Check why `fish-lsp` is behaving so off with completions filtering.
-* [ ] **File IO:** Normalize/validate unicode on file open (enforce UTF-8, handle other types gracefully).
 * [ ] **Critical Crash:** Fix bug where closing immediately while LSP is still loading hangs and then segfaults (especially on slow ones like fish-lsp where quick edits and exit can hang).
 * [ ] **Line move:** fix the move line functions to work without the calculations from folds as folds are removed.
-* [ ] **Modularize handle_events and renderer functions:** The function is over 700 lines with a lot of repeating blocks. Split into smaller functions.
 * [ ] **Editor Indentation Fix:** - Main : merger indentation with the parser for more accurate results.
     * [ ] Keep cache of language maps in engine to reduce lookup time.
     * [ ] In indents add function to support tab which indents if before any content and inserts a pure \t otherwise.
@@ -20,22 +17,35 @@ Copyright 2025 Syed Daanish
     * [ ] These will dedent when the block immediately after them is dedented
     * [ ] Dont dedent if ending is valid starting is invalid but also empty
     * [ ] Just leave asis if starting is empty
-* [ ] **Readme:** Update readme to show indetation mechanics.
-* [ ] **LSP Bug:** Try to find out why emojis are breaking lsp edits. (check the ruby sample)
+* [ ] **Readme:** Update readme to show ruby based config.
 * [ ] **UI Refinement:**
     * [ ] Allow completion list to be scrolled; show only `x` max items.
     * [ ] Finish autocomplete box style functions.
 * [ ] **Documentation UI:** Capture `Ctrl+h` / `Ctrl+l` for scrolling documentation windows.
-* [ ] **Redo hooks and folding as proper engines**: With functions to checkstate/cursor like function and edits application.
-* [ ] Do trextmate like regex grammar parsing with lsp symbols for semantic highlighting.
-    * Probably remove tre--sitter or just keep it for context tree.
-    * Making bracket matching andignoring strings/comments easier.
-* remove tree-sitter mention from everywhere especially submodules
-* make it faster for line inserts/deletes too (treeify the vector)
+* [ ] Redo hooks as a struct.
+* [ ] breakdown the render function into smaller functions.
+
 * Try to make all functions better now that folds have been purged
 * Cleanup syntax and renderer files
 
-probably remove solargraph support and use ruby-lsp (or sorbet?) instead
+* Add a thing called view which is a rect with speacial type editor . but otherwise a ruby or c++ view
+* can be used for stuff like file manager/git manager/theme picker.
+* allow flushing functions in ruby to tell c++ to refresh keybinds/themes etc.
+* allow keybinds to be set in ruby
+
+check::
+        pull diagnostics for ruby-lsp
+        lsp selection range - use to highlight start / end of range maybe?
+        goto definiton
+        signature help
+        document symbol for the top bar maybe? (or workspace symbol)
+        also setup workspaces
+        Semantic highlighting
+        Quick fixes
+        Rename symbols
+
+probably remove solargraph support and use ruby-lsp (or sorbet?) instead because it is a pain for utf stuff
+ruby-lsp also supports erb so thats a plus
 
 move lsp configs to json and also allow configs for windows-style vs unix-style line endings and utf-8 vs utf-16
 
@@ -55,7 +65,7 @@ move lsp configs to json and also allow configs for windows-style vs unix-style 
 * [ ] **Tree-sitter Indent:** Attempt to allow Tree-sitter to handle indentation if possible.
 
 * [ ] **Scrolling:** Add logic where selecting at the end of the screen scrolls down (and vice versa).
-    * *Implementation:* Update `main.cc` to send drag events to the selected editor.
+    * *Implementation:* Update `main.cc` to send drag events to the selected editor even if coordinates are out of bounds.
 
 
 ### UX
@@ -72,11 +82,6 @@ move lsp configs to json and also allow configs for windows-style vs unix-style 
     * [ ] Handle snippets properly in autocomplete: use only the last word in signature when replacing and set cursor to the first one.
 
 * [ ] **Basic Autocomplete:** Keep a list of words in the current buffer for non-LSP fallback.
-* [ ] **Language Support:**
-    * [ ] Add ECMA to JS and make TSX support.
-    * [ ] Add formatting for files where LSP doesn't provide it.
-    * [ ] Redo grammar files properly (especially cpp).
-
 
 ### Major Features
 
@@ -93,21 +98,12 @@ move lsp configs to json and also allow configs for windows-style vs unix-style 
 * [ ] **Block Selection:**
     * [ ] Double-clicking a bracket selects the whole block (first time only) and sets mode to `WORD`.
 
-* [ ] **Tree-sitter Context:**
-    * [ ] Get code context from Tree-sitter.
-    * [ ] Get node path of current cursor and add indicator bar (breadcrumbs).
-    * [ ] Highlight block edges when cursor is on/in a bracket.
-
 
 ### Visuals, UI & Extensions?
 
-*Focus: Aesthetics and external integrations.*
-
 * [ ] **Status Bar:** Complete status bar and command runner.
 
-* [ ] **Visual Aids:**
-    * [ ] Expand color regex to match CSS colors in CSS files.
-    * [ ] Add color picker/palette.
+* [ ] Add color picker/palette.
 
 * [ ] **Git:** Add Git integration (status, diffs).
 * [ ] **AI/Snippets:**
@@ -120,21 +116,8 @@ move lsp configs to json and also allow configs for windows-style vs unix-style 
 
 ### Optimizations & Fluff
 
-* [ ] **Event Loop:**
-    * [ ] Make the whole engine event-driven rather than clock-driven.
-    * [ ] Mybe keep background thread with dirty flag.
-    * [ ] But merge input and render into a single loop that only renders when input affects render or background thread needs refresh and try to couple multiple renders.
-    * [ ] LSP and inputs should be blocking (lsp on its fd) and inputs in io/input.cc
-
 * [ ] **Performance:**
     * [ ] Switch JSON parser to `RapidJSON` (or similar high-performance lib).
     * [ ] Decrease usage of `std::string` in UI, LSP, and warnings.
     * [ ] Also for vectors into managed memory especially for completions/lsp-stuff.
 
-* [ ] **Folding:** Redo folding system and its relation to `move_line_*` functions.
-
-* [ ] **Grammars:**
-    * [ ] Manually add redo SCM files (especially cpp/c/h).
-    * [ ] Create `lua-typed` and `man pages` Tree-sitter grammars.
-
-* [ ] **Repo Maintenance:** Once renderer is proven check commit `43f443e`.

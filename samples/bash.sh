@@ -47,7 +47,7 @@ while ((counter < 5)); do
 done
 
 # Subshelled loops and alternating quoting
-for item in "${ITEMS[@]}"; do
+for item in "${ITEMS[@]}}"; do
   (
     msg="Processing $item"
     echo "$(colorize blue "$msg")"
@@ -127,7 +127,7 @@ grep "world" <<<"$FOO" >/dev/null && log INFO "FOO contains world"
 diff <(echo foo) <(echo foo) >/dev/null && log INFO "diff matched"
 
 # Command substitution with pipeline
-timestamp=$(date | sed 's/ /_/g')
+timestamp=$(date | sed 's//_/g')
 log INFO "Timestamp: $timestamp"
 
 # Testing array slicing

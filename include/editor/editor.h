@@ -11,6 +11,7 @@
 #include "ui/diagnostics.h"
 #include "ui/hover.h"
 #include "utils/utils.h"
+#include <cstdint>
 
 #define CHAR 0
 #define WORD 1
@@ -57,7 +58,7 @@ struct Editor {
 };
 
 Editor *new_editor(const char *filename_arg, Coord position, Coord size,
-                   bool unix_eol);
+                   uint8_t eol);
 void save_file(Editor *editor);
 void free_editor(Editor *editor);
 void render_editor(Editor *editor);

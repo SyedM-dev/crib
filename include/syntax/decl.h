@@ -26,6 +26,24 @@ const std::unordered_map<std::string, TokenKind> kind_map = {
 #undef ADD
 };
 
+constexpr const char tokens_def[] = "module Tokens\n"
+#define STRINGIFY_HELPER(x) #x
+#define STRINGIFY(x) STRINGIFY_HELPER(x)
+#define ADD(name) "  " #name " = " STRINGIFY(__COUNTER__) "\n"
+#include "syntax/tokens.def"
+#undef ADD
+#undef STRINGIFY
+#undef STRINGIFY_HELPER
+                                    "  freeze\n"
+                                    "end";
+
+constexpr const char crib_module[] = {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wc23-extensions"
+#embed "libcrib.rb"
+#pragma clang diagnostic pop
+    , '\0'};
+
 extern std::array<Highlight, TOKEN_KIND_COUNT> highlights;
 
 struct Token {

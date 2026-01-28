@@ -13,5 +13,7 @@ build
 bin
 
 .thinlto-cache/
+Gemfile*
+.ruby-lsp/
 
 __old__
