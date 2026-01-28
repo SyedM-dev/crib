@@ -9,6 +9,7 @@ Copyright 2025 Syed Daanish
 * [ ] **Critical Crash:** Fix bug where closing immediately while LSP is still loading hangs and then segfaults (especially on slow ones like fish-lsp where quick edits and exit can hang).
 * [ ] **Line move:** fix the move line functions to work without the calculations from folds as folds are removed.
 * [ ] **Editor Indentation Fix:** - Main : merger indentation with the parser for more accurate results.
+    * [ ] Fix bug where enter at start of line with ending type crashes
     * [ ] Keep cache of language maps in engine to reduce lookup time.
     * [ ] In indents add function to support tab which indents if before any content and inserts a pure \t otherwise.
     * [ ] And backspace which undents if before any content.

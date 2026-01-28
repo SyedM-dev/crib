@@ -12,6 +12,19 @@ It aims to be complete general purpose IDE.<br>
 (It is still very much a work in progress so a lot of things may seem incomplete)<br>
 For now it is just a single file editor. I plan to add a multi-file support with file pickers and tabs soon.<br>
 
+## Installation
+
+Binary can be installed with the following command:
+
+```bash
+curl https://syedm.dev/crib | sh
+```
+
+It requires `libruby-3.2.so` or `libruby.so.3.4` to be installed in the system.<br>
+It also requires `libmagic` to be installed (most systems have it preinstalled).<br>
+Currently only for Linux.<br>
+*Tested with arch linux and ubuntu*<br>
+
 ## Building
 
 ### Get started
