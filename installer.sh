@@ -17,7 +17,7 @@ if [ ${#missing[@]} -ne 0 ]; then
   exit 1
 fi
 
-echo "Install locally (~/.local/bin) or globally (/usr/bin)? [l/g]"
+echo "Install locally ~/.local/bin or globally /usr/bin? [l/g]"
 read -r choice
 case "$choice" in
 l | L) INSTALL_DIR="$HOME/.local/bin" ;;
