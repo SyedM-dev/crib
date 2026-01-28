@@ -34,7 +34,6 @@ static void ruby_load(const char *main_file) {
   int state = 0;
   rb_load_protect(rb_str_new_cstr(main_file), 0, &state);
   if (state) {
-    VALUE err = rb_errinfo();
     rb_set_errinfo(Qnil);
     fprintf(stderr, "%d: Failed to load Ruby file %s\n", state, main_file);
   }
@@ -44,7 +43,6 @@ static void ruby_eval_string(const char *code) {
   int state = 0;
   rb_eval_string_protect(code, &state);
   if (state) {
-    VALUE err = rb_errinfo();
     rb_set_errinfo(Qnil);
     fprintf(stderr, "Ruby eval failed\n");
   }

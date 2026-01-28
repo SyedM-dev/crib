@@ -1,5 +1,5 @@
 CompileFlags:
-  Add: [-I/home/syed/main/crib/include, -I/home/syed/main/crib/libs, -I/usr/include/ruby-3.4.0, -I/usr/include/ruby-3.4.0/x86_64-linux, c++20]
+  Add: [-I/home/syed/main/crib/include, -I/home/syed/main/crib/libs, -I/home/syed/main/crib/libs/libruby, c++20]
   Remove: []
   Compiler: clang++
 

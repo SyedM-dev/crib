@@ -3,6 +3,7 @@
 *.a
 *.o
 *.so
+!libs/libruby/libruby.so
 *.yml
 
 .vscode

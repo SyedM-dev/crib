@@ -6,7 +6,7 @@
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
-#include <ruby.h>
+#include "ruby/ruby.h"
 #pragma clang diagnostic pop
 #include <magic.h>
 #include <nlohmann/json.hpp>
