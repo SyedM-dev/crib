@@ -14,8 +14,8 @@ struct Parser {
                                       uint32_t line_num);
   bool (*state_match_func)(std::shared_ptr<void> state_1,
                            std::shared_ptr<void> state_2);
-  VALUE parser_block = Qnil;
-  VALUE match_block = Qnil;
+  mrb_value parser_block = mrb_nil_value();
+  mrb_value match_block = mrb_nil_value();
   bool is_custom{false};
   std::atomic<uint32_t> scroll_max{UINT32_MAX - 2048};
   std::atomic<bool> scroll_dirty{false};

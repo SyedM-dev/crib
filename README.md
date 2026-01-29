@@ -20,8 +20,7 @@ Binary can be installed with the following command:
 curl https://syedm.dev/crib | sh
 ```
 
-It requires `libruby-3.2.so` or `libruby.so.3.4` to be installed in the system.<br>
-It also requires `libmagic` to be installed (most systems have it preinstalled).<br>
+It requires `libmagic` to be installed (most systems have it preinstalled).<br>
 Currently only for Linux.<br>
 *Tested with arch linux and ubuntu*<br>
 
@@ -67,7 +66,6 @@ And any modern terminal should work fine - preferably `kitty` or `wezterm`.<br>
 Some other dependancies are added as submodules or copied.<br>
    - `unicode_width` is compiled by the makefile so nothing to do there.<br>
    - `libgrapheme` needs to be compiled using `make` in it's folder.<br>
-   - ``
 
 #### LSPs
 

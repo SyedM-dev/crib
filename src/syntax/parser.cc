@@ -2,7 +2,6 @@
 #include "editor/editor.h"
 #include "io/knot.h"
 #include "main.h"
-#include "ruby/internal/special_consts.h"
 #include "syntax/decl.h"
 #include "syntax/langs.h"
 
@@ -116,14 +115,14 @@ void Parser::work() {
       }
       std::shared_ptr<void> new_state{nullptr};
       if (is_custom) {
-        VALUE state = Qnil;
+        mrb_value state = mrb_nil_value();
         if (prev_state) {
           std::shared_ptr<CustomState> state_ptr =
               std::static_pointer_cast<CustomState>(prev_state);
           state = state_ptr->state;
         }
-        VALUE out_state = parse_custom(&line_data->tokens, parser_block, text,
-                                       r_len, state, c_line);
+        mrb_value out_state = parse_custom(&line_data->tokens, parser_block,
+                                           text, r_len, state, c_line);
         std::shared_ptr<CustomState> out_state_ptr =
             std::make_shared<CustomState>(out_state);
         new_state = out_state_ptr;
@@ -152,11 +151,11 @@ void Parser::work() {
       if (c_line < line_count && (line_data = line_tree.at(c_line))) {
         bool done = false;
         if (is_custom) {
-          VALUE in_state_v = Qnil;
+          mrb_value in_state_v = mrb_nil_value();
           if (prev_state)
             in_state_v =
                 std::static_pointer_cast<CustomState>(prev_state)->state;
-          VALUE out_state_v = Qnil;
+          mrb_value out_state_v = mrb_nil_value();
           if (line_data->in_state)
             out_state_v =
                 std::static_pointer_cast<CustomState>(line_data->in_state)

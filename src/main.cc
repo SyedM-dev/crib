@@ -74,8 +74,6 @@ void input_listener(Bar bar) {
 int main(int argc, char *argv[]) {
   auto start = std::chrono::high_resolution_clock::now();
 
-  ruby_init();
-
   ruby_start();
   load_theme();
   load_languages_info();
@@ -119,8 +117,6 @@ int main(int argc, char *argv[]) {
 
   end_screen();
 
-  ruby_shutdown();
-
   for (auto editor : editors)
     free_editor(editor);
 
@@ -134,7 +130,7 @@ int main(int argc, char *argv[]) {
     throttle(16ms, lsp_worker);
   }
 
-  rb_gc_start();
+  ruby_shutdown();
 
-  return ruby_cleanup(0);
+  return 0;
 }

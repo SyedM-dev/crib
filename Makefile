@@ -4,8 +4,7 @@ OBJ_DIR := build
 INCLUDE_DIR := include
 
 TARGET_DEBUG := $(BIN_DIR)/crib-dbg
-TARGET_RELEASE_32 := $(BIN_DIR)/crib-ruby3.2
-TARGET_RELEASE_34 := $(BIN_DIR)/crib-ruby3.4
+TARGET_RELEASE := $(BIN_DIR)/crib
 
 PCH_DEBUG := $(OBJ_DIR)/debug/pch.h.gch
 PCH_RELEASE := $(OBJ_DIR)/release/pch.h.gch
@@ -13,22 +12,12 @@ PCH_RELEASE := $(OBJ_DIR)/release/pch.h.gch
 CCACHE := ccache
 CXX := $(CCACHE) clang++
 
-RUBY32_INC := -I./libs/libruby
-RUBY32_LIB := libs/libruby/libruby.so
-RUBY32_PATCH := patchelf --replace-needed libruby-3.2.so.3.2 libruby.so
-
-RUBY34_INC := \
-	-I/usr/include/ruby-3.4.0 \
-	-I/usr/include/ruby-3.4.0/x86_64-linux
-
-RUBY34_LIB := -lruby
-
 CFLAGS_DEBUG :=\
 	-std=c++23 -Wall -Wextra -Wno-c23-extensions \
 	-O0 -fno-inline -gsplit-dwarf\
 	-g -fno-omit-frame-pointer\
 	-Wno-unused-command-line-argument \
-	-I./include -I./libs -I./libs/libruby
+	-I./include -I./libs
 
 CFLAGS_RELEASE :=\
 	-std=c++23 -O3 -march=native \
@@ -40,20 +29,7 @@ CFLAGS_RELEASE :=\
 	-fno-unwind-tables -fno-asynchronous-unwind-tables\
 	-Wno-unused-command-line-argument \
 	-Wno-c23-extensions \
-	-I./include -I./libs -I./libs/libruby
-
-CFLAGS_RELEASE_32 := $(CFLAGS_RELEASE) $(RUBY32_INC)
-CFLAGS_RELEASE_34 := $(CFLAGS_RELEASE) $(RUBY34_INC)
-
-LIBS_32 := \
-	libs/libgrapheme/libgrapheme.a \
-	$(RUBY32_LIB) \
-	-Wl,-Bstatic -lpcre2-8 -Wl,-Bdynamic -lmagic
-
-LIBS_34 := \
-	libs/libgrapheme/libgrapheme.a \
-	$(RUBY34_LIB) \
-	-Wl,-Bstatic -lpcre2-8 -Wl,-Bdynamic -lmagic
+	-I./include -I./libs
 
 PCH_CFLAGS_DEBUG := $(CFLAGS_DEBUG) -x c++-header
 PCH_CFLAGS_RELEASE := $(CFLAGS_RELEASE) -x c++-header
@@ -62,6 +38,10 @@ UNICODE_SRC := $(wildcard libs/unicode_width/*.c)
 
 UNICODE_OBJ_DEBUG := $(patsubst libs/unicode_width/%.c,$(OBJ_DIR)/debug/unicode_width/%.o,$(UNICODE_SRC))
 UNICODE_OBJ_RELEASE := $(patsubst libs/unicode_width/%.c,$(OBJ_DIR)/release/unicode_width/%.o,$(UNICODE_SRC))
+
+LIBS := \
+	libs/libgrapheme/libgrapheme.a \
+	-Wl,-Bstatic -lpcre2-8 -lmruby -Wl,-Bdynamic -lmagic
 
 SRC := $(wildcard $(SRC_DIR)/**/*.cc) $(wildcard $(SRC_DIR)/*.cc)
 OBJ_DEBUG := $(patsubst $(SRC_DIR)/%.cc,$(OBJ_DIR)/debug/%.o,$(SRC))
@@ -76,7 +56,7 @@ all: debug
 
 test: $(TARGET_DEBUG)
 
-release: $(TARGET_RELEASE_32) $(TARGET_RELEASE_34)
+release: $(TARGET_RELEASE)
 
 $(PCH_DEBUG): $(INCLUDE_DIR)/pch.h
 	mkdir -p $(dir $@)
@@ -89,16 +69,10 @@ $(PCH_RELEASE): $(INCLUDE_DIR)/pch.h
 $(TARGET_DEBUG): $(PCH_DEBUG) $(OBJ_DEBUG) $(UNICODE_OBJ_DEBUG)
 	mkdir -p $(BIN_DIR)
 	$(CXX) $(CFLAGS_DEBUG) -o $@ $(OBJ_DEBUG) $(UNICODE_OBJ_DEBUG) $(LIBS)
-	patchelf --replace-needed libruby-3.2.so.3.2 libruby.so $@
 
-$(TARGET_RELEASE_32): $(PCH_RELEASE) $(OBJ_RELEASE) $(UNICODE_OBJ_RELEASE)
+$(TARGET_RELEASE): $(PCH_RELEASE) $(OBJ_RELEASE) $(UNICODE_OBJ_RELEASE)
 	mkdir -p $(BIN_DIR)
-	$(CXX) $(CFLAGS_RELEASE_32) -o $@ $(OBJ_RELEASE) $(UNICODE_OBJ_RELEASE) $(LIBS_32)
-	$(RUBY32_PATCH) $@
-
-$(TARGET_RELEASE_34): $(PCH_RELEASE) $(OBJ_RELEASE) $(UNICODE_OBJ_RELEASE)
-	mkdir -p $(BIN_DIR)
-	$(CXX) $(CFLAGS_RELEASE_34) -o $@ $(OBJ_RELEASE) $(UNICODE_OBJ_RELEASE) $(LIBS_34)
+	$(CXX) $(CFLAGS_RELEASE) -o $@ $(OBJ_RELEASE) $(UNICODE_OBJ_RELEASE) $(LIBS)
 
 $(OBJ_DIR)/debug/%.o: $(SRC_DIR)/%.cc $(PCH_DEBUG)
 	mkdir -p $(dir $@)

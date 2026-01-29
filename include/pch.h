@@ -4,11 +4,12 @@
 #define PCRE2_CODE_UNIT_WIDTH 8
 #define PCRE_WORKSPACE_SIZE 512
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunused-parameter"
-#include "ruby/ruby.h"
-#pragma clang diagnostic pop
 #include <magic.h>
+#include <mruby.h>
+#include <mruby/array.h>
+#include <mruby/compile.h>
+#include <mruby/hash.h>
+#include <mruby/string.h>
 #include <nlohmann/json.hpp>
 #include <pcre2.h>
 extern "C" {

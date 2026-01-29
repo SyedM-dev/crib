@@ -1,7 +1,8 @@
 #include "scripting/decl.h"
 #include "utils/utils.h"
 
-std::unordered_map<std::string, std::pair<VALUE, VALUE>> custom_highlighters;
+std::unordered_map<std::string, std::pair<mrb_value, mrb_value>>
+    custom_highlighters;
 
 struct R_ThemeEntry {
   std::string key;
@@ -23,32 +24,19 @@ struct R_Language {
   std::string lsp_command; // link to LSP by name
 };
 
-VALUE C_module = Qnil;
+mrb_state *mrb = nullptr;
+RClass *C_module;
 std::mutex ruby_mutex;
 
 namespace fs = std::filesystem;
 
-static void ruby_load(const char *main_file) {
-  std::lock_guard lock(ruby_mutex);
-  ruby_init_loadpath();
-  int state = 0;
-  rb_load_protect(rb_str_new_cstr(main_file), 0, &state);
-  if (state) {
-    rb_set_errinfo(Qnil);
-    fprintf(stderr, "%d: Failed to load Ruby file %s\n", state, main_file);
-  }
-}
-
-static void ruby_eval_string(const char *code) {
-  int state = 0;
-  rb_eval_string_protect(code, &state);
-  if (state) {
-    rb_set_errinfo(Qnil);
-    fprintf(stderr, "Ruby eval failed\n");
-  }
-}
-
 void ruby_start() {
+  std::lock_guard lock(ruby_mutex);
+  mrb = mrb_open();
+  if (!mrb) {
+    fprintf(stderr, "Failed to init mruby\n");
+    return;
+  }
   fs::path exe_dir = get_exe_dir();
   std::vector<fs::path> candidates;
   candidates.emplace_back("./crib.rb");
@@ -66,138 +54,171 @@ void ruby_start() {
   }
   candidates.emplace_back(exe_dir / "../config/main.rb");
   candidates.emplace_back(exe_dir / "../config/crib.rb");
-  ruby_eval_string(crib_module);
-  ruby_eval_string(tokens_def);
+  mrb_load_string(mrb, crib_module);
+  mrb_load_string(mrb, tokens_def);
   for (const auto &p : candidates) {
-    if (fs::exists(p) && fs::is_regular_file(p)) {
-      ruby_load(p.string().c_str());
+    if (fs::exists(p)) {
+      FILE *f = fopen(p.string().c_str(), "r");
+      if (f) {
+        mrb_load_file(mrb, f);
+        fclose(f);
+      }
       break;
     }
   }
-  C_module = rb_const_get(rb_cObject, rb_intern("C"));
-  if (C_module == Qnil)
-    return;
-  VALUE block = rb_funcall(C_module, rb_intern("b_startup"), 0);
-  if (block != Qnil)
-    rb_funcall(block, rb_intern("call"), 0);
+  C_module = mrb_module_get(mrb, "C");
+  mrb_value mod_val = mrb_obj_value(C_module);
+  mrb_value block = mrb_funcall(mrb, mod_val, "b_startup", 0);
+  mrb_funcall(mrb, block, "call", 0);
 }
 
 void ruby_shutdown() {
   std::lock_guard lock(ruby_mutex);
-  if (C_module == Qnil)
+  if (C_module == nullptr)
     return;
-  VALUE block = rb_funcall(C_module, rb_intern("b_shutdown"), 0);
-  if (block != Qnil)
-    rb_funcall(block, rb_intern("call"), 0);
+  C_module = mrb_module_get(mrb, "C");
+  mrb_value mod_val = mrb_obj_value(C_module);
+  mrb_value block = mrb_funcall(mrb, mod_val, "b_shutdown", 0);
+  mrb_funcall(mrb, block, "call", 0);
+  mrb_close(mrb);
+  mrb = nullptr;
+  C_module = nullptr;
 }
 
-inline std::vector<std::string> ruby_array_to_vector(VALUE rb_array) {
+std::vector<std::string> array_to_vector(mrb_value ary) {
   std::vector<std::string> result;
-  if (NIL_P(rb_array) || !RB_TYPE_P(rb_array, T_ARRAY))
+  if (mrb_nil_p(ary) || mrb_type(ary) != MRB_TT_ARRAY)
     return result;
-  for (long i = 0; i < RARRAY_LEN(rb_array); ++i) {
-    VALUE item = rb_ary_entry(rb_array, i);
-    if (RB_TYPE_P(item, T_STRING))
-      result.push_back(StringValueCStr(item));
+  mrb_int len = RARRAY_LEN(ary);
+  for (mrb_int i = 0; i < len; i++) {
+    mrb_value item = mrb_ary_ref(mrb, ary, i);
+    if (mrb_string_p(item))
+      result.push_back(std::string(RSTRING_PTR(item), RSTRING_LEN(item)));
   }
   return result;
 }
 
 void ruby_log(std::string msg) {
   std::lock_guard lock(ruby_mutex);
-  VALUE str = rb_str_new(msg.c_str(), msg.size());
-  rb_funcall(C_module, rb_intern("queue_log"), 1, str);
+  mrb_value str = mrb_str_new(mrb, msg.c_str(), msg.size());
+  mrb_value mod_val = mrb_obj_value(C_module);
+  mrb_funcall(mrb, mod_val, "queue_log", 1, str);
 }
 
 void load_custom_highlighters() {
-  std::lock_guard lock(ruby_mutex);
-  if (C_module == Qnil)
+  std::lock_guard<std::mutex> lock(ruby_mutex);
+  if (!C_module)
     return;
-  VALUE hashmap = rb_funcall(C_module, rb_intern("highlighters"), 0);
-  if (NIL_P(hashmap))
+  mrb_value mod_val = mrb_obj_value((struct RObject *)C_module);
+  mrb_value hashmap = mrb_funcall(mrb, mod_val, "highlighters", 0);
+  if (mrb_nil_p(hashmap) || mrb_type(hashmap) != MRB_TT_HASH)
     return;
-  VALUE keys = rb_funcall(hashmap, rb_intern("keys"), 0);
-  for (long i = 0; i < RARRAY_LEN(keys); ++i) {
-    VALUE key_sym = rb_ary_entry(keys, i);
-    std::string key = rb_id2name(SYM2ID(key_sym));
-    VALUE val_hash = rb_hash_aref(hashmap, key_sym);
-    if (NIL_P(val_hash))
+  mrb_value keys = mrb_funcall(mrb, hashmap, "keys", 0);
+  mrb_int len = RARRAY_LEN(keys);
+  for (mrb_int i = 0; i < len; i++) {
+    mrb_value key_sym = mrb_ary_ref(mrb, keys, i);
+    mrb_sym sym_id = mrb_symbol(key_sym);
+    const char *key_cstr = mrb_sym_dump(mrb, sym_id);
+    std::string key(key_cstr);
+    mrb_value val_hash = mrb_hash_get(mrb, hashmap, key_sym);
+    if (mrb_nil_p(val_hash) || mrb_type(val_hash) != MRB_TT_HASH)
       continue;
-    VALUE parse_block = rb_hash_aref(val_hash, ID2SYM(rb_intern("parser")));
-    VALUE match_block = rb_hash_aref(val_hash, ID2SYM(rb_intern("matcher")));
-    rb_gc_register_address(&match_block);
-    rb_gc_register_address(&parse_block);
+    mrb_sym parser_sym = mrb_intern_lit(mrb, "parser");
+    mrb_sym matcher_sym = mrb_intern_lit(mrb, "matcher");
+    mrb_value parse_block =
+        mrb_hash_get(mrb, val_hash, mrb_symbol_value(parser_sym));
+    mrb_value match_block =
+        mrb_hash_get(mrb, val_hash, mrb_symbol_value(matcher_sym));
     custom_highlighters[key] = {parse_block, match_block};
   }
 }
 
-bool custom_compare(VALUE match_block, VALUE state1, VALUE state2) {
-  std::lock_guard lock(ruby_mutex);
-  return RTEST(rb_funcall(match_block, rb_intern("call"), 2, state1, state2));
+bool custom_compare(mrb_value match_block, mrb_value state1, mrb_value state2) {
+  std::lock_guard<std::mutex> lock(ruby_mutex);
+  if (mrb_type(match_block) != MRB_TT_PROC)
+    return false;
+  mrb_value ret = mrb_funcall(mrb, match_block, "call", 2, state1, state2);
+  return mrb_test(ret);
 }
 
-VALUE parse_custom(std::vector<Token> *tokens, VALUE parser_block,
-                   const char *line, uint32_t len, VALUE state,
-                   uint32_t c_line) {
-  std::lock_guard lock(ruby_mutex);
+mrb_value parse_custom(std::vector<Token> *tokens, mrb_value parser_block,
+                       const char *line, uint32_t len, mrb_value state,
+                       uint32_t c_line) {
+  std::lock_guard<std::mutex> lock(ruby_mutex);
   tokens->clear();
-  if (NIL_P(parser_block))
-    return {};
-  VALUE ruby_line = rb_str_new(line, len);
-  VALUE line_idx = UINT2NUM(c_line);
-  VALUE tokens_and_state_hash = rb_funcall(parser_block, rb_intern("call"), 3,
-                                           ruby_line, state, line_idx);
-  VALUE tokens_rb =
-      rb_hash_aref(tokens_and_state_hash, ID2SYM(rb_intern("tokens")));
-  for (long i = 0; i < RARRAY_LEN(tokens_rb); ++i) {
-    VALUE token = rb_ary_entry(tokens_rb, i);
-    Token tok;
-    tok.type =
-        (TokenKind)NUM2INT(rb_hash_aref(token, ID2SYM(rb_intern("type"))));
-    tok.start = NUM2UINT(rb_hash_aref(token, ID2SYM(rb_intern("start"))));
-    tok.end = NUM2UINT(rb_hash_aref(token, ID2SYM(rb_intern("end"))));
-    if (tok.type < TokenKind::Count && tok.end > tok.start && tok.end <= len)
-      tokens->push_back(tok);
+  if (mrb_nil_p(parser_block))
+    return mrb_nil_value();
+  mrb_value ruby_line = mrb_str_new(mrb, line, len);
+  mrb_value line_idx = mrb_fixnum_value(c_line);
+  mrb_value tokens_and_state_hash =
+      mrb_funcall(mrb, parser_block, "call", 3, ruby_line, state, line_idx);
+  mrb_sym tokens_sym = mrb_intern_lit(mrb, "tokens");
+  mrb_value tokens_rb =
+      mrb_hash_get(mrb, tokens_and_state_hash, mrb_symbol_value(tokens_sym));
+  if (mrb_type(tokens_rb) == MRB_TT_ARRAY) {
+    mrb_int len_tokens = RARRAY_LEN(tokens_rb);
+    for (mrb_int i = 0; i < len_tokens; i++) {
+      mrb_value token = mrb_ary_ref(mrb, tokens_rb, i);
+      Token tok;
+      tok.type = (TokenKind)mrb_fixnum(mrb_hash_get(
+          mrb, token, mrb_symbol_value(mrb_intern_lit(mrb, "type"))));
+      tok.start = (uint32_t)mrb_fixnum(mrb_hash_get(
+          mrb, token, mrb_symbol_value(mrb_intern_lit(mrb, "start"))));
+      tok.end = (uint32_t)mrb_fixnum(mrb_hash_get(
+          mrb, token, mrb_symbol_value(mrb_intern_lit(mrb, "end"))));
+      if (tok.type < TokenKind::Count && tok.end > tok.start && tok.end <= len)
+        tokens->push_back(tok);
+    }
   }
-  return rb_hash_aref(tokens_and_state_hash, ID2SYM(rb_intern("state")));
+  mrb_sym state_sym = mrb_intern_lit(mrb, "state");
+  return mrb_hash_get(mrb, tokens_and_state_hash, mrb_symbol_value(state_sym));
 }
 
 static std::vector<R_ThemeEntry> read_theme() {
-  std::lock_guard lock(ruby_mutex);
+  std::lock_guard<std::mutex> lock(ruby_mutex);
   std::vector<R_ThemeEntry> result;
-  if (C_module == Qnil)
+  if (!C_module)
     return result;
-  VALUE theme_hash = rb_funcall(C_module, rb_intern("theme"), 0);
-  if (NIL_P(theme_hash))
+  mrb_value mod_val = mrb_obj_value((struct RObject *)C_module);
+  mrb_value theme_hash = mrb_funcall(mrb, mod_val, "theme", 0);
+  if (mrb_nil_p(theme_hash) || mrb_type(theme_hash) != MRB_TT_HASH)
     return result;
-  VALUE keys = rb_funcall(theme_hash, rb_intern("keys"), 0);
-  for (long i = 0; i < RARRAY_LEN(keys); ++i) {
-    VALUE key_sym = rb_ary_entry(keys, i);
-    std::string key = rb_id2name(SYM2ID(key_sym));
-    VALUE val_hash = rb_hash_aref(theme_hash, key_sym);
-    if (NIL_P(val_hash))
+  mrb_value keys = mrb_funcall(mrb, theme_hash, "keys", 0);
+  mrb_int len_keys = RARRAY_LEN(keys);
+  for (mrb_int i = 0; i < len_keys; i++) {
+    mrb_value key_sym = mrb_ary_ref(mrb, keys, i);
+    mrb_sym sym_id = mrb_symbol(key_sym);
+    const char *key_cstr = mrb_sym_dump(mrb, sym_id);
+    std::string key(key_cstr);
+    mrb_value val_hash = mrb_hash_get(mrb, theme_hash, key_sym);
+    if (mrb_nil_p(val_hash) || mrb_type(val_hash) != MRB_TT_HASH)
       continue;
     R_ThemeEntry entry;
     entry.key = key;
-    VALUE fg = rb_hash_aref(val_hash, ID2SYM(rb_intern("fg")));
-    VALUE bg = rb_hash_aref(val_hash, ID2SYM(rb_intern("bg")));
-    VALUE italic = rb_hash_aref(val_hash, ID2SYM(rb_intern("italic")));
-    VALUE bold = rb_hash_aref(val_hash, ID2SYM(rb_intern("bold")));
-    VALUE underline = rb_hash_aref(val_hash, ID2SYM(rb_intern("underline")));
-    VALUE strikethrough =
-        rb_hash_aref(val_hash, ID2SYM(rb_intern("strikethrough")));
-    if (!NIL_P(fg))
-      entry.fg = NUM2UINT(fg);
-    if (!NIL_P(bg))
-      entry.bg = NUM2UINT(bg);
-    if (!NIL_P(italic))
-      entry.italic = RTEST(italic);
-    if (!NIL_P(bold))
-      entry.bold = RTEST(bold);
-    if (!NIL_P(underline))
-      entry.underline = RTEST(underline);
-    if (!NIL_P(strikethrough))
-      entry.strikethrough = RTEST(strikethrough);
+    mrb_value fg = mrb_hash_get(mrb, val_hash,
+                                mrb_symbol_value(mrb_intern_lit(mrb, "fg")));
+    mrb_value bg = mrb_hash_get(mrb, val_hash,
+                                mrb_symbol_value(mrb_intern_lit(mrb, "bg")));
+    mrb_value italic = mrb_hash_get(
+        mrb, val_hash, mrb_symbol_value(mrb_intern_lit(mrb, "italic")));
+    mrb_value bold = mrb_hash_get(
+        mrb, val_hash, mrb_symbol_value(mrb_intern_lit(mrb, "bold")));
+    mrb_value underline = mrb_hash_get(
+        mrb, val_hash, mrb_symbol_value(mrb_intern_lit(mrb, "underline")));
+    mrb_value strikethrough = mrb_hash_get(
+        mrb, val_hash, mrb_symbol_value(mrb_intern_lit(mrb, "strikethrough")));
+    if (!mrb_nil_p(fg))
+      entry.fg = (uint32_t)mrb_fixnum(fg);
+    if (!mrb_nil_p(bg))
+      entry.bg = (uint32_t)mrb_fixnum(bg);
+    if (!mrb_nil_p(italic))
+      entry.italic = mrb_test(italic);
+    if (!mrb_nil_p(bold))
+      entry.bold = mrb_test(bold);
+    if (!mrb_nil_p(underline))
+      entry.underline = mrb_test(underline);
+    if (!mrb_nil_p(strikethrough))
+      entry.strikethrough = mrb_test(strikethrough);
     result.push_back(entry);
   }
   return result;
@@ -249,17 +270,23 @@ void load_theme() {
 
 std::vector<LSP> read_lsps() {
   std::vector<LSP> result;
-  if (C_module == Qnil)
+  if (!C_module)
     return result;
-  VALUE lsp_hash = rb_funcall(C_module, rb_intern("lsp_config"), 0);
-  if (NIL_P(lsp_hash))
+  mrb_value mod_val = mrb_obj_value((struct RObject *)C_module);
+  mrb_value lsp_hash = mrb_funcall(mrb, mod_val, "lsp_config", 0);
+  if (mrb_nil_p(lsp_hash) || mrb_type(lsp_hash) != MRB_TT_HASH)
     return result;
-  VALUE keys = rb_funcall(lsp_hash, rb_intern("keys"), 0);
-  for (long i = 0; i < RARRAY_LEN(keys); ++i) {
-    VALUE key = rb_ary_entry(keys, i);
-    std::string cmd = StringValueCStr(key);
-    VALUE args_array = rb_hash_aref(lsp_hash, key);
-    std::vector<std::string> args = ruby_array_to_vector(args_array);
+  mrb_value keys = mrb_funcall(mrb, lsp_hash, "keys", 0);
+  mrb_int len_keys = RARRAY_LEN(keys);
+  for (mrb_int i = 0; i < len_keys; i++) {
+    mrb_value key = mrb_ary_ref(mrb, keys, i);
+    std::string cmd;
+    if (mrb_string_p(key))
+      cmd = std::string(RSTRING_PTR(key), RSTRING_LEN(key));
+    else if (mrb_symbol_p(key))
+      cmd = std::string(mrb_sym_dump(mrb, mrb_symbol(key)));
+    mrb_value args_array = mrb_hash_get(mrb, lsp_hash, key);
+    std::vector<std::string> args = array_to_vector(args_array);
     result.push_back({cmd, args});
   }
   return result;
@@ -267,34 +294,45 @@ std::vector<LSP> read_lsps() {
 
 std::vector<R_Language> read_languages() {
   std::vector<R_Language> result;
-  if (C_module == Qnil)
+  if (!C_module)
     return result;
-  VALUE lang_hash = rb_funcall(C_module, rb_intern("languages"), 0);
-  if (NIL_P(lang_hash))
+  mrb_value mod_val = mrb_obj_value((struct RObject *)C_module);
+  mrb_value lang_hash = mrb_funcall(mrb, mod_val, "languages", 0);
+  if (mrb_nil_p(lang_hash) || mrb_type(lang_hash) != MRB_TT_HASH)
     return result;
-  VALUE keys = rb_funcall(lang_hash, rb_intern("keys"), 0);
-  for (long i = 0; i < RARRAY_LEN(keys); ++i) {
-    VALUE key = rb_ary_entry(keys, i);
-    VALUE val_hash = rb_hash_aref(lang_hash, key);
-    if (NIL_P(val_hash))
+  mrb_value keys = mrb_funcall(mrb, lang_hash, "keys", 0);
+  mrb_int len_keys = RARRAY_LEN(keys);
+  for (mrb_int i = 0; i < len_keys; i++) {
+    mrb_value key = mrb_ary_ref(mrb, keys, i);
+    mrb_value val_hash = mrb_hash_get(mrb, lang_hash, key);
+    if (mrb_nil_p(val_hash) || mrb_type(val_hash) != MRB_TT_HASH)
       continue;
     R_Language lang;
-    lang.name = rb_id2name(SYM2ID(key));
-    VALUE fg = rb_hash_aref(val_hash, ID2SYM(rb_intern("color")));
-    VALUE symbol = rb_hash_aref(val_hash, ID2SYM(rb_intern("symbol")));
-    VALUE extensions = rb_hash_aref(val_hash, ID2SYM(rb_intern("extensions")));
-    VALUE filenames = rb_hash_aref(val_hash, ID2SYM(rb_intern("filenames")));
-    VALUE mimetypes = rb_hash_aref(val_hash, ID2SYM(rb_intern("mimetypes")));
-    VALUE lsp = rb_hash_aref(val_hash, ID2SYM(rb_intern("lsp")));
-    if (!NIL_P(fg))
-      lang.color = NUM2UINT(fg);
-    if (!NIL_P(symbol))
-      lang.symbol = StringValueCStr(symbol);
-    lang.extensions = ruby_array_to_vector(extensions);
-    lang.filenames = ruby_array_to_vector(filenames);
-    lang.mimetypes = ruby_array_to_vector(mimetypes);
-    if (!NIL_P(lsp))
-      lang.lsp_command = StringValueCStr(lsp);
+    if (mrb_symbol_p(key))
+      lang.name = std::string(mrb_sym_dump(mrb, mrb_symbol(key)));
+    else if (mrb_string_p(key))
+      lang.name = std::string(RSTRING_PTR(key), RSTRING_LEN(key));
+    mrb_value fg = mrb_hash_get(mrb, val_hash,
+                                mrb_symbol_value(mrb_intern_lit(mrb, "color")));
+    mrb_value symbol = mrb_hash_get(
+        mrb, val_hash, mrb_symbol_value(mrb_intern_lit(mrb, "symbol")));
+    mrb_value extensions = mrb_hash_get(
+        mrb, val_hash, mrb_symbol_value(mrb_intern_lit(mrb, "extensions")));
+    mrb_value filenames = mrb_hash_get(
+        mrb, val_hash, mrb_symbol_value(mrb_intern_lit(mrb, "filenames")));
+    mrb_value mimetypes = mrb_hash_get(
+        mrb, val_hash, mrb_symbol_value(mrb_intern_lit(mrb, "mimetypes")));
+    mrb_value lsp = mrb_hash_get(mrb, val_hash,
+                                 mrb_symbol_value(mrb_intern_lit(mrb, "lsp")));
+    if (!mrb_nil_p(fg))
+      lang.color = (uint32_t)mrb_fixnum(fg);
+    if (!mrb_nil_p(symbol))
+      lang.symbol = std::string(RSTRING_PTR(symbol), RSTRING_LEN(symbol));
+    lang.extensions = array_to_vector(extensions);
+    lang.filenames = array_to_vector(filenames);
+    lang.mimetypes = array_to_vector(mimetypes);
+    if (!mrb_nil_p(lsp))
+      lang.lsp_command = std::string(RSTRING_PTR(lsp), RSTRING_LEN(lsp));
     result.push_back(lang);
   }
   return result;
@@ -325,14 +363,15 @@ void load_languages_info() {
 }
 
 uint8_t read_line_endings() {
-  std::lock_guard lock(ruby_mutex);
-  if (C_module == Qnil)
+  std::lock_guard<std::mutex> lock(ruby_mutex);
+  if (!C_module)
     return 1;
-  VALUE le = rb_funcall(C_module, rb_intern("line_endings"), 0);
-  if (!SYMBOL_P(le))
+  mrb_value mod_val = mrb_obj_value((struct RObject *)C_module);
+  mrb_value le = mrb_funcall(mrb, mod_val, "line_endings", 0);
+  if (!mrb_symbol_p(le))
     return 1;
   uint8_t flags = 1;
-  const char *name = rb_id2name(SYM2ID(le));
+  const char *name = mrb_sym_dump(mrb, mrb_symbol(le));
   if (std::strcmp(name, "unix") == 0)
     flags = 0b01;
   else if (std::strcmp(name, "windows") == 0)

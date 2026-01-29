@@ -38,10 +38,7 @@ constexpr const char tokens_def[] = "module Tokens\n"
                                     "end";
 
 constexpr const char crib_module[] = {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wc23-extensions"
 #embed "libcrib.rb"
-#pragma clang diagnostic pop
     , '\0'};
 
 extern std::array<Highlight, TOKEN_KIND_COUNT> highlights;
@@ -59,9 +56,8 @@ struct LineData {
 };
 
 struct CustomState {
-  VALUE state;
-  CustomState(VALUE s) : state(s) { rb_gc_register_address(&state); }
-  ~CustomState() { rb_gc_unregister_address(&state); }
+  mrb_value state;
+  CustomState(mrb_value s) : state(s) {}
 };
 
 #endif
