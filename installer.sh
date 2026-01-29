@@ -4,8 +4,8 @@ set -eu
 
 install() {
   BINARY_NAME="crib"
-  VERSION="latest"
-  BIN_URL="https://git.syedm.dev/SyedM-dev/crib/releases/download/$VERSION/crib-linux-x86_64"
+  VERSION="v0.0.1-alpha"
+  BIN_URL="https://git.syedm.dev/SyedM-dev/crib/releases/download/$VERSION/crib"
 
   ldconfig -p | grep libmagic >/dev/null 2>&1
 
