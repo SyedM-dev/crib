@@ -1,4 +1,5 @@
 #include "scripting/decl.h"
+#include "scripting/ruby_compiled.h"
 #include "utils/utils.h"
 
 std::unordered_map<std::string, std::pair<mrb_value, mrb_value>>
@@ -20,7 +21,6 @@ struct R_Language {
   std::string symbol;
   std::vector<std::string> extensions;
   std::vector<std::string> filenames;
-  std::vector<std::string> mimetypes;
   std::string lsp_command; // link to LSP by name
 };
 
@@ -54,13 +54,14 @@ void ruby_start() {
   }
   candidates.emplace_back(exe_dir / "../config/main.rb");
   candidates.emplace_back(exe_dir / "../config/crib.rb");
-  mrb_load_string(mrb, crib_module);
-  mrb_load_string(mrb, tokens_def);
+  mrb_load_irep(mrb, _tmp___crib_precompiled_mrb);
   for (const auto &p : candidates) {
     if (fs::exists(p)) {
       FILE *f = fopen(p.string().c_str(), "r");
       if (f) {
         mrb_load_file(mrb, f);
+        if (mrb->exc)
+          exit(1);
         fclose(f);
       }
       break;
@@ -76,7 +77,6 @@ void ruby_shutdown() {
   std::lock_guard lock(ruby_mutex);
   if (C_module == nullptr)
     return;
-  C_module = mrb_module_get(mrb, "C");
   mrb_value mod_val = mrb_obj_value(C_module);
   mrb_value block = mrb_funcall(mrb, mod_val, "b_shutdown", 0);
   mrb_funcall(mrb, block, "call", 0);
@@ -96,13 +96,6 @@ std::vector<std::string> array_to_vector(mrb_value ary) {
       result.push_back(std::string(RSTRING_PTR(item), RSTRING_LEN(item)));
   }
   return result;
-}
-
-void ruby_log(std::string msg) {
-  std::lock_guard lock(ruby_mutex);
-  mrb_value str = mrb_str_new(mrb, msg.c_str(), msg.size());
-  mrb_value mod_val = mrb_obj_value(C_module);
-  mrb_funcall(mrb, mod_val, "queue_log", 1, str);
 }
 
 void load_custom_highlighters() {
@@ -320,8 +313,6 @@ std::vector<R_Language> read_languages() {
         mrb, val_hash, mrb_symbol_value(mrb_intern_lit(mrb, "extensions")));
     mrb_value filenames = mrb_hash_get(
         mrb, val_hash, mrb_symbol_value(mrb_intern_lit(mrb, "filenames")));
-    mrb_value mimetypes = mrb_hash_get(
-        mrb, val_hash, mrb_symbol_value(mrb_intern_lit(mrb, "mimetypes")));
     mrb_value lsp = mrb_hash_get(mrb, val_hash,
                                  mrb_symbol_value(mrb_intern_lit(mrb, "lsp")));
     if (!mrb_nil_p(fg))
@@ -329,8 +320,8 @@ std::vector<R_Language> read_languages() {
     if (!mrb_nil_p(symbol))
       lang.symbol = std::string(RSTRING_PTR(symbol), RSTRING_LEN(symbol));
     lang.extensions = array_to_vector(extensions);
-    lang.filenames = array_to_vector(filenames);
-    lang.mimetypes = array_to_vector(mimetypes);
+    if (!mrb_nil_p(filenames))
+      lang.filenames = array_to_vector(filenames);
     if (!mrb_nil_p(lsp))
       lang.lsp_command = std::string(RSTRING_PTR(lsp), RSTRING_LEN(lsp));
     result.push_back(lang);
@@ -355,8 +346,6 @@ void load_languages_info() {
     // TODO: seperate extensions and filenames
     for (auto &filename : lang.filenames)
       language_extensions[filename] = lang.name;
-    for (auto &mimetype : lang.mimetypes)
-      language_mimetypes[mimetype] = lang.name;
   }
   for (auto &lsp : lsps_t)
     lsps[lsp.command] = lsp;

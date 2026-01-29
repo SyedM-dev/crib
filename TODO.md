@@ -4,7 +4,6 @@ Copyright 2025 Syed Daanish
 
 ##### BTW Check each lsp with each of the features implemented
 
-* Static link pcre2-8 and libmagic and add precompiled libmagic magic database for better file detection
 * [ ] **LSP Bug:** Check why `fish-lsp` is behaving so off with completions filtering.
 * [ ] **Critical Crash:** Fix bug where closing immediately while LSP is still loading hangs and then segfaults (especially on slow ones like fish-lsp where quick edits and exit can hang).
 * [ ] **Line move:** fix the move line functions to work without the calculations from folds as folds are removed.

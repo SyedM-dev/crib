@@ -9,26 +9,29 @@ TARGET_RELEASE := $(BIN_DIR)/crib
 PCH_DEBUG := $(OBJ_DIR)/debug/pch.h.gch
 PCH_RELEASE := $(OBJ_DIR)/release/pch.h.gch
 
+GENERATED_HEADER := $(INCLUDE_DIR)/scripting/ruby_compiled.h
+
 CCACHE := ccache
 CXX := $(CCACHE) clang++
+CC := $(CCACHE) clang
 
 CFLAGS_DEBUG :=\
-	-std=c++23 -Wall -Wextra -Wno-c23-extensions \
+	-std=c++20 -Wall -Wextra \
 	-O0 -fno-inline -gsplit-dwarf\
 	-g -fno-omit-frame-pointer\
 	-Wno-unused-command-line-argument \
 	-I./include -I./libs
 
 CFLAGS_RELEASE :=\
-	-std=c++23 -O3 -march=native \
+	-static \
+	-std=c++20 -O3 -march=native \
   -fno-rtti -fstrict-aliasing \
 	-ffast-math -flto=thin \
-	-fvisibility=hidden -fuse-ld=lld \
+	-fvisibility=hidden \
 	-fomit-frame-pointer -DNDEBUG -s \
 	-mllvm -vectorize-loops \
 	-fno-unwind-tables -fno-asynchronous-unwind-tables\
 	-Wno-unused-command-line-argument \
-	-Wno-c23-extensions \
 	-I./include -I./libs
 
 PCH_CFLAGS_DEBUG := $(CFLAGS_DEBUG) -x c++-header
@@ -39,9 +42,13 @@ UNICODE_SRC := $(wildcard libs/unicode_width/*.c)
 UNICODE_OBJ_DEBUG := $(patsubst libs/unicode_width/%.c,$(OBJ_DIR)/debug/unicode_width/%.o,$(UNICODE_SRC))
 UNICODE_OBJ_RELEASE := $(patsubst libs/unicode_width/%.c,$(OBJ_DIR)/release/unicode_width/%.o,$(UNICODE_SRC))
 
-LIBS := \
+LIBS_RELEASE := \
 	libs/libgrapheme/libgrapheme.a \
-	-Wl,-Bstatic -lpcre2-8 -lmruby -Wl,-Bdynamic -lmagic
+	-Wl,-Bstatic,--gc-sections -lpcre2-8 -lmruby
+
+LIBS_DEBUG := \
+	libs/libgrapheme/libgrapheme.a \
+	-Wl,-Bdynamic -lpcre2-8 -lmruby
 
 SRC := $(wildcard $(SRC_DIR)/**/*.cc) $(wildcard $(SRC_DIR)/*.cc)
 OBJ_DEBUG := $(patsubst $(SRC_DIR)/%.cc,$(OBJ_DIR)/debug/%.o,$(SRC))
@@ -58,6 +65,9 @@ test: $(TARGET_DEBUG)
 
 release: $(TARGET_RELEASE)
 
+$(GENERATED_HEADER): $(INCLUDE_DIR)/syntax/tokens.def $(INCLUDE_DIR)/scripting/libcrib.rb src/ruby_compile.sh
+	src/ruby_compile.sh
+
 $(PCH_DEBUG): $(INCLUDE_DIR)/pch.h
 	mkdir -p $(dir $@)
 	$(CXX) $(PCH_CFLAGS_DEBUG) -o $@ $<
@@ -68,27 +78,27 @@ $(PCH_RELEASE): $(INCLUDE_DIR)/pch.h
 
 $(TARGET_DEBUG): $(PCH_DEBUG) $(OBJ_DEBUG) $(UNICODE_OBJ_DEBUG)
 	mkdir -p $(BIN_DIR)
-	$(CXX) $(CFLAGS_DEBUG) -o $@ $(OBJ_DEBUG) $(UNICODE_OBJ_DEBUG) $(LIBS)
+	$(CXX) $(CFLAGS_DEBUG) -o $@ $(OBJ_DEBUG) $(UNICODE_OBJ_DEBUG) $(LIBS_DEBUG)
 
 $(TARGET_RELEASE): $(PCH_RELEASE) $(OBJ_RELEASE) $(UNICODE_OBJ_RELEASE)
 	mkdir -p $(BIN_DIR)
-	$(CXX) $(CFLAGS_RELEASE) -o $@ $(OBJ_RELEASE) $(UNICODE_OBJ_RELEASE) $(LIBS)
+	$(CXX) $(CFLAGS_RELEASE) -o $@ $(OBJ_RELEASE) $(UNICODE_OBJ_RELEASE) $(LIBS_RELEASE)
 
-$(OBJ_DIR)/debug/%.o: $(SRC_DIR)/%.cc $(PCH_DEBUG)
+$(OBJ_DIR)/debug/%.o: $(SRC_DIR)/%.cc $(PCH_DEBUG) $(GENERATED_HEADER)
 	mkdir -p $(dir $@)
 	$(CXX) $(CFLAGS_DEBUG) -include $(INCLUDE_DIR)/pch.h -MMD -MP -c $< -o $@
 
-$(OBJ_DIR)/release/%.o: $(SRC_DIR)/%.cc $(PCH_RELEASE)
+$(OBJ_DIR)/release/%.o: $(SRC_DIR)/%.cc $(PCH_RELEASE) $(GENERATED_HEADER)
 	mkdir -p $(dir $@)
 	$(CXX) $(CFLAGS_RELEASE) -include $(INCLUDE_DIR)/pch.h -MMD -MP -c $< -o $@
 
 $(OBJ_DIR)/debug/unicode_width/%.o: libs/unicode_width/%.c
 	mkdir -p $(dir $@)
-	$(CXX) $(CFLAGS_DEBUG) -MMD -MP -c $< -o $@
+	$(CC) -MMD -MP -c $< -o $@
 
 $(OBJ_DIR)/release/unicode_width/%.o: libs/unicode_width/%.c
 	mkdir -p $(dir $@)
-	$(CXX) $(CFLAGS_RELEASE) -MMD -MP -c $< -o $@
+	$(CC) -MMD -MP -c $< -o $@
 
 DEP_DEBUG += $(UNICODE_OBJ_DEBUG:.o=.d)
 DEP_RELEASE += $(UNICODE_OBJ_RELEASE:.o=.d)

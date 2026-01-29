@@ -9,7 +9,6 @@ extern std::unordered_map<std::string, std::pair<mrb_value, mrb_value>>
 
 void ruby_start();
 void ruby_shutdown();
-void ruby_log(std::string msg);
 void load_theme();
 void load_languages_info();
 uint8_t read_line_endings();

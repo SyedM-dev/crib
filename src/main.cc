@@ -72,8 +72,6 @@ void input_listener(Bar bar) {
 }
 
 int main(int argc, char *argv[]) {
-  auto start = std::chrono::high_resolution_clock::now();
-
   ruby_start();
   load_theme();
   load_languages_info();
@@ -81,18 +79,10 @@ int main(int argc, char *argv[]) {
 
   Coord screen = start_screen();
   const char *filename = (argc > 1) ? argv[1] : "";
-
   uint8_t eol = read_line_endings();
-
   Editor *editor =
       new_editor(filename, {0, 0}, {screen.row - 2, screen.col}, eol);
   Bar bar(screen);
-
-  auto end = std::chrono::high_resolution_clock::now();
-  auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
-                .count();
-  ruby_log("[LOG] STARTUP_TIME: " + std::to_string(static_cast<long long>(ms)) +
-           "ms");
 
   if (!editor) {
     end_screen();

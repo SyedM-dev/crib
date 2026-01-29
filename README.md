@@ -52,10 +52,10 @@ Make sure you have the following dependencies installed (apart from the standard
   #include <pcre2.h>
   ```
 
-* **libmagic**
-  Install it so that you can include it in your code (most *nix systems have it installed):
+* **[mruby](https://github.com/mruby/mruby)**
+  Install it via your package manager. Once installed, the header should be available as:
   ```cpp
-  #include <magic.h>
+  #include <mruby.h>
   ```
 
 It also uses `xclip` at runtime for copying/pasting *(TODO: make it os portable)*.
@@ -145,7 +145,7 @@ TODO: add keybind information on how to set in `config/main.rb`
 - current line highlighting
 - all instances of current word under cursor highlighting
 
-#### syntax highlighting and filetype detection (using extention or libmagic) for:
+#### syntax highlighting and filetype detection for:
 - ruby
 <!-- TODO: -->
 <!-- - bash -->
