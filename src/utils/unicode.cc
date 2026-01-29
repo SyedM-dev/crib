@@ -1,4 +1,3 @@
-#include "utfcpp/source/utf8.h"
 #include "utils/utils.h"
 
 int display_width(const char *str, size_t len) {
@@ -99,42 +98,48 @@ uint32_t count_clusters(const char *line, size_t len, size_t from, size_t to) {
   return count;
 }
 
-size_t utf8_offset_to_utf16(const char *utf8, size_t utf8_len,
-                            size_t byte_offset) {
-  if (byte_offset > utf8_len)
-    return byte_offset;
-  const char *start = utf8;
-  const char *mid = utf8 + byte_offset;
-  if (!utf8::is_valid(start, mid))
-    assert(0 && "invalid utf8");
-  size_t utf16_offset = 0;
-  for (auto it = start; it < mid;) {
-    uint32_t codepoint = utf8::next(it, mid);
-    if (codepoint <= 0xFFFF)
-      utf16_offset += 1;
-    else
-      utf16_offset += 2;
+size_t utf8_offset_to_utf16(const char *s, size_t utf8_len, size_t byte_pos) {
+  if (byte_pos > utf8_len)
+    return 0;
+  size_t utf16_units = 0;
+  size_t i = 0;
+  while (i < byte_pos) {
+    unsigned char c = s[i];
+    if ((c & 0x80) == 0x00) {
+      i += 1;
+      utf16_units += 1;
+    } else if ((c & 0xE0) == 0xC0) {
+      i += 2;
+      utf16_units += 1;
+    } else if ((c & 0xF0) == 0xE0) {
+      i += 3;
+      utf16_units += 1;
+    } else {
+      i += 4;
+      utf16_units += 2;
+    }
   }
-  return utf16_offset;
+  return utf16_units;
 }
 
-size_t utf16_offset_to_utf8(const char *utf8, size_t utf8_len,
-                            size_t utf16_offset) {
-  const char *start = utf8;
-  const char *end = utf8 + utf8_len;
-  const char *it = start;
-  size_t utf16_count = 0;
-  while (it < end) {
-    if (utf16_count >= utf16_offset)
-      break;
-    const char *prev = it;
-    uint32_t codepoint = utf8::next(it, end);
-    if (codepoint <= 0xFFFF)
-      utf16_count += 1;
-    else
-      utf16_count += 2;
-    if (utf16_count > utf16_offset)
-      return prev - start;
+size_t utf16_offset_to_utf8(const char *s, size_t utf8_len, size_t utf16_pos) {
+  size_t utf16_units = 0;
+  size_t i = 0;
+  while (utf16_units < utf16_pos && i < utf8_len) {
+    unsigned char c = s[i];
+    if ((c & 0x80) == 0x00) {
+      i += 1;
+      utf16_units += 1;
+    } else if ((c & 0xE0) == 0xC0) {
+      i += 2;
+      utf16_units += 1;
+    } else if ((c & 0xF0) == 0xE0) {
+      i += 3;
+      utf16_units += 1;
+    } else {
+      i += 4;
+      utf16_units += 2;
+    }
   }
-  return it - start;
+  return i;
 }
