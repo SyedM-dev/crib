@@ -17,10 +17,8 @@
 #define WORD 1
 #define LINE 2
 
-#define EXTRA_META 4
+#define EXTRA_META 2
 #define INDENT_WIDTH 2
-
-// autocomplete lua// Bracket closing / tab on enter
 
 struct Editor {
   std::string filename;
@@ -31,7 +29,7 @@ struct Editor {
   uint32_t cursor_preffered;
   Coord selection;
   bool selection_active;
-  bool unix_eol; // false for windows
+  bool unix_eol;
   int selection_type;
   Coord position;
   Coord size;

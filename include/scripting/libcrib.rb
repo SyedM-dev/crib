@@ -262,11 +262,52 @@ module C
   @highlighters = {}
   @b_startup = nil
   @b_shutdown = nil
+  @b_bar = lambda do |info|
+    # mode, lang_name, warnings, lsp_name, filename, foldername, line, max_line, width
+    # puts info.inspect
+    mode_color = 0x82AAFF
+    mode_symbol = "  "
+    case info[:mode]
+    when :normal
+      mode_color = 0x82AAFF
+      mode_symbol = " "
+    when :insert
+      mode_color = 0xFF8F40
+      mode_symbol = "󱓧 "
+    when :select
+      mode_color = 0x9ADE7A
+      mode_symbol = "󱩧 "
+    when :runner
+      mode_color = 0xFFD700
+      mode_symbol = " "
+    when :jumper
+      mode_color = 0xF29CC3
+      mode_symbol = " "
+    end
+    lang_info = C.languages[info[:lang_name]]
+    filename = File.basename(info[:filename])
+    starting = " #{mode_symbol} #{info[:mode].to_s.upcase}  #{lang_info[:symbol]}#{filename}"
+    highlights = []
+    highlights << { fg: 0x0b0e14, bg: mode_color, flags: 1 << 1, start: 0, length: 10 }
+    highlights << { fg: mode_color, bg: 0x33363c, start: 10, length: 1 }
+    highlights << { fg: 0x33363c, bg: 0x24272d, start: 11, length: 1 }
+    highlights << { fg: lang_info[:color], bg: 0x24272d, start: 13, length: 2 }
+    highlights << { fg: 0xced4df, bg: 0x24272d, start: 15, length: filename.length }
+    highlights << { fg: 0x24272d, bg: 0x000000, start: 15 + filename.length, length: 1 }
+    return {
+      text: starting,
+      highlights: highlights
+    }
+  end
 
   class << self
     attr_accessor :theme, :lsp_config, :languages,
                   :line_endings, :highlighters
-    attr_reader :b_startup, :b_shutdown, :b_extra_highlights
+    attr_reader :b_startup, :b_shutdown, :b_extra_highlights, :b_bar
+
+    # def bar=(block)
+    #   @b_bar = block
+    # end
 
     def startup(&block)
       @b_startup = block

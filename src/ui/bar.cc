@@ -1,66 +1,59 @@
 #include "ui/bar.h"
 #include "io/sysio.h"
+#include "lsp/lsp.h"
 #include "main.h"
+#include "syntax/decl.h"
+
+void Bar::work() {
+  std::lock_guard<std::mutex> lock(mtx);
+  Editor *editor = editors[current_editor];
+  bar_line =
+      bar_contents(mode, editor->lang.name, editor->warnings.size(),
+                   editor->lsp ? editor->lsp->lsp->command : "",
+                   editor->filename, editor->filename, editor->cursor.row + 1,
+                   editor->root->line_count + 1, screen.col);
+}
+
+void Bar::log(std::string message) {
+  std::lock_guard<std::mutex> lock(mtx);
+  log_line = message;
+}
 
 void Bar::render() {
-  Editor *editor = editors[current_editor];
+  std::lock_guard<std::mutex> lock(mtx);
+  USING(LSPInstance);
   uint32_t row = screen.row - 2;
-  uint32_t col = 0;
   uint32_t width = screen.col;
-  UNUSED(width);
-  uint32_t color = 0;
-  uint32_t black = 0x0b0e14;
-  uint32_t grey = 0x33363c;
-  uint32_t dark_grey = 0x24272d;
-  uint32_t name_color = 0xced4df;
-  uint32_t lang_color = editor->lang.color;
-  const char *symbol = "󱓧 ";
-  const char *name = "EDITOR";
-  switch (mode) {
-  case NORMAL:
-    color = 0x82AAFF;
-    symbol = " ";
-    name = "NORMAL";
-    break;
-  case INSERT:
-    color = 0xFF8F40;
-    symbol = "󱓧 ";
-    name = "INSERT";
-    break;
-  case SELECT:
-    color = 0x9ADE7A;
-    symbol = "󱩧 ";
-    name = "SELECT";
-    break;
-  case RUNNER:
-    color = 0xFFD700;
-    symbol = " ";
-    name = "RUNNER";
-    break;
-  case JUMPER:
-    color = 0xF29CC3;
-    symbol = " ";
-    name = "JUMPER";
-    break;
+  std::string &line = bar_line.line;
+  uint32_t i = 0;
+  uint32_t col = 0;
+  while (i < line.length()) {
+    uint32_t cluster_len =
+        grapheme_next_character_break_utf8(line.c_str() + i, line.length() - i);
+    std::string cluster = line.substr(i, cluster_len);
+    int width = display_width(cluster.c_str(), cluster_len);
+    Highlight highlight = bar_line.get_highlight(col);
+    update(row, col, cluster.c_str(), highlight.fg, highlight.bg,
+           highlight.flags);
+    col += width;
+    i += cluster_len;
+    for (int w = 1; w < width; w++)
+      update(row, col - w, "\x1b", highlight.fg, highlight.bg, highlight.flags);
   }
-  update(row, col, " ", black, color, CF_BOLD);
-  update(row, ++col, symbol, black, color, CF_BOLD);
-  update(row, ++col, "\x1b", black, color, CF_BOLD);
-  update(row, ++col, " ", black, color, CF_BOLD);
-  for (uint32_t i = 0; i < 6; i++)
-    update(row, ++col, {name[i], 0}, black, color, CF_BOLD);
-  update(row, ++col, " ", black, color, CF_BOLD);
-  update(row, ++col, "◗", color, grey, CF_BOLD);
-  update(row, ++col, "◗", grey, dark_grey, CF_BOLD);
-  update(row, ++col, " ", name_color, dark_grey, CF_BOLD);
-  update(row, ++col, editor->lang.symbol, lang_color, dark_grey, 0);
-  update(row, ++col, "\x1b", lang_color, dark_grey, 0);
-  update(row, ++col, " ", name_color, dark_grey, CF_BOLD);
-  std::string filename = filename_from_path(editor->filename);
-  for (uint32_t i = 0; i < filename.length(); i++)
-    update(row, ++col, {filename[i], 0}, name_color, dark_grey, CF_BOLD);
-  update(row, ++col, " ", name_color, dark_grey, CF_BOLD);
-  update(row, ++col, "◗", dark_grey, 1, CF_BOLD);
+  while (col < width)
+    update(row, col++, " ", 0, 0, 0);
+  col = 0;
+  row++;
+  if (mode == RUNNER) {
+    update(row, col++, ":", 0xFFFFFF, 0, 0);
+    for (char c : command)
+      update(row, col++, (char[2]){c, 0}, 0xFFFFFF, 0, 0);
+  } else {
+    for (char c : log_line)
+      update(row, col++, (char[2]){c, 0}, 0xFFFFFF, 0, 0);
+  }
+  while (col < width)
+    update(row, col++, " ", 0, 0, 0);
 }
 
 void Bar::handle(KeyEvent event) {
@@ -68,11 +61,26 @@ void Bar::handle(KeyEvent event) {
     if (event.c[0] == 0x1B) {
       mode = NORMAL;
     } else if (event.c[0] == '\n' || event.c[0] == '\r') {
-      // execute command while stripping starting `[:;]`
+      command = trim(command);
+      if (command == "w") {
+        save_file(editors[current_editor]);
+      } else if (command == "q") {
+        running = false;
+      } else if (command == "wq") {
+        save_file(editors[current_editor]);
+        running = false;
+      }
       mode = NORMAL;
       command = "";
     } else if (isprint((unsigned char)(event.c[0]))) {
-    } else if (event.c[0] == 0x7F || event.c[0] == 0x08) { // backspace
+      command += event.c[0];
+    } else if (event.c[0] == 0x7F || event.c[0] == 0x08) {
+      if (command.length() > 0) {
+        command = command.substr(0, command.length() - 1);
+      } else {
+        mode = NORMAL;
+        command = "";
+      }
     }
   } else if (event.key_type == KEY_SPECIAL) {
     switch (event.special_key) {

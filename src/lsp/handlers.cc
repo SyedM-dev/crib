@@ -1,4 +1,5 @@
 #include "lsp/lsp.h"
+#include "main.h"
 
 Queue<LSPOpenRequest> lsp_open_queue;
 

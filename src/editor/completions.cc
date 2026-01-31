@@ -25,6 +25,23 @@ inline static std::string completion_prefix(Editor *editor) {
   return prefix;
 }
 
+inline static void completion_adjust_scroll(CompletionSession &s) {
+  if (s.visible.empty())
+    return;
+  int vi = -1;
+  for (size_t i = 0; i < s.visible.size(); i++)
+    if (s.visible[i] == s.select) {
+      vi = (int)i;
+      break;
+    }
+  if (vi < 0)
+    return;
+  if ((uint32_t)vi < s.scroll)
+    s.scroll = vi;
+  else if ((uint32_t)vi >= s.scroll + 8)
+    s.scroll = vi - 7;
+}
+
 void completion_filter(Editor *editor) {
   auto &session = editor->completion;
   std::string prefix = completion_prefix(editor);
@@ -44,6 +61,8 @@ void completion_filter(Editor *editor) {
                 session.select) == session.visible.end())
     session.select = session.visible[0];
   session.box.hidden = false;
+  session.scroll = 0;
+  completion_adjust_scroll(session);
   session.box.render_update();
 }
 
@@ -417,6 +436,7 @@ void complete_next(Editor *editor) {
     vi = (vi + 1) % s.visible.size();
   s.select = s.visible[vi];
   completion_resolve_doc(editor);
+  completion_adjust_scroll(editor->completion);
   editor->completion.box.render_update();
 }
 
@@ -431,6 +451,7 @@ void complete_prev(Editor *editor) {
     vi = (vi + s.visible.size() - 1) % s.visible.size();
   s.select = s.visible[vi];
   completion_resolve_doc(editor);
+  completion_adjust_scroll(editor->completion);
   editor->completion.box.render_update();
 }
 

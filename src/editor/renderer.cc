@@ -11,7 +11,7 @@ void render_editor(Editor *editor) {
   uint32_t numlen =
       EXTRA_META + static_cast<int>(std::log10(editor->root->line_count + 1));
   uint32_t render_width = editor->size.col - numlen;
-  uint32_t render_x = editor->position.col + numlen;
+  uint32_t render_x = editor->position.col + numlen + 1;
   std::vector<std::pair<uint32_t, char>> v;
   for (size_t i = 0; i < 94; ++i)
     if (editor->hooks[i] != 0)
@@ -146,16 +146,14 @@ void render_editor(Editor *editor) {
         update(editor->position.row + rendered_rows, editor->position.col, hook,
                0xAAAAAA, 0, 0);
         char buf[16];
-        int len =
-            snprintf(buf, sizeof(buf), "%*u ", numlen - 3, line_index + 1);
+        int len = snprintf(buf, sizeof(buf), "%*u ", numlen, line_index + 1);
         uint32_t num_color =
             editor->cursor.row == line_index ? 0xFFFFFF : 0x555555;
         for (int i = 0; i < len; i++)
-          update(editor->position.row + rendered_rows,
-                 editor->position.col + i + 2, (char[2]){buf[i], 0}, num_color,
-                 0, 0);
+          update(editor->position.row + rendered_rows, editor->position.col + i,
+                 (char[2]){buf[i], 0}, num_color, 0, 0);
       } else {
-        for (uint32_t i = 0; i < numlen; i++)
+        for (uint32_t i = 0; i < numlen + 1; i++)
           update(editor->position.row + rendered_rows, editor->position.col + i,
                  " ", 0, 0, 0);
       }
@@ -349,13 +347,12 @@ void render_editor(Editor *editor) {
       update(editor->position.row + rendered_rows, editor->position.col, hook,
              0xAAAAAA, 0, 0);
       char buf[16];
-      int len = snprintf(buf, sizeof(buf), "%*u ", numlen - 3, line_index + 1);
+      int len = snprintf(buf, sizeof(buf), "%*u ", numlen, line_index + 1);
       uint32_t num_color =
           editor->cursor.row == line_index ? 0xFFFFFF : 0x555555;
       for (int i = 0; i < len; i++)
-        update(editor->position.row + rendered_rows,
-               editor->position.col + i + 2, (char[2]){buf[i], 0}, num_color, 0,
-               0);
+        update(editor->position.row + rendered_rows, editor->position.col + i,
+               (char[2]){buf[i], 0}, num_color, 0, 0);
       if (editor->cursor.row == line_index) {
         cursor.row = editor->position.row + rendered_rows;
         cursor.col = render_x;

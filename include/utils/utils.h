@@ -102,7 +102,6 @@ struct Language {
   std::string name;
   std::string lsp_name;
   uint32_t color;
-  std::string symbol = "󱓧 ";
 };
 
 struct LSP {

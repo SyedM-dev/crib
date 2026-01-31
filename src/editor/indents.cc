@@ -218,8 +218,8 @@ void IndentationEngine::insert_new_line(Coord cursor) {
     if (is_end_full != kLangtoBlockEndsFull.end())
       for (auto end : is_end_full->second)
         if (end == trim(line)) {
-          cursor.col =
-              set_indent(cursor.row, (int64_t)indent_expected(cursor.row) - 1);
+          cursor.col = set_indent(
+              cursor.row, (int64_t)indent_expected(cursor.row) - (int64_t)1);
           end_matched = true;
           break;
         }
@@ -286,7 +286,7 @@ void IndentationEngine::insert_new_line(Coord cursor) {
                (indent == 1 ? std::string(c_indent, '\t')
                             : std::string(c_indent * indent, ' ')) +
                ending;
-    else if (ending_valid)
+    else if (ending_valid && c_indent)
       c_indent--;
   }
   auto is_end_set = kLangtoBlockStartsEnd.find(editor->lang.name);

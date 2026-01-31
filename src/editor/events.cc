@@ -232,6 +232,4 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
   if (old_mode == mode || mode != INSERT)
     handle_completion(editor, event);
   ensure_scroll(editor);
-  if ((event.key_type == KEY_CHAR || event.key_type == KEY_PASTE) && event.c)
-    free(event.c);
 }

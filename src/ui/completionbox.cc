@@ -71,7 +71,9 @@ void CompletionBox::render_update() {
   uint32_t max_label_len = 0;
   uint32_t max_detail_len = 0;
   uint32_t max_kind_len = 0;
-  for (auto i : session->visible) {
+  for (uint32_t x = session->scroll;
+       x < session->scroll + 8 && x < session->visible.size(); x++) {
+    uint32_t i = session->visible[x];
     if (i >= session->items.size())
       continue;
     auto &item = session->items[i];
@@ -81,7 +83,9 @@ void CompletionBox::render_update() {
     max_kind_len =
         MAX(max_kind_len, (uint32_t)item_kind_name(item.kind).size());
   }
-  size.row = session->visible.size() + 2;
+  uint32_t total = session->visible.size();
+  uint32_t rows = MIN(total, 8);
+  size.row = rows + 2;
   size.col = 2 + 2 + max_label_len + 1 + max_detail_len + 2 + max_kind_len + 1;
   cells.assign(size.row * size.col, {" ", 0, 0, 0, 0, 0});
   auto set = [&](uint32_t r, uint32_t c, const char *text, uint32_t fg,
@@ -95,8 +99,10 @@ void CompletionBox::render_update() {
   for (uint32_t c = 1; c < size.col - 1; c++)
     set(0, c, "─", border_fg, 0, 0);
   set(0, size.col - 1, "┐", border_fg, 0, 0);
-  for (uint32_t row_idx = 0; row_idx < session->visible.size(); row_idx++) {
-    uint32_t r = row_idx + 1;
+  uint32_t start = session->scroll;
+  uint32_t end = MIN(start + 8, session->visible.size());
+  for (uint32_t row_idx = start; row_idx < end; row_idx++) {
+    uint32_t r = (row_idx - start) + 1;
     auto &item = session->items[session->visible[row_idx]];
     uint32_t bg = (session->visible[row_idx] == session->select) ? sel_bg : 1;
     uint32_t fg = 0xFFFFFF;
@@ -130,6 +136,12 @@ void CompletionBox::render_update() {
   for (uint32_t c = 1; c < size.col - 1; c++)
     set(bottom, c, "─", border_fg, 0, 0);
   set(bottom, size.col - 1, "┘", border_fg, 0, 0);
+  if (session->visible.size() > 8) {
+    std::string info = std::to_string(start + 1) + "-" + std::to_string(end) +
+                       "/" + std::to_string(session->visible.size());
+    for (size_t i = 0; i < info.size() && i < size.col - 2; i++)
+      set(bottom, 1 + i, (char[2]){info[i], 0}, border_fg, 0, 0);
+  }
 }
 
 void CompletionBox::render(Coord pos) {

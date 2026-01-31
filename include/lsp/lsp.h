@@ -80,6 +80,7 @@ void lsp_worker();
 std::shared_ptr<LSPInstance> get_or_init_lsp(std::string lsp_id);
 void clean_lsp(std::shared_ptr<LSPInstance> lsp, std::string lsp_id);
 void close_lsp(std::string lsp_id);
+std::optional<json> read_lsp_message(int fd);
 
 void open_editor(std::shared_ptr<LSPInstance> lsp,
                  std::pair<Language, Editor *> entry);

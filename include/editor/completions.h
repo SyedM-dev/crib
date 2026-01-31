@@ -27,9 +27,10 @@ struct CompletionSession {
   bool active = false;
   Coord hook;
   std::optional<std::string> prefix;
-  uint8_t select = 0;
+  uint32_t select = 0;
+  uint32_t scroll = 0;
   std::vector<CompletionItem> items;
-  std::vector<uint8_t> visible;
+  std::vector<uint32_t> visible;
   bool complete = true;
   std::optional<char> trigger_char;
   uint8_t trigger = 0;

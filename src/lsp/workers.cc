@@ -16,7 +16,7 @@ void lsp_send(std::shared_ptr<LSPInstance> lsp, json message,
   lsp->outbox.push(message);
 }
 
-static std::optional<json> read_lsp_message(int fd) {
+std::optional<json> read_lsp_message(int fd) {
   std::string header;
   char c;
   while (true) {

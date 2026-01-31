@@ -1,6 +1,7 @@
 #include "editor/editor.h"
 #include "editor/decl.h"
 #include "lsp/lsp.h"
+#include "main.h"
 #include "syntax/langs.h"
 #include "utils/utils.h"
 
@@ -77,6 +78,8 @@ void save_file(Editor *editor) {
   }
   out.close();
   free(str);
+  bar.log("Written " + std::to_string(char_count) + " bytes to " +
+          editor->filename);
   if (editor->lsp) {
     json save_msg = {{"jsonrpc", "2.0"},
                      {"method", "textDocument/didSave"},

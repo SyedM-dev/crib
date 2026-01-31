@@ -13,24 +13,24 @@ GENERATED_HEADER := $(INCLUDE_DIR)/scripting/ruby_compiled.h
 
 CCACHE := ccache
 CXX := $(CCACHE) clang++
-CC := $(CCACHE) clang
+CC := $(CCACHE) musl-clang
 
 CFLAGS_DEBUG :=\
 	-std=c++20 -Wall -Wextra \
-	-O0 -fno-inline -gsplit-dwarf\
-	-g -fno-omit-frame-pointer\
+	-O0 -fno-inline -gsplit-dwarf \
+	-g -fno-omit-frame-pointer \
 	-Wno-unused-command-line-argument \
+	-fsanitize=address \
 	-I./include -I./libs
 
 CFLAGS_RELEASE :=\
-	-static \
-	-std=c++20 -O3 -march=native \
-  -fno-rtti -fstrict-aliasing \
+	-static --target=x86_64-linux-musl \
+	-std=c++20 -O3 -march=x86-64 -mtune=generic \
+  -fno-rtti \
 	-ffast-math -flto=thin \
 	-fvisibility=hidden \
 	-fomit-frame-pointer -DNDEBUG -s \
 	-mllvm -vectorize-loops \
-	-fno-unwind-tables -fno-asynchronous-unwind-tables\
 	-Wno-unused-command-line-argument \
 	-I./include -I./libs
 

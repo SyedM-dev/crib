@@ -1,6 +1,8 @@
+#include "main.h"
 #include "scripting/decl.h"
 #include "scripting/ruby_compiled.h"
 #include "utils/utils.h"
+#include <mruby/boxing_word.h>
 
 std::unordered_map<std::string, std::pair<mrb_value, mrb_value>>
     custom_highlighters;
@@ -18,7 +20,6 @@ struct R_ThemeEntry {
 struct R_Language {
   std::string name;
   uint32_t color = 0xFFFFFF;
-  std::string symbol;
   std::vector<std::string> extensions;
   std::vector<std::string> filenames;
   std::string lsp_command; // link to LSP by name
@@ -26,12 +27,10 @@ struct R_Language {
 
 mrb_state *mrb = nullptr;
 RClass *C_module;
-std::mutex ruby_mutex;
 
 namespace fs = std::filesystem;
 
 void ruby_start() {
-  std::lock_guard lock(ruby_mutex);
   mrb = mrb_open();
   if (!mrb) {
     fprintf(stderr, "Failed to init mruby\n");
@@ -55,6 +54,8 @@ void ruby_start() {
   candidates.emplace_back(exe_dir / "../config/main.rb");
   candidates.emplace_back(exe_dir / "../config/crib.rb");
   mrb_load_irep(mrb, _tmp___crib_precompiled_mrb);
+  C_module = mrb_module_get(mrb, "C");
+  setup_ruby_bindings(mrb, C_module);
   for (const auto &p : candidates) {
     if (fs::exists(p)) {
       FILE *f = fopen(p.string().c_str(), "r");
@@ -67,14 +68,99 @@ void ruby_start() {
       break;
     }
   }
-  C_module = mrb_module_get(mrb, "C");
   mrb_value mod_val = mrb_obj_value(C_module);
   mrb_value block = mrb_funcall(mrb, mod_val, "b_startup", 0);
   mrb_funcall(mrb, block, "call", 0);
 }
 
+inline static std::vector<BarLight>
+convert_highlights(mrb_state *mrb, mrb_value highlights_val) {
+  std::vector<BarLight> result;
+  if (!mrb_array_p(highlights_val))
+    return result;
+  mrb_int len = RARRAY_LEN(highlights_val);
+  for (mrb_int i = 0; i < len; i++) {
+    mrb_value item = mrb_ary_ref(mrb, highlights_val, i);
+    if (!mrb_hash_p(item))
+      continue;
+    auto get_sym = [&](const char *name) {
+      return mrb_symbol_value(mrb_intern_cstr(mrb, name));
+    };
+    mrb_value fg_v = mrb_hash_get(mrb, item, get_sym("fg"));
+    mrb_value bg_v = mrb_hash_get(mrb, item, get_sym("bg"));
+    mrb_value flags_v = mrb_hash_get(mrb, item, get_sym("flags"));
+    mrb_value start_v = mrb_hash_get(mrb, item, get_sym("start"));
+    mrb_value length_v = mrb_hash_get(mrb, item, get_sym("length"));
+    BarLight bl{};
+    if (!mrb_nil_p(fg_v))
+      bl.highlight.fg = (uint32_t)mrb_fixnum(fg_v);
+    if (!mrb_nil_p(bg_v))
+      bl.highlight.bg = (uint32_t)mrb_fixnum(bg_v);
+    if (!mrb_nil_p(flags_v))
+      bl.highlight.flags = (uint32_t)mrb_fixnum(flags_v);
+    uint32_t start = !mrb_nil_p(start_v) ? (uint32_t)mrb_fixnum(start_v) : 0;
+    uint32_t length = !mrb_nil_p(length_v) ? (uint32_t)mrb_fixnum(length_v) : 0;
+    bl.start = start;
+    bl.end = start + length;
+    result.push_back(bl);
+  }
+  return result;
+}
+
+BarLine bar_contents(uint8_t mode, std::string lang_name, uint32_t warnings,
+                     std::string lsp_name, std::string filename,
+                     std::string foldername, uint32_t line, uint32_t max_line,
+                     uint32_t width) {
+  BarLine bar_line;
+  mrb_value info = mrb_hash_new(mrb);
+  mrb_value key_mode = mrb_symbol_value(mrb_intern_cstr(mrb, "mode"));
+  mrb_value val_mode;
+  switch (mode) {
+  case NORMAL:
+    val_mode = mrb_symbol_value(mrb_intern_cstr(mrb, "normal"));
+    break;
+  case INSERT:
+    val_mode = mrb_symbol_value(mrb_intern_cstr(mrb, "insert"));
+    break;
+  case SELECT:
+    val_mode = mrb_symbol_value(mrb_intern_cstr(mrb, "select"));
+    break;
+  case RUNNER:
+    val_mode = mrb_symbol_value(mrb_intern_cstr(mrb, "runner"));
+    break;
+  case JUMPER:
+    val_mode = mrb_symbol_value(mrb_intern_cstr(mrb, "jumper"));
+    break;
+  }
+  mrb_hash_set(mrb, info, key_mode, val_mode);
+  mrb_value key_lang_name = mrb_symbol_value(mrb_intern_cstr(mrb, "lang_name"));
+  mrb_value val_lang_name =
+      mrb_symbol_value(mrb_intern_cstr(mrb, lang_name.c_str()));
+  mrb_hash_set(mrb, info, key_lang_name, val_lang_name);
+  mrb_value key_filename = mrb_symbol_value(mrb_intern_cstr(mrb, "filename"));
+  mrb_value val_filename =
+      mrb_str_new(mrb, filename.c_str(), filename.length());
+  mrb_hash_set(mrb, info, key_filename, val_filename);
+  mrb_value key_width = mrb_symbol_value(mrb_intern_cstr(mrb, "width"));
+  mrb_value val_width = mrb_fixnum_value(width);
+  mrb_hash_set(mrb, info, key_width, val_width);
+  mrb_value mod_val = mrb_obj_value(C_module);
+  mrb_value block = mrb_funcall(mrb, mod_val, "b_bar", 0);
+  mrb_value val_line = mrb_funcall(mrb, block, "call", 1, info);
+  if (mrb->exc)
+    exit(1);
+  mrb_value text_val = mrb_hash_get(
+      mrb, val_line, mrb_symbol_value(mrb_intern_cstr(mrb, "text")));
+  const char *ptr = RSTRING_PTR(text_val);
+  mrb_int len = RSTRING_LEN(text_val);
+  bar_line.line = std::string(ptr, len);
+  mrb_value highlights_val = mrb_hash_get(
+      mrb, val_line, mrb_symbol_value(mrb_intern_cstr(mrb, "highlights")));
+  bar_line.highlights = convert_highlights(mrb, highlights_val);
+  return bar_line;
+}
+
 void ruby_shutdown() {
-  std::lock_guard lock(ruby_mutex);
   if (C_module == nullptr)
     return;
   mrb_value mod_val = mrb_obj_value(C_module);
@@ -99,7 +185,6 @@ std::vector<std::string> array_to_vector(mrb_value ary) {
 }
 
 void load_custom_highlighters() {
-  std::lock_guard<std::mutex> lock(ruby_mutex);
   if (!C_module)
     return;
   mrb_value mod_val = mrb_obj_value((struct RObject *)C_module);
@@ -127,7 +212,6 @@ void load_custom_highlighters() {
 }
 
 bool custom_compare(mrb_value match_block, mrb_value state1, mrb_value state2) {
-  std::lock_guard<std::mutex> lock(ruby_mutex);
   if (mrb_type(match_block) != MRB_TT_PROC)
     return false;
   mrb_value ret = mrb_funcall(mrb, match_block, "call", 2, state1, state2);
@@ -137,7 +221,6 @@ bool custom_compare(mrb_value match_block, mrb_value state1, mrb_value state2) {
 mrb_value parse_custom(std::vector<Token> *tokens, mrb_value parser_block,
                        const char *line, uint32_t len, mrb_value state,
                        uint32_t c_line) {
-  std::lock_guard<std::mutex> lock(ruby_mutex);
   tokens->clear();
   if (mrb_nil_p(parser_block))
     return mrb_nil_value();
@@ -168,7 +251,6 @@ mrb_value parse_custom(std::vector<Token> *tokens, mrb_value parser_block,
 }
 
 static std::vector<R_ThemeEntry> read_theme() {
-  std::lock_guard<std::mutex> lock(ruby_mutex);
   std::vector<R_ThemeEntry> result;
   if (!C_module)
     return result;
@@ -307,8 +389,6 @@ std::vector<R_Language> read_languages() {
       lang.name = std::string(RSTRING_PTR(key), RSTRING_LEN(key));
     mrb_value fg = mrb_hash_get(mrb, val_hash,
                                 mrb_symbol_value(mrb_intern_lit(mrb, "color")));
-    mrb_value symbol = mrb_hash_get(
-        mrb, val_hash, mrb_symbol_value(mrb_intern_lit(mrb, "symbol")));
     mrb_value extensions = mrb_hash_get(
         mrb, val_hash, mrb_symbol_value(mrb_intern_lit(mrb, "extensions")));
     mrb_value filenames = mrb_hash_get(
@@ -317,8 +397,6 @@ std::vector<R_Language> read_languages() {
                                  mrb_symbol_value(mrb_intern_lit(mrb, "lsp")));
     if (!mrb_nil_p(fg))
       lang.color = (uint32_t)mrb_fixnum(fg);
-    if (!mrb_nil_p(symbol))
-      lang.symbol = std::string(RSTRING_PTR(symbol), RSTRING_LEN(symbol));
     lang.extensions = array_to_vector(extensions);
     if (!mrb_nil_p(filenames))
       lang.filenames = array_to_vector(filenames);
@@ -330,7 +408,6 @@ std::vector<R_Language> read_languages() {
 }
 
 void load_languages_info() {
-  std::lock_guard lock(ruby_mutex);
   auto langs = read_languages();
   auto lsps_t = read_lsps();
   languages.clear();
@@ -339,7 +416,6 @@ void load_languages_info() {
     l.name = lang.name;
     l.color = lang.color;
     l.lsp_name = lang.lsp_command;
-    l.symbol = lang.symbol;
     languages[lang.name] = l;
     for (auto &ext : lang.extensions)
       language_extensions[ext] = lang.name;
@@ -352,7 +428,6 @@ void load_languages_info() {
 }
 
 uint8_t read_line_endings() {
-  std::lock_guard<std::mutex> lock(ruby_mutex);
   if (!C_module)
     return 1;
   mrb_value mod_val = mrb_obj_value((struct RObject *)C_module);

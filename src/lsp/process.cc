@@ -155,40 +155,78 @@ std::shared_ptr<LSPInstance> get_or_init_lsp(std::string lsp_id) {
 }
 
 void close_lsp(std::string lsp_id) {
-  std::shared_lock active_lsps_lock(active_lsps_mtx);
-  auto it = active_lsps.find(lsp_id);
-  if (it == active_lsps.end())
+  std::shared_ptr<LSPInstance> lsp;
+  {
+    std::shared_lock lock(active_lsps_mtx);
+    auto it = active_lsps.find(lsp_id);
+    if (it == active_lsps.end())
+      return;
+    lsp = it->second;
+  }
+  if (!lsp || lsp->pid == -1 || lsp->exited)
     return;
-  std::shared_ptr<LSPInstance> lsp = it->second;
-  active_lsps_lock.unlock();
   lsp->exited = true;
   lsp->initialized = false;
-  LSPPending *shutdown_pending = new LSPPending();
-  shutdown_pending->method = "shutdown";
-  shutdown_pending->callback = [lsp](Editor *, std::string, json) {
-    json exit = {{"jsonrpc", "2.0"}, {"method", "exit"}};
-    lsp_send(lsp, exit, nullptr);
+  auto send_raw = [&](const json &msg) {
+    std::string payload = msg.dump();
+    std::string header =
+        "Content-Length: " + std::to_string(payload.size()) + "\r\n\r\n";
+    std::string out = header + payload;
+    const char *ptr = out.data();
+    size_t remaining = out.size();
+    while (remaining > 0) {
+      ssize_t n = write(lsp->stdin_fd, ptr, remaining);
+      if (n <= 0) {
+        if (errno == EINTR)
+          continue;
+        break;
+      }
+      ptr += n;
+      remaining -= n;
+    }
   };
-  json shutdown = {{"jsonrpc", "2.0"}, {"method", "shutdown"}};
-  lsp_send(lsp, shutdown, shutdown_pending);
-  std::thread t([lsp, lsp_id] {
-    std::this_thread::sleep_for(100ms);
-    std::unique_lock active_lsps_lock(active_lsps_mtx);
-    std::unique_lock lock(lsp->mtx);
-    if (lsp->pid != -1 && kill(lsp->pid, 0) == 0)
-      kill(lsp->pid, SIGKILL);
+  json shutdown = {{"jsonrpc", "2.0"}, {"id", 1}, {"method", "shutdown"}};
+  send_raw(shutdown);
+  {
+    pollfd pfd{lsp->stdout_fd, POLLIN, 0};
+    int timeout_ms = 300;
+    if (poll(&pfd, 1, timeout_ms) > 0) {
+      auto msg = read_lsp_message(lsp->stdout_fd);
+      (void)msg;
+    }
+  }
+  json exit_msg = {{"jsonrpc", "2.0"}, {"method", "exit"}};
+  send_raw(exit_msg);
+  const int max_wait_ms = 500;
+  int waited = 0;
+  while (waited < max_wait_ms) {
+    int status;
+    pid_t res = waitpid(lsp->pid, &status, WNOHANG);
+    if (res == lsp->pid)
+      break;
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    waited += 10;
+  }
+  if (kill(lsp->pid, 0) == 0) {
+    kill(lsp->pid, SIGKILL);
     waitpid(lsp->pid, nullptr, 0);
-    close(lsp->stdin_fd);
-    close(lsp->stdout_fd);
+  }
+  close(lsp->stdin_fd);
+  close(lsp->stdout_fd);
+  {
+    std::unique_lock lock(lsp->mtx);
     for (auto &kv : lsp->pending)
       delete kv.second;
-    for (auto &editor : lsp->editors) {
-      std::unique_lock editor_lock(editor->lsp_mtx);
-      editor->lsp = nullptr;
-    }
+    lsp->pending.clear();
+  }
+  for (auto &editor : lsp->editors) {
+    std::unique_lock editor_lock(editor->lsp_mtx);
+    editor->lsp = nullptr;
+  }
+  {
+    std::unique_lock lock(active_lsps_mtx);
     active_lsps.erase(lsp_id);
-  });
-  t.detach();
+  }
 }
 
 void clean_lsp(std::shared_ptr<LSPInstance> lsp, std::string lsp_id) {

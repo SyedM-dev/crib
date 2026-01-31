@@ -9,6 +9,7 @@
 std::atomic<bool> running{true};
 Queue<KeyEvent> event_queue;
 std::vector<Editor *> editors;
+Bar bar;
 
 uint8_t current_editor = 0;
 std::atomic<uint8_t> mode = NORMAL;
@@ -36,7 +37,7 @@ inline uint8_t index_of(Editor *ed) {
   return 0;
 }
 
-void input_listener(Bar bar) {
+void input_listener() {
   while (running) {
     KeyEvent event = throttle(1ms, read_key);
     if (event.key_type == KEY_NONE)
@@ -53,7 +54,6 @@ void input_listener(Bar bar) {
         if (target) {
           if (event.mouse_state == PRESS)
             current_editor = index_of(target);
-
           event.mouse_x -= target->position.col;
           event.mouse_y -= target->position.row;
           handle_editor_event(target, event);
@@ -64,9 +64,11 @@ void input_listener(Bar bar) {
     } else {
       bar.handle(event);
     }
+    if ((event.key_type == KEY_CHAR || event.key_type == KEY_PASTE) && event.c)
+      free(event.c);
   render:
-    render_editor(editors[current_editor]);
     bar.render();
+    render_editor(editors[current_editor]);
     throttle(4ms, render);
   }
 }
@@ -82,7 +84,7 @@ int main(int argc, char *argv[]) {
   uint8_t eol = read_line_endings();
   Editor *editor =
       new_editor(filename, {0, 0}, {screen.row - 2, screen.col}, eol);
-  Bar bar(screen);
+  bar.init(screen);
 
   if (!editor) {
     end_screen();
@@ -93,11 +95,13 @@ int main(int argc, char *argv[]) {
   editors.push_back(editor);
   current_editor = editors.size() - 1;
 
-  std::thread input_thread(input_listener, bar);
+  std::thread input_thread(input_listener);
   std::thread lsp_thread(background_lsp);
 
-  while (running)
+  while (running) {
     throttle(16ms, editor_worker, editors[current_editor]);
+    bar.work();
+  }
 
   if (input_thread.joinable())
     input_thread.join();
@@ -109,16 +113,6 @@ int main(int argc, char *argv[]) {
 
   for (auto editor : editors)
     free_editor(editor);
-
-  std::unique_lock lk(active_lsps_mtx);
-  lk.unlock();
-  while (true) {
-    lk.lock();
-    if (active_lsps.empty())
-      break;
-    lk.unlock();
-    throttle(16ms, lsp_worker);
-  }
 
   ruby_shutdown();
 

@@ -4,8 +4,10 @@ Copyright 2025 Syed Daanish
 
 ##### BTW Check each lsp with each of the features implemented
 
+* [ ] Make a proper qeued system for bar contents from ruby
+* [ ] Allow clipbaord setting & alpha in ini files
+* [ ] Make warning before ctrl+q for saving
 * [ ] **LSP Bug:** Check why `fish-lsp` is behaving so off with completions filtering.
-* [ ] **Critical Crash:** Fix bug where closing immediately while LSP is still loading hangs and then segfaults (especially on slow ones like fish-lsp where quick edits and exit can hang).
 * [ ] **Line move:** fix the move line functions to work without the calculations from folds as folds are removed.
 * [ ] **Editor Indentation Fix:** - Main : merger indentation with the parser for more accurate results.
     * [ ] Fix bug where enter at start of line with ending type crashes
