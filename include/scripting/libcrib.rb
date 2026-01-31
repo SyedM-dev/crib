@@ -286,6 +286,11 @@ module C
       extensions: ["sh"],
       filenames: ["bash_profile", "bashrc"],
       lsp: "bash-language-server"
+    },
+    default: {
+      color: 0x6d8086,
+      symbol: "󰈚 ",
+      extensions: []
     }
   }
   @theme = {
@@ -347,6 +352,9 @@ module C
       mode_symbol = " "
     end
     lang_info = C.languages[info[:lang_name]]
+    if lang_info.nil?
+      lang_info = C.languages[:default]
+    end
     filename = File.basename(info[:filename])
     starting = " #{mode_symbol} #{info[:mode].to_s.upcase}  #{lang_info[:symbol]}#{filename}"
     highlights = []

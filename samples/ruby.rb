@@ -24,10 +24,10 @@ s wow
 々〆〤]/
 
 UNICORE = /
-    s
-    {#{ss}}
-    \C-s\u{10}
-  /
+s
+{#{ss}}
+\C-s\u{10}
+/
 
 UNINITCORE = %(
 

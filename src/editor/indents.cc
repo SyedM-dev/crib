@@ -226,8 +226,8 @@ void IndentationEngine::insert_new_line(Coord cursor) {
     if (!end_matched && is_end_start != kLangtoBlockEndsStart.end())
       for (auto end : is_end_start->second)
         if (starts_with(trim(line), end)) {
-          cursor.col =
-              set_indent(cursor.row, (int64_t)indent_expected(cursor.row) - 1);
+          cursor.col = set_indent(
+              cursor.row, (int64_t)indent_expected(cursor.row) - (int64_t)1);
           break;
         }
     lock.lock();
@@ -248,7 +248,7 @@ void IndentationEngine::insert_new_line(Coord cursor) {
   }
   std::string ending = trim(std::string(line + cursor.col, len - cursor.col));
   std::string before = trim(std::string(line, cursor.col));
-  uint32_t c_indent = indent_real(line, len);
+  int64_t c_indent = indent_real(line, len);
   if (!ending.empty()) {
     bool ending_valid = false;
     bool starting_valid = false;
@@ -271,14 +271,13 @@ void IndentationEngine::insert_new_line(Coord cursor) {
     if (is_end_set != kLangtoBlockStartsEnd.end())
       for (auto end : is_end_set->second)
         if (ends_with(before, end)) {
-          c_indent++;
           starting_valid = true;
           break;
         }
     if (!starting_valid && is_start_set != kLangtoBlockStartsStart.end())
       for (auto end : is_start_set->second)
         if (starts_with(before, end)) {
-          c_indent++;
+          starting_valid = true;
           break;
         }
     if (ending_valid && starting_valid)
@@ -286,7 +285,7 @@ void IndentationEngine::insert_new_line(Coord cursor) {
                (indent == 1 ? std::string(c_indent, '\t')
                             : std::string(c_indent * indent, ' ')) +
                ending;
-    else if (ending_valid && c_indent)
+    else if (ending_valid)
       c_indent--;
   }
   auto is_end_set = kLangtoBlockStartsEnd.find(editor->lang.name);
@@ -305,11 +304,13 @@ void IndentationEngine::insert_new_line(Coord cursor) {
         c_indent++;
         break;
       }
+  if (c_indent < 0)
+    c_indent = 0;
   formatted = "\n" +
               (indent == 1 ? std::string(c_indent, '\t')
                            : std::string(c_indent * indent, ' ')) +
               ending;
-  Coord new_cursor = {cursor.row + 1, c_indent * indent};
+  Coord new_cursor = {cursor.row + 1, (uint32_t)c_indent * indent};
   edit_replace(editor, cursor, {cursor.row, len}, formatted.data(),
                formatted.size());
   editor->cursor = new_cursor;

@@ -3,6 +3,7 @@
 
 #include "io/knot.h"
 #include "io/sysio.h"
+#include "pch.h"
 #include "syntax/trie.h"
 
 struct Highlight {
@@ -38,11 +39,6 @@ struct LineData {
   std::shared_ptr<void> in_state{nullptr};
   std::vector<Token> tokens;
   std::shared_ptr<void> out_state{nullptr};
-};
-
-struct CustomState {
-  mrb_value state;
-  CustomState(mrb_value s) : state(s) {}
 };
 
 #endif

@@ -1,9 +1,9 @@
 #include "io/sysio.h"
 #include "main.h"
+#include "pch.h"
 #include "scripting/decl.h"
 #include "scripting/ruby_compiled.h"
 #include "utils/utils.h"
-#include <mruby/boxing_word.h>
 
 std::unordered_map<std::string, std::pair<mrb_value, mrb_value>>
     custom_highlighters;
@@ -73,6 +73,39 @@ void ruby_start() {
   mrb_value block = mrb_funcall(mrb, mod_val, "b_startup", 0);
   if (!mrb_nil_p(block))
     mrb_funcall(mrb, block, "call", 0);
+  mrb_garbage_collect(mrb);
+}
+
+static mrb_value sym_fg;
+static mrb_value sym_bg;
+static mrb_value sym_flags;
+static mrb_value sym_start;
+static mrb_value sym_length;
+static mrb_value sym_mode;
+static mrb_value sym_lang_name;
+static mrb_value sym_filename;
+static mrb_value sym_width;
+static mrb_value sym_normal;
+static mrb_value sym_insert;
+static mrb_value sym_select;
+static mrb_value sym_runner;
+static mrb_value sym_jumper;
+
+inline void initialize_symbols() {
+  sym_fg = mrb_symbol_value(mrb_intern_cstr(mrb, "fg"));
+  sym_bg = mrb_symbol_value(mrb_intern_cstr(mrb, "bg"));
+  sym_flags = mrb_symbol_value(mrb_intern_cstr(mrb, "flags"));
+  sym_start = mrb_symbol_value(mrb_intern_cstr(mrb, "start"));
+  sym_length = mrb_symbol_value(mrb_intern_cstr(mrb, "length"));
+  sym_mode = mrb_symbol_value(mrb_intern_cstr(mrb, "mode"));
+  sym_lang_name = mrb_symbol_value(mrb_intern_cstr(mrb, "lang_name"));
+  sym_filename = mrb_symbol_value(mrb_intern_cstr(mrb, "filename"));
+  sym_width = mrb_symbol_value(mrb_intern_cstr(mrb, "width"));
+  sym_normal = mrb_symbol_value(mrb_intern_cstr(mrb, "normal"));
+  sym_insert = mrb_symbol_value(mrb_intern_cstr(mrb, "insert"));
+  sym_select = mrb_symbol_value(mrb_intern_cstr(mrb, "select"));
+  sym_runner = mrb_symbol_value(mrb_intern_cstr(mrb, "runner"));
+  sym_jumper = mrb_symbol_value(mrb_intern_cstr(mrb, "jumper"));
 }
 
 inline static std::vector<BarLight>
@@ -85,14 +118,11 @@ convert_highlights(mrb_state *mrb, mrb_value highlights_val) {
     mrb_value item = mrb_ary_ref(mrb, highlights_val, i);
     if (!mrb_hash_p(item))
       continue;
-    auto get_sym = [&](const char *name) {
-      return mrb_symbol_value(mrb_intern_cstr(mrb, name));
-    };
-    mrb_value fg_v = mrb_hash_get(mrb, item, get_sym("fg"));
-    mrb_value bg_v = mrb_hash_get(mrb, item, get_sym("bg"));
-    mrb_value flags_v = mrb_hash_get(mrb, item, get_sym("flags"));
-    mrb_value start_v = mrb_hash_get(mrb, item, get_sym("start"));
-    mrb_value length_v = mrb_hash_get(mrb, item, get_sym("length"));
+    mrb_value fg_v = mrb_hash_get(mrb, item, sym_fg);
+    mrb_value bg_v = mrb_hash_get(mrb, item, sym_bg);
+    mrb_value flags_v = mrb_hash_get(mrb, item, sym_flags);
+    mrb_value start_v = mrb_hash_get(mrb, item, sym_start);
+    mrb_value length_v = mrb_hash_get(mrb, item, sym_length);
     BarLight bl{};
     if (!mrb_nil_p(fg_v))
       bl.highlight.fg = (uint32_t)mrb_fixnum(fg_v);
@@ -114,36 +144,42 @@ BarLine bar_contents(uint8_t mode, std::string lang_name, uint32_t warnings,
                      std::string foldername, uint32_t line, uint32_t max_line,
                      uint32_t width) {
   BarLine bar_line;
+  static bool initialed = false;
+  if (!initialed) {
+    initialize_symbols();
+    initialed = true;
+  }
+  int ai = mrb_gc_arena_save(mrb);
   mrb_value info = mrb_hash_new(mrb);
-  mrb_value key_mode = mrb_symbol_value(mrb_intern_cstr(mrb, "mode"));
+  mrb_value key_mode = sym_mode;
   mrb_value val_mode;
   switch (mode) {
   case NORMAL:
-    val_mode = mrb_symbol_value(mrb_intern_cstr(mrb, "normal"));
+    val_mode = sym_normal;
     break;
   case INSERT:
-    val_mode = mrb_symbol_value(mrb_intern_cstr(mrb, "insert"));
+    val_mode = sym_insert;
     break;
   case SELECT:
-    val_mode = mrb_symbol_value(mrb_intern_cstr(mrb, "select"));
+    val_mode = sym_select;
     break;
   case RUNNER:
-    val_mode = mrb_symbol_value(mrb_intern_cstr(mrb, "runner"));
+    val_mode = sym_runner;
     break;
   case JUMPER:
-    val_mode = mrb_symbol_value(mrb_intern_cstr(mrb, "jumper"));
+    val_mode = sym_jumper;
     break;
   }
   mrb_hash_set(mrb, info, key_mode, val_mode);
-  mrb_value key_lang_name = mrb_symbol_value(mrb_intern_cstr(mrb, "lang_name"));
+  mrb_value key_lang_name = sym_lang_name;
   mrb_value val_lang_name =
       mrb_symbol_value(mrb_intern_cstr(mrb, lang_name.c_str()));
   mrb_hash_set(mrb, info, key_lang_name, val_lang_name);
-  mrb_value key_filename = mrb_symbol_value(mrb_intern_cstr(mrb, "filename"));
+  mrb_value key_filename = sym_filename;
   mrb_value val_filename =
       mrb_str_new(mrb, filename.c_str(), filename.length());
   mrb_hash_set(mrb, info, key_filename, val_filename);
-  mrb_value key_width = mrb_symbol_value(mrb_intern_cstr(mrb, "width"));
+  mrb_value key_width = sym_width;
   mrb_value val_width = mrb_fixnum_value(width);
   mrb_hash_set(mrb, info, key_width, val_width);
   mrb_value mod_val = mrb_obj_value(C_module);
@@ -164,10 +200,12 @@ BarLine bar_contents(uint8_t mode, std::string lang_name, uint32_t warnings,
   mrb_value highlights_val = mrb_hash_get(
       mrb, val_line, mrb_symbol_value(mrb_intern_cstr(mrb, "highlights")));
   bar_line.highlights = convert_highlights(mrb, highlights_val);
+  mrb_gc_arena_restore(mrb, ai);
   return bar_line;
 }
 
 void ruby_copy(const char *text, size_t len) {
+  int ai = mrb_gc_arena_save(mrb);
   if (C_module == nullptr)
     return;
   mrb_value mod_val = mrb_obj_value(C_module);
@@ -181,9 +219,11 @@ void ruby_copy(const char *text, size_t len) {
     mrb_close(mrb);
     exit(1);
   }
+  mrb_gc_arena_restore(mrb, ai);
 }
 
 std::string ruby_paste() {
+  int ai = mrb_gc_arena_save(mrb);
   if (C_module == nullptr)
     return "";
   mrb_value mod_val = mrb_obj_value(C_module);
@@ -197,10 +237,15 @@ std::string ruby_paste() {
       mrb_close(mrb);
       exit(1);
     }
-    if (mrb_string_p(val))
-      return std::string(RSTRING_PTR(val), RSTRING_LEN(val));
+    if (mrb_string_p(val)) {
+      std::string result = std::string(RSTRING_PTR(val), RSTRING_LEN(val));
+      mrb_gc_arena_restore(mrb, ai);
+      return result;
+    }
+    mrb_gc_arena_restore(mrb, ai);
     return "";
   }
+  mrb_gc_arena_restore(mrb, ai);
   return "";
 }
 
@@ -254,6 +299,7 @@ void load_custom_highlighters() {
         mrb_hash_get(mrb, val_hash, mrb_symbol_value(matcher_sym));
     custom_highlighters[key] = {parse_block, match_block};
   }
+  mrb_garbage_collect(mrb);
 }
 
 bool custom_compare(mrb_value match_block, mrb_value state1, mrb_value state2) {
@@ -341,6 +387,7 @@ static std::vector<R_ThemeEntry> read_theme() {
       entry.strikethrough = mrb_test(strikethrough);
     result.push_back(entry);
   }
+  mrb_garbage_collect(mrb);
   return result;
 }
 
@@ -409,6 +456,7 @@ std::vector<LSP> read_lsps() {
     std::vector<std::string> args = array_to_vector(args_array);
     result.push_back({cmd, args});
   }
+  mrb_garbage_collect(mrb);
   return result;
 }
 
@@ -449,6 +497,7 @@ std::vector<R_Language> read_languages() {
       lang.lsp_command = std::string(RSTRING_PTR(lsp), RSTRING_LEN(lsp));
     result.push_back(lang);
   }
+  mrb_garbage_collect(mrb);
   return result;
 }
 

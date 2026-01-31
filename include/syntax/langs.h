@@ -1,6 +1,7 @@
 #ifndef SYNTAX_LANGS_H
 #define SYNTAX_LANGS_H
 
+#include "scripting/decl.h"
 #include "syntax/decl.h"
 
 #define DEF_LANG(name)                                                         \
@@ -14,6 +15,12 @@
   {                                                                            \
     #name, { name##_parse, name##_state_match }                                \
   }
+
+struct CustomState {
+  mrb_value state;
+  CustomState(mrb_value s) : state(s) { mrb_gc_register(mrb, state); }
+  ~CustomState() { mrb_gc_unregister(mrb, state); }
+};
 
 template <typename T>
 inline std::shared_ptr<T> ensure_state(std::shared_ptr<T> state) {

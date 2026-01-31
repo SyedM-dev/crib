@@ -20,9 +20,8 @@ Binary can be installed with the following command:
 curl https://syedm.dev/crib | sh
 ```
 
-It requires `libmagic` to be installed (most systems have it preinstalled).<br>
 Currently only for Linux.<br>
-*Tested with arch linux and ubuntu*<br>
+*Tested with arch linux and ubuntu and void*<br>
 
 ## Building
 
@@ -99,7 +98,7 @@ The following lsp's are added by default and can be installed anywhere in your `
 
 #### Compiler
 
-`clang++` should work fine but `c++23+` is required.<br>
+`g++` or `clang++` should work fine but `c++20+` is required.<br>
 Can remove `ccache` if you want from the makefile.<br>
 
 #### Compliling

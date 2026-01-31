@@ -6,6 +6,7 @@
 
 extern std::unordered_map<std::string, std::pair<mrb_value, mrb_value>>
     custom_highlighters;
+extern mrb_state *mrb;
 
 struct BarLight {
   uint32_t start;

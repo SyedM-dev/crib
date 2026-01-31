@@ -20,8 +20,8 @@ CFLAGS_DEBUG :=\
 	-O0 -fno-inline -gsplit-dwarf \
 	-g -fno-omit-frame-pointer \
 	-Wno-unused-command-line-argument \
-	-fsanitize=address \
 	-I./include -I./libs -I/home/syed/main/crib/libs/mruby/include
+# -fsanitize=address \
 
 CFLAGS_RELEASE :=\
 	-static --target=x86_64-linux-musl \
