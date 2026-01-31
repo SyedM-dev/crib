@@ -1,3 +1,4 @@
+#include "io/sysio.h"
 #include "main.h"
 #include "scripting/decl.h"
 #include "scripting/ruby_compiled.h"
@@ -148,8 +149,13 @@ BarLine bar_contents(uint8_t mode, std::string lang_name, uint32_t warnings,
   mrb_value mod_val = mrb_obj_value(C_module);
   mrb_value block = mrb_funcall(mrb, mod_val, "b_bar", 0);
   mrb_value val_line = mrb_funcall(mrb, block, "call", 1, info);
-  if (mrb->exc)
+  if (mrb->exc) {
+    end_screen();
+    fputs("Error when executing Ruby code:\n", stderr);
+    mrb_print_error(mrb);
+    mrb_close(mrb);
     exit(1);
+  }
   mrb_value text_val = mrb_hash_get(
       mrb, val_line, mrb_symbol_value(mrb_intern_cstr(mrb, "text")));
   const char *ptr = RSTRING_PTR(text_val);
@@ -159,6 +165,43 @@ BarLine bar_contents(uint8_t mode, std::string lang_name, uint32_t warnings,
       mrb, val_line, mrb_symbol_value(mrb_intern_cstr(mrb, "highlights")));
   bar_line.highlights = convert_highlights(mrb, highlights_val);
   return bar_line;
+}
+
+void ruby_copy(const char *text, size_t len) {
+  if (C_module == nullptr)
+    return;
+  mrb_value mod_val = mrb_obj_value(C_module);
+  mrb_value block = mrb_funcall(mrb, mod_val, "b_copy", 0);
+  if (!mrb_nil_p(block))
+    mrb_funcall(mrb, block, "call", 1, mrb_str_new(mrb, text, len));
+  if (mrb->exc) {
+    end_screen();
+    fputs("Error when executing Ruby code:\n", stderr);
+    mrb_print_error(mrb);
+    mrb_close(mrb);
+    exit(1);
+  }
+}
+
+std::string ruby_paste() {
+  if (C_module == nullptr)
+    return "";
+  mrb_value mod_val = mrb_obj_value(C_module);
+  mrb_value block = mrb_funcall(mrb, mod_val, "b_paste", 0);
+  if (!mrb_nil_p(block)) {
+    mrb_value val = mrb_funcall(mrb, block, "call", 0);
+    if (mrb->exc) {
+      end_screen();
+      fputs("Error when executing Ruby code:\n", stderr);
+      mrb_print_error(mrb);
+      mrb_close(mrb);
+      exit(1);
+    }
+    if (mrb_string_p(val))
+      return std::string(RSTRING_PTR(val), RSTRING_LEN(val));
+    return "";
+  }
+  return "";
 }
 
 void ruby_shutdown() {

@@ -11,7 +11,7 @@ void cut(Editor *editor) {
   Coord start;
   uint32_t len;
   char *text = get_selection(editor, &len, &start);
-  copy_to_clipboard(text, len);
+  ruby_copy(text, len);
   len = count_clusters(text, len, 0, len);
   edit_erase(editor, start, len);
   free(text);
@@ -23,22 +23,20 @@ void copy(Editor *editor) {
     return;
   uint32_t len;
   char *text = get_selection(editor, &len, nullptr);
-  copy_to_clipboard(text, len);
+  ruby_copy(text, len);
   free(text);
   editor->selection_active = false;
 }
 
 void paste(Editor *editor) {
-  uint32_t len;
   if (mode == NORMAL) {
-    char *text = get_from_clipboard(&len);
-    if (text) {
-      insert_str(editor, text, len);
-      free(text);
-    }
+    std::string text = ruby_paste();
+    if (text.empty())
+      return;
+    insert_str(editor, (char *)text.c_str(), text.length());
   } else if (mode == SELECT) {
-    char *text = get_from_clipboard(&len);
-    if (text) {
+    std::string text = ruby_paste();
+    if (!text.empty()) {
       Coord start, end;
       selection_bounds(editor, &start, &end);
       uint32_t start_byte =
@@ -46,8 +44,7 @@ void paste(Editor *editor) {
       uint32_t end_byte =
           line_to_byte(editor->root, end.row, nullptr) + end.col;
       edit_erase(editor, start, end_byte - start_byte);
-      edit_insert(editor, editor->cursor, text, len);
-      free(text);
+      edit_insert(editor, editor->cursor, (char *)text.c_str(), text.length());
     }
     editor->selection_active = false;
   }

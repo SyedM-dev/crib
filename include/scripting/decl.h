@@ -29,6 +29,8 @@ struct BarLine {
 void setup_ruby_bindings(mrb_state *mrb, RClass *C_module);
 void ruby_start();
 void ruby_shutdown();
+void ruby_copy(const char *text, size_t len);
+std::string ruby_paste();
 void load_theme();
 void load_languages_info();
 uint8_t read_line_endings();

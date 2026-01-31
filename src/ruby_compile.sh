@@ -19,14 +19,29 @@ while read -r line; do
   fi
 done <"$INPUT"
 
+OS="$(uname -s)"
+OS_TYPE="unknown"
+
+case "$OS" in
+Linux*)
+  OS_TYPE="linux"
+  ;;
+Darwin*)
+  OS_TYPE="mac"
+  ;;
+CYGWIN* | MINGW* | MSYS*)
+  OS_TYPE="windows"
+  ;;
+esac
+
 {
   echo "  freeze"
   echo "end"
   echo
-  cat "$SCRIPT_DIR/../include/scripting/libcrib.rb"
+  cat "$SCRIPT_DIR/../include/scripting/libcrib.rb" | sed "s/os_name_placed_here/$OS_TYPE/g"
 } >>"$TMP"
 
-mrbc -o$OUTPUT $TMP
+"$SCRIPT_DIR/../libs/mruby/bin/mrbc" -o$OUTPUT $TMP
 
 {
   echo "#pragma once"

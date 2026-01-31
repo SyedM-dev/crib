@@ -2,3 +2,7 @@
 	path = libs/libgrapheme
 	url = git://git.suckless.org/libgrapheme
   ignore = dirty
+[submodule "libs/mruby"]
+	path = libs/mruby
+  url = https://github.com/mruby/mruby.git
+  ignore = dirty

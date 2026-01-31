@@ -115,8 +115,8 @@ LineIterator *begin_l_iter(Knot *root, uint32_t start_line);
 // Each subsequent call returns the next line as a null terminated string
 // `it` is the iterator returned from begin_l_iter
 // After getting the necessary lines free the iterator (no need to go upto
-// the end) returns null if there are no more lines All return strings
-// `must` be freed by the caller
+// the end) returns null if there are no more lines
+// The string must not be freed
 char *next_line(LineIterator *it, uint32_t *out_len);
 
 // Returns the previous line as a null terminated string

@@ -4,13 +4,13 @@ Copyright 2025 Syed Daanish
 
 ##### BTW Check each lsp with each of the features implemented
 
-* [ ] Make a proper qeued system for bar contents from ruby
-* [ ] Allow clipbaord setting & alpha in ini files
+* [ ] Add mgems for most common things and a ruby library to allow combining true ruby with mruby
+      - Or revert to cruby and retry with manual linking . maybe it might work?
+* [ ] color alpha in ini files
 * [ ] Make warning before ctrl+q for saving
 * [ ] **LSP Bug:** Check why `fish-lsp` is behaving so off with completions filtering.
 * [ ] **Line move:** fix the move line functions to work without the calculations from folds as folds are removed.
 * [ ] **Editor Indentation Fix:** - Main : merger indentation with the parser for more accurate results.
-    * [ ] Fix bug where enter at start of line with ending type crashes
     * [ ] Keep cache of language maps in engine to reduce lookup time.
     * [ ] In indents add function to support tab which indents if before any content and inserts a pure \t otherwise.
     * [ ] And backspace which undents if before any content.

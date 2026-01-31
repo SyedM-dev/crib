@@ -5,17 +5,12 @@
 
 struct LineTree {
   void clear() {
-    std::unique_lock lock(mtx);
     clear_node(root);
     root = nullptr;
     stack_size = 0;
   }
-  void build(uint32_t x) {
-    std::unique_lock lock(mtx);
-    root = build_node(x);
-  }
+  void build(uint32_t x) { root = build_node(x); }
   LineData *at(uint32_t x) {
-    std::shared_lock lock(mtx);
     LineNode *n = root;
     while (n) {
       uint32_t left_size = n->left ? n->left->size : 0;
@@ -31,7 +26,6 @@ struct LineTree {
     return nullptr;
   }
   LineData *start_iter(uint32_t x) {
-    std::shared_lock lock(mtx);
     stack_size = 0;
     LineNode *n = root;
     while (n) {
@@ -52,7 +46,6 @@ struct LineTree {
   }
   void end_iter() { stack_size = 0; }
   LineData *next() {
-    std::shared_lock lock(mtx);
     while (stack_size) {
       auto &f = stack[stack_size - 1];
       LineNode *n = f.node;
@@ -73,21 +66,16 @@ struct LineTree {
     return nullptr;
   }
   void insert(uint32_t x, uint32_t y) {
-    std::unique_lock lock(mtx);
     if (x > subtree_size(root))
       x = subtree_size(root);
     root = insert_node(root, x, y);
   }
   void erase(uint32_t x, uint32_t y) {
-    std::unique_lock lock(mtx);
     if (x + y > subtree_size(root))
       x = subtree_size(root) - y;
     root = erase_node(root, x, y);
   }
-  uint32_t count() {
-    std::shared_lock lock(mtx);
-    return subtree_size(root);
-  }
+  uint32_t count() { return subtree_size(root); }
   ~LineTree() { clear(); }
 
 private:
@@ -117,7 +105,6 @@ private:
   LineNode *root = nullptr;
   Frame stack[32];
   std::atomic<uint8_t> stack_size = 0;
-  std::shared_mutex mtx;
   static constexpr uint32_t LEAF_TARGET = 256;
   LineTree::LineNode *erase_node(LineNode *n, uint32_t x, uint32_t y) {
     if (!n || y == 0)

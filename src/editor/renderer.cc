@@ -25,9 +25,6 @@ void render_editor(Editor *editor) {
   while (warn_it != editor->warnings.end() &&
          warn_it->line < editor->scroll.row)
     ++warn_it;
-  std::unique_lock<std::mutex> lock;
-  if (editor->parser)
-    lock = std::unique_lock<std::mutex>(editor->parser->mutex);
   LineData *line_data = nullptr;
   auto get_type = [&](uint32_t col) {
     if (!line_data)
@@ -450,8 +447,6 @@ void render_editor(Editor *editor) {
     global_byte_offset += line_len + 1;
     line_index++;
   }
-  if (lock.owns_lock())
-    lock.unlock();
   while (rendered_rows < editor->size.row) {
     for (uint32_t col = 0; col < editor->size.col; col++)
       update(editor->position.row + rendered_rows, editor->position.col + col,

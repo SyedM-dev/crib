@@ -31,7 +31,6 @@ Parser::Parser(Editor *n_editor, std::string n_lang, uint32_t n_scroll_max) {
 
 void Parser::edit(uint32_t start_line, uint32_t old_end_line,
                   uint32_t inserted_rows) {
-  std::lock_guard lock(data_mutex);
   if (((int64_t)old_end_line - (int64_t)start_line) > 0)
     line_tree.erase(start_line, old_end_line - start_line);
   if (inserted_rows > 0)
@@ -45,143 +44,90 @@ void Parser::edit(uint32_t start_line, uint32_t old_end_line,
 void Parser::work() {
   if (!editor || !editor->root)
     return;
-  std::shared_lock k_lock(editor->knot_mtx);
-  k_lock.unlock();
-  uint32_t capacity = 256;
-  char *text = (char *)calloc((capacity + 1), sizeof(char));
-  std::unique_lock lock_data(data_mutex);
-  lock_data.unlock();
-  std::unique_lock lock(mutex);
-  lock.unlock();
+  std::vector<uint32_t> batch;
   uint32_t c_line;
-  while (dirty_lines.pop(c_line)) {
-    if (!running.load(std::memory_order_relaxed)) {
-      free(text);
-      return;
-    }
-    if (c_line > scroll_max + 40) {
+  while (dirty_lines.pop(c_line))
+    batch.push_back(c_line);
+  for (uint32_t c_line : batch) {
+    if (!running.load(std::memory_order_relaxed))
+      break;
+    uint32_t min_line = scroll_max > 50 ? scroll_max - 50 : 0;
+    uint32_t max_line = scroll_max + 10;
+    if (c_line < min_line || c_line > max_line) {
       dirty_lines.push(c_line);
       continue;
     }
-    if (scroll_max > 50 && c_line < scroll_max - 50) {
-      dirty_lines.push(c_line);
-      continue;
-    }
-    uint32_t line_count = line_tree.count();
-    lock_data.lock();
-    std::shared_ptr<void> prev_state =
-        (c_line > 0) && c_line < line_tree.count()
-            ? line_tree.at(c_line - 1)->out_state
-            : nullptr;
-    lock_data.unlock();
-    while (c_line < line_count) {
-      if (!running.load(std::memory_order_relaxed)) {
-        free(text);
-        return;
+    uint32_t scroll_snapshot = scroll_max;
+    std::shared_ptr<void> prev_state = nullptr;
+    uint32_t line_count;
+    line_count = line_tree.count();
+    if (c_line > 0 && c_line < line_count)
+      prev_state = line_tree.at(c_line - 1)->out_state;
+    std::shared_lock k_lock(editor->knot_mtx);
+    LineIterator *it = begin_l_iter(editor->root, c_line);
+    uint32_t cur_line = c_line;
+    while (cur_line < line_count) {
+      if (!running.load(std::memory_order_relaxed))
+        break;
+      if (scroll_snapshot != scroll_max) {
+        dirty_lines.push(cur_line);
+        break;
       }
-      if (scroll_dirty.exchange(false, std::memory_order_acq_rel)) {
-        dirty_lines.push(c_line);
-        c_line = scroll_max < 50 ? 0 : scroll_max - 50;
+      if (cur_line < min_line || cur_line > max_line) {
+        dirty_lines.push(cur_line);
+        break;
       }
-      k_lock.lock();
-      if (c_line > editor->root->line_count) {
-        k_lock.unlock();
-        continue;
-      }
-      uint32_t r_offset, r_len;
-      r_offset = line_to_byte(editor->root, c_line, &r_len);
-      if (r_len > capacity) {
-        capacity = r_len;
-        text = (char *)realloc(text, capacity + 1);
-        memset(text, 0, capacity + 1);
-      }
-      read_into(editor->root, r_offset, r_len, text);
-      k_lock.unlock();
-      if (c_line < scroll_max &&
-          ((scroll_max > 100 && c_line > scroll_max - 100) || c_line < 100))
-        lock.lock();
-      if (line_tree.count() < c_line) {
-        if (lock.owns_lock())
-          lock.unlock();
-        continue;
-      }
-      lock_data.lock();
-      LineData *line_data = line_tree.at(c_line);
+      uint32_t len;
+      char *line = next_line(it, &len);
+      if (!line)
+        break;
+      LineData *line_data = line_tree.at(cur_line);
       if (!line_data) {
-        lock_data.unlock();
-        if (lock.owns_lock())
-          lock.unlock();
+        cur_line++;
         continue;
       }
-      std::shared_ptr<void> new_state{nullptr};
+      std::shared_ptr<void> new_state;
       if (is_custom) {
         mrb_value state = mrb_nil_value();
-        if (prev_state) {
-          std::shared_ptr<CustomState> state_ptr =
-              std::static_pointer_cast<CustomState>(prev_state);
-          state = state_ptr->state;
-        }
+        if (prev_state)
+          state = std::static_pointer_cast<CustomState>(prev_state)->state;
         mrb_value out_state = parse_custom(&line_data->tokens, parser_block,
-                                           text, r_len, state, c_line);
-        std::shared_ptr<CustomState> out_state_ptr =
-            std::make_shared<CustomState>(out_state);
-        new_state = out_state_ptr;
+                                           line, len, state, cur_line);
+        new_state = std::make_shared<CustomState>(out_state);
       } else {
         new_state =
-            parse_func(&line_data->tokens, prev_state, text, r_len, c_line);
+            parse_func(&line_data->tokens, prev_state, line, len, cur_line);
       }
       line_data->in_state = prev_state;
       line_data->out_state = new_state;
-      if (!running.load(std::memory_order_relaxed)) {
-        free(text);
-        return;
+      bool done = false;
+      if (cur_line + 1 < line_count) {
+        LineData *next_line_data = line_tree.at(cur_line + 1);
+        if (next_line_data) {
+          if (is_custom) {
+            mrb_value a =
+                prev_state
+                    ? std::static_pointer_cast<CustomState>(new_state)->state
+                    : mrb_nil_value();
+            mrb_value b = next_line_data->in_state
+                              ? std::static_pointer_cast<CustomState>(
+                                    next_line_data->in_state)
+                                    ->state
+                              : mrb_nil_value();
+            done = custom_compare(match_block, a, b);
+          } else {
+            done = state_match_func(new_state, next_line_data->in_state);
+          }
+        }
       }
       prev_state = new_state;
-      c_line++;
-      if (c_line < line_count && c_line > scroll_max + 50 && scroll_max < 50 &&
-          c_line < scroll_max + 50) {
-        lock_data.unlock();
-        if (lock.owns_lock())
-          lock.unlock();
-        if (c_line > 0)
-          dirty_lines.push(c_line - 1);
-        dirty_lines.push(c_line);
+      cur_line++;
+      if (done)
         break;
-      }
-      if (c_line < line_count && (line_data = line_tree.at(c_line))) {
-        bool done = false;
-        if (is_custom) {
-          mrb_value in_state_v = mrb_nil_value();
-          if (prev_state)
-            in_state_v =
-                std::static_pointer_cast<CustomState>(prev_state)->state;
-          mrb_value out_state_v = mrb_nil_value();
-          if (line_data->in_state)
-            out_state_v =
-                std::static_pointer_cast<CustomState>(line_data->in_state)
-                    ->state;
-          done = custom_compare(match_block, in_state_v, out_state_v);
-        } else {
-          done = state_match_func(prev_state, line_data->in_state);
-        }
-        if (done) {
-          lock_data.unlock();
-          if (lock.owns_lock())
-            lock.unlock();
-          break;
-        }
-      }
-      lock_data.unlock();
-      if (lock.owns_lock())
-        lock.unlock();
     }
-    if (!running.load(std::memory_order_relaxed)) {
-      free(text);
-      return;
-    }
+    free(it->buffer);
+    free(it);
   }
-  free(text);
-  lock_data.lock();
 }
 
 void Parser::scroll(uint32_t line) {
@@ -190,7 +136,6 @@ void Parser::scroll(uint32_t line) {
     uint32_t c_line = line > 50 ? line - 50 : 0;
     if (c_line >= line_tree.count())
       return;
-    std::unique_lock lock_data(data_mutex);
     if (line_tree.at(c_line)->in_state || line_tree.at(c_line)->out_state)
       return;
     scroll_dirty = true;

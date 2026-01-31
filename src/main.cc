@@ -37,7 +37,30 @@ inline uint8_t index_of(Editor *ed) {
   return 0;
 }
 
-void input_listener() {
+int main(int argc, char *argv[]) {
+  ruby_start();
+  load_theme();
+  load_languages_info();
+  load_custom_highlighters();
+
+  Coord screen = start_screen();
+  const char *filename = (argc > 1) ? argv[1] : "";
+  uint8_t eol = read_line_endings();
+  Editor *editor =
+      new_editor(filename, {0, 0}, {screen.row - 2, screen.col}, eol);
+  bar.init(screen);
+
+  if (!editor) {
+    end_screen();
+    fprintf(stderr, "Failed to load editor\n");
+    return 1;
+  }
+
+  editors.push_back(editor);
+  current_editor = editors.size() - 1;
+
+  std::thread lsp_thread(background_lsp);
+
   while (running) {
     KeyEvent event = throttle(1ms, read_key);
     if (event.key_type == KEY_NONE)
@@ -67,44 +90,12 @@ void input_listener() {
     if ((event.key_type == KEY_CHAR || event.key_type == KEY_PASTE) && event.c)
       free(event.c);
   render:
+    throttle(4ms, editor_worker, editors[current_editor]);
+    bar.work();
     bar.render();
     render_editor(editors[current_editor]);
     throttle(4ms, render);
   }
-}
-
-int main(int argc, char *argv[]) {
-  ruby_start();
-  load_theme();
-  load_languages_info();
-  load_custom_highlighters();
-
-  Coord screen = start_screen();
-  const char *filename = (argc > 1) ? argv[1] : "";
-  uint8_t eol = read_line_endings();
-  Editor *editor =
-      new_editor(filename, {0, 0}, {screen.row - 2, screen.col}, eol);
-  bar.init(screen);
-
-  if (!editor) {
-    end_screen();
-    fprintf(stderr, "Failed to load editor\n");
-    return 1;
-  }
-
-  editors.push_back(editor);
-  current_editor = editors.size() - 1;
-
-  std::thread input_thread(input_listener);
-  std::thread lsp_thread(background_lsp);
-
-  while (running) {
-    throttle(16ms, editor_worker, editors[current_editor]);
-    bar.work();
-  }
-
-  if (input_thread.joinable())
-    input_thread.join();
 
   if (lsp_thread.joinable())
     lsp_thread.join();

@@ -21,7 +21,7 @@ CFLAGS_DEBUG :=\
 	-g -fno-omit-frame-pointer \
 	-Wno-unused-command-line-argument \
 	-fsanitize=address \
-	-I./include -I./libs
+	-I./include -I./libs -I/home/syed/main/crib/libs/mruby/include
 
 CFLAGS_RELEASE :=\
 	-static --target=x86_64-linux-musl \
@@ -32,7 +32,7 @@ CFLAGS_RELEASE :=\
 	-fomit-frame-pointer -DNDEBUG -s \
 	-mllvm -vectorize-loops \
 	-Wno-unused-command-line-argument \
-	-I./include -I./libs
+	-I./include -I./libs -I/home/syed/main/crib/libs/mruby/include
 
 PCH_CFLAGS_DEBUG := $(CFLAGS_DEBUG) -x c++-header
 PCH_CFLAGS_RELEASE := $(CFLAGS_RELEASE) -x c++-header
@@ -43,12 +43,12 @@ UNICODE_OBJ_DEBUG := $(patsubst libs/unicode_width/%.c,$(OBJ_DIR)/debug/unicode_
 UNICODE_OBJ_RELEASE := $(patsubst libs/unicode_width/%.c,$(OBJ_DIR)/release/unicode_width/%.o,$(UNICODE_SRC))
 
 LIBS_RELEASE := \
-	libs/libgrapheme/libgrapheme.a \
-	-Wl,-Bstatic,--gc-sections -lpcre2-8 -lmruby
+	libs/libgrapheme/libgrapheme.a ./libs/mruby/build/host/lib/libmruby.a \
+	-Wl,-Bstatic,--gc-sections -lpcre2-8
 
 LIBS_DEBUG := \
-	libs/libgrapheme/libgrapheme.a \
-	-Wl,-Bdynamic -lpcre2-8 -lmruby
+	libs/libgrapheme/libgrapheme.a ./libs/mruby/build/host/lib/libmruby.a \
+	-Wl,-Bdynamic -lpcre2-8
 
 SRC := $(wildcard $(SRC_DIR)/**/*.cc) $(wildcard $(SRC_DIR)/*.cc)
 OBJ_DEBUG := $(patsubst $(SRC_DIR)/%.cc,$(OBJ_DIR)/debug/%.o,$(SRC))

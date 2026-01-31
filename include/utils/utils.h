@@ -155,9 +155,6 @@ std::string get_exe_dir();
 char *load_file(const char *path, uint32_t *out_len, bool *out_eol);
 Language language_for_file(const char *filename);
 
-void copy_to_clipboard(const char *text, size_t len);
-char *get_from_clipboard(uint32_t *out_len);
-
 template <typename T>
 inline T *safe_get(std::map<uint16_t, T> &m, uint16_t key) {
   auto it = m.find(key);

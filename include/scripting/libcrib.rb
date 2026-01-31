@@ -1,3 +1,65 @@
+module Clipboard
+  @clip = ""
+  @os = :os_name_placed_here
+
+  class << self
+    def command_exists?(cmd)
+      system("command -v #{cmd} > /dev/null 2>&1")
+    end
+    def copy(text)
+      if @os == :windows
+        IO.popen("clip", "w") { |f| f.write(text) }
+      elsif @os == :mac
+        IO.popen("pbcopy", "w") { |f| f.write(text) }
+      elsif @os == :linux
+        if ENV["XDG_SESSION_TYPE"]&.downcase == "wayland" || ENV["WAYLAND_DISPLAY"]
+          if command_exists?("wl-copy")
+            IO.popen("wl-copy", "w") { |f| f.write(text) }
+          else
+            osc52_copy(text)
+          end
+        elsif ENV["XDG_SESSION_TYPE"]&.downcase == "x11" || ENV["DISPLAY"]
+          if command_exists?("xsel")
+            IO.popen("xsel --clipboard --input", "w") { |f| f.write(text) }
+          elsif command_exists?("xclip")
+            IO.popen("xclip -selection clipboard", "w") { |f| f.write(text) }
+          else
+            osc52_copy(text)
+          end
+        end
+      end
+      @clip = text
+    end
+    def paste
+      if @os == :windows
+        return `powershell -NoProfile -Command Get-Clipboard`
+      elsif @os == :mac
+        return `pbpaste`
+      elsif @os == :linux
+        if ENV["XDG_SESSION_TYPE"]&.downcase == "wayland" || ENV["WAYLAND_DISPLAY"]
+          if command_exists?("wl-copy")
+            return `wl-paste`
+          end
+        elsif ENV["XDG_SESSION_TYPE"]&.downcase == "x11" || ENV["DISPLAY"]
+          if command_exists?("xsel")
+            return `xsel --clipboard --output`
+          elsif command_exists?("xclip")
+            return `xclip -selection clipboard -o`
+          else
+            return @clip
+          end
+        end
+      end
+      return ""
+    end
+    def osc52_copy(text)
+      encoded = [text].pack("m0")
+      print "\e]52;c;#{encoded}\a"
+      text
+    end
+  end
+end
+
 module C
   @lsp_config = {
     "clangd" => [
@@ -262,7 +324,7 @@ module C
   @highlighters = {}
   @b_startup = nil
   @b_shutdown = nil
-  @b_bar = lambda do |info|
+  @b_bar = proc do |info|
     # mode, lang_name, warnings, lsp_name, filename, foldername, line, max_line, width
     # puts info.inspect
     mode_color = 0x82AAFF
@@ -294,20 +356,27 @@ module C
     highlights << { fg: lang_info[:color], bg: 0x24272d, start: 13, length: 2 }
     highlights << { fg: 0xced4df, bg: 0x24272d, start: 15, length: filename.length }
     highlights << { fg: 0x24272d, bg: 0x000000, start: 15 + filename.length, length: 1 }
-    return {
+    next {
       text: starting,
       highlights: highlights
     }
+  end
+  @b_copy = proc do |text|
+    Clipboard.copy(text)
+  end
+  @b_paste = proc do
+    next Clipboard.paste
   end
 
   class << self
     attr_accessor :theme, :lsp_config, :languages,
                   :line_endings, :highlighters
-    attr_reader :b_startup, :b_shutdown, :b_extra_highlights, :b_bar
+    attr_reader :b_startup, :b_shutdown, :b_extra_highlights,
+                :b_bar, :b_copy, :b_paste
 
-    # def bar=(block)
-    #   @b_bar = block
-    # end
+    def bar=(&block)
+      @b_bar = block
+    end
 
     def startup(&block)
       @b_startup = block
@@ -315,6 +384,14 @@ module C
 
     def shutdown(&block)
       @b_shutdown = block
+    end
+
+    def copy(&block)
+      @b_copy = block
+    end
+
+    def paste(&block)
+      @b_paste = block
     end
 
     def extra_highlights(&block)

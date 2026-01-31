@@ -17,10 +17,8 @@ struct Parser {
   mrb_value parser_block = mrb_nil_value();
   mrb_value match_block = mrb_nil_value();
   bool is_custom{false};
-  std::atomic<uint32_t> scroll_max{UINT32_MAX - 2048};
+  std::atomic<uint32_t> scroll_max{0};
   std::atomic<bool> scroll_dirty{false};
-  std::mutex mutex;
-  std::mutex data_mutex;
   LineTree line_tree;
   UniqueQueue<uint32_t> dirty_lines;
 
