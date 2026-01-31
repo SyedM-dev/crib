@@ -4,21 +4,9 @@ set -eu
 
 install() {
   BINARY_NAME="crib"
-  VERSION="v0.0.1-alpha"
-  BIN_URL="https://git.syedm.dev/SyedM-dev/crib/releases/download/$VERSION/crib"
+  BIN_URL="https://git.syedm.dev/SyedM/crib/releases/download/v0.0.2-alpha/crib"
 
-  ldconfig -p | grep libmagic >/dev/null 2>&1
-
-  if ! ldconfig -p | grep libmagic >/dev/null 2>&1; then
-    echo "Missing dependency: libmagic (part of \`file\` package)"
-    echo "Install them using your package manager:"
-    echo "Ubuntu/Debian: sudo apt install ruby libmagic1"
-    echo "Arch: sudo pacman -S file"
-    echo "Void: sudo xbps-install -Sy file"
-    exit 1
-  fi
-
-  echo "Install locally (~/.local/bin) or globally (/usr/bin)? [l/g]"
+  echo "Install or update locally (~/.local/bin) or globally (/usr/bin)? [l/g]"
   read -r choice </dev/tty
   case "$choice" in
   l | L)

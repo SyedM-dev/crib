@@ -70,7 +70,8 @@ void ruby_start() {
   }
   mrb_value mod_val = mrb_obj_value(C_module);
   mrb_value block = mrb_funcall(mrb, mod_val, "b_startup", 0);
-  mrb_funcall(mrb, block, "call", 0);
+  if (!mrb_nil_p(block))
+    mrb_funcall(mrb, block, "call", 0);
 }
 
 inline static std::vector<BarLight>
@@ -165,7 +166,8 @@ void ruby_shutdown() {
     return;
   mrb_value mod_val = mrb_obj_value(C_module);
   mrb_value block = mrb_funcall(mrb, mod_val, "b_shutdown", 0);
-  mrb_funcall(mrb, block, "call", 0);
+  if (!mrb_nil_p(block))
+    mrb_funcall(mrb, block, "call", 0);
   mrb_close(mrb);
   mrb = nullptr;
   C_module = nullptr;
