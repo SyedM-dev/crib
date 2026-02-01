@@ -112,12 +112,18 @@ struct IndentationEngine {
   uint32_t set_indent(uint32_t row, int64_t indent_level);
   uint32_t indent_line(uint32_t row);
   uint32_t dedent_line(uint32_t row);
+  void indent_block(uint32_t start_row, uint32_t end_row, int delta);
   void indent_block(uint32_t start, uint32_t end);
   void dedent_block(uint32_t start, uint32_t end);
   // fixes a autocomplete block's indentation
   char *block_to_asis(Coord cursor, std::string source, uint32_t *out_len);
 
 private:
+  const std::vector<std::string> *start_end = nullptr;
+  const std::vector<std::string> *start_start = nullptr;
+  const std::vector<std::string> *end_full = nullptr;
+  const std::vector<std::string> *end_start = nullptr;
+
   // TODO: Ignore comments/strings too
   // returns the indent level of the line itself or of the previous non-empty
   uint32_t indent_expected(uint32_t row);

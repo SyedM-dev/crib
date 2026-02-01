@@ -53,9 +53,8 @@ std::shared_ptr<LSPInstance> get_or_init_lsp(std::string lsp_id) {
     if (!init_lsp(lsp))
       return nullptr;
     LSPPending *pending = new LSPPending();
-    pending->method = "initialize";
     pending->editor = nullptr;
-    pending->callback = [lsp, lsp_id](Editor *, std::string, json msg) {
+    pending->callback = [lsp, lsp_id](Editor *, const json &msg) {
       if (msg.contains("result") && msg["result"].contains("capabilities")) {
         auto &caps = msg["result"]["capabilities"];
         // if (caps.contains("positionEncoding")) {

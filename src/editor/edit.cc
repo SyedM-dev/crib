@@ -52,7 +52,7 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     editor->root = erase(editor->root, start, byte_pos - start);
     lock_2.unlock();
     if (editor->parser)
-      editor->parser->edit(start_row, end_row, 0);
+      editor->parser->edit(start_row, end_row - start_row, 0);
     if (do_lsp) {
       if (editor->lsp->incremental_sync) {
         json message = {
@@ -125,7 +125,7 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
     editor->root = erase(editor->root, byte_pos, end - byte_pos);
     lock_2.unlock();
     if (editor->parser)
-      editor->parser->edit(start_row, end_row, 0);
+      editor->parser->edit(start_row, end_row - start_row, 0);
     if (do_lsp) {
       if (editor->lsp->incremental_sync) {
         json message = {
@@ -184,7 +184,7 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
   apply_hook_insertion(editor, pos.row, rows);
   lock_2.unlock();
   if (editor->parser)
-    editor->parser->edit(pos.row, pos.row, rows);
+    editor->parser->edit(pos.row, 0, rows);
   if (editor->lsp) {
     if (editor->lsp->incremental_sync) {
       json message = {
@@ -245,8 +245,10 @@ void edit_replace(Editor *editor, Coord start, Coord end, const char *text,
   for (uint32_t i = 0; i < len; i++)
     if (text[i] == '\n')
       rows++;
+  if (rows > 0)
+    rows--;
   if (editor->parser)
-    editor->parser->edit(start.row, end.row - 1, rows);
+    editor->parser->edit(start.row, end.row - start.row, rows);
   if (editor->lsp) {
     if (editor->lsp->incremental_sync) {
       json message = {

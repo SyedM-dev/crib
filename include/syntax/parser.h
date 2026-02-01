@@ -23,7 +23,7 @@ struct Parser {
   UniqueQueue<uint32_t> dirty_lines;
 
   Parser(Editor *editor, std::string n_lang, uint32_t n_scroll_max);
-  void edit(uint32_t start_line, uint32_t old_end_line, uint32_t inserted_rows);
+  void edit(uint32_t start_line, uint32_t removed_rows, uint32_t inserted_rows);
   void work();
   void scroll(uint32_t line);
 };

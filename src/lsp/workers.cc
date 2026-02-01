@@ -143,7 +143,7 @@ void lsp_worker() {
           LSPPending *pend = it->second;
           lock.unlock();
           if (pend->callback)
-            pend->callback(pend->editor, pend->method, *msg);
+            pend->callback(pend->editor, *msg);
           delete pend;
           lock.lock();
           lsp->pending.erase(it);

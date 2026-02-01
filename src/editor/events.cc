@@ -153,8 +153,7 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
     if (event.key_type == KEY_CHAR) {
       if (event.len == 1) {
         if (event.c[0] == '\t') {
-          edit_insert(editor, editor->cursor, (char *)"  ", 2);
-          cursor_right(editor, 2);
+          editor->indents.insert_tab(editor->cursor);
         } else if (event.c[0] == '\n' || event.c[0] == '\r') {
           editor->indents.insert_new_line(editor->cursor);
         } else if (event.c[0] == CTRL('W')) {
@@ -204,6 +203,14 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
       case 'p':
         paste(editor);
         mode = NORMAL;
+        break;
+      case '<':
+      case ',':
+        dedent_selection(editor);
+        break;
+      case '>':
+      case '.':
+        indent_selection(editor);
         break;
       }
     }

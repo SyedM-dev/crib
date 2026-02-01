@@ -26,19 +26,21 @@ Parser::Parser(Editor *n_editor, std::string n_lang, uint32_t n_scroll_max) {
       assert("unknown lang should be checked by caller" && 0);
     }
   }
-  edit(0, 0, editor->root->line_count);
+  edit(0, 0, editor->root->line_count + 1);
 }
 
-void Parser::edit(uint32_t start_line, uint32_t old_end_line,
+void Parser::edit(uint32_t start_line, uint32_t removed_rows,
                   uint32_t inserted_rows) {
-  if (((int64_t)old_end_line - (int64_t)start_line) > 0)
-    line_tree.erase(start_line, old_end_line - start_line);
-  if (inserted_rows > 0)
-    line_tree.insert(start_line, inserted_rows);
-  if (start_line > 0)
-    dirty_lines.push(start_line - 1);
-  dirty_lines.push(start_line);
-  dirty_lines.push(start_line + 1);
+  int64_t delta = (int64_t)inserted_rows - (int64_t)removed_rows;
+  if (delta < 0)
+    line_tree.erase(start_line, (uint32_t)(-delta));
+  else if (delta > 0)
+    line_tree.insert(start_line, (uint32_t)delta);
+  uint32_t span = MAX(removed_rows, inserted_rows);
+  uint32_t begin = (start_line > 0) ? start_line - 1 : 0;
+  uint32_t end = start_line + span;
+  for (uint32_t line = begin; line <= end + 1; ++line)
+    dirty_lines.push(line);
 }
 
 void Parser::work() {
@@ -48,10 +50,19 @@ void Parser::work() {
   uint32_t c_line;
   while (dirty_lines.pop(c_line))
     batch.push_back(c_line);
+  uint32_t i = MAX(0, (int64_t)scroll_max - 60);
+  LineData *l_iter = line_tree.start_iter(i);
+  while (l_iter && i < scroll_max + 10) {
+    if (!l_iter->out_state)
+      batch.push_back(i);
+    i++;
+    l_iter = line_tree.next();
+  }
+  line_tree.end_iter();
   for (uint32_t c_line : batch) {
     if (!running.load(std::memory_order_relaxed))
       break;
-    uint32_t min_line = scroll_max > 50 ? scroll_max - 50 : 0;
+    uint32_t min_line = scroll_max > 60 ? scroll_max - 60 : 0;
     uint32_t max_line = scroll_max + 10;
     if (c_line < min_line || c_line > max_line) {
       dirty_lines.push(c_line);
@@ -65,12 +76,16 @@ void Parser::work() {
       prev_state = line_tree.at(c_line - 1)->out_state;
     std::shared_lock k_lock(editor->knot_mtx);
     LineIterator *it = begin_l_iter(editor->root, c_line);
+    if (!it)
+      continue;
     uint32_t cur_line = c_line;
     while (cur_line < line_count) {
       if (!running.load(std::memory_order_relaxed))
         break;
       if (scroll_snapshot != scroll_max) {
-        dirty_lines.push(cur_line);
+        LineData *line_data = line_tree.at(cur_line);
+        if (line_data && !line_data->out_state)
+          dirty_lines.push(cur_line);
         break;
       }
       if (cur_line < min_line || cur_line > max_line) {
@@ -130,17 +145,4 @@ void Parser::work() {
   }
 }
 
-void Parser::scroll(uint32_t line) {
-  if (line != scroll_max) {
-    scroll_max = line;
-    uint32_t c_line = line > 50 ? line - 50 : 0;
-    if (c_line >= line_tree.count())
-      return;
-    if (line_tree.at(c_line)->in_state || line_tree.at(c_line)->out_state)
-      return;
-    scroll_dirty = true;
-    dirty_lines.push(c_line);
-  } else {
-    scroll_max = line;
-  }
-}
+void Parser::scroll(uint32_t line) { scroll_max = line; }

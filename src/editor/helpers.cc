@@ -4,8 +4,14 @@
 #include "lsp/lsp.h"
 #include "main.h"
 #include "utils/utils.h"
+#include <sys/types.h>
 
 void cut(Editor *editor) {
+  if (ABS((int64_t)editor->cursor.row - (int64_t)editor->selection.row) >
+      1500) {
+    bar.log("Selection too large!");
+    return;
+  }
   if (mode != SELECT)
     return;
   Coord start;
@@ -19,6 +25,11 @@ void cut(Editor *editor) {
 }
 
 void copy(Editor *editor) {
+  if (ABS((int64_t)editor->cursor.row - (int64_t)editor->selection.row) >
+      1500) {
+    bar.log("Selection too large!");
+    return;
+  }
   if (mode != SELECT)
     return;
   uint32_t len;
@@ -70,6 +81,53 @@ void dedent_current_line(Editor *editor) {
   uint32_t delta = editor->indents.dedent_line(editor->cursor.row);
   editor->cursor.col = MAX((int64_t)start.col - delta, 0);
   editor->cursor.row = start.row;
+}
+
+static void move_coord_by_delta(Coord &c, uint32_t row, int64_t delta) {
+  if (c.row == row) {
+    int64_t new_col = (int64_t)c.col + delta;
+    c.col = (uint32_t)MAX(new_col, 0);
+  }
+}
+
+void indent_selection(Editor *editor) {
+  uint32_t top = MIN(editor->cursor.row, editor->selection.row);
+  uint32_t bot = MAX(editor->cursor.row, editor->selection.row);
+  if (bot - top > 1500) {
+    bar.log("Can't indent more than 1500 lines at once!");
+    return;
+  }
+  if (bot - top >= 2)
+    editor->indents.indent_block(top + 1, bot - 1);
+  uint32_t delta_top = editor->indents.indent_line(top);
+  uint32_t delta_bot =
+      (bot == top) ? delta_top : editor->indents.indent_line(bot);
+  move_coord_by_delta(editor->cursor, top, delta_top);
+  move_coord_by_delta(editor->selection, top, delta_top);
+  if (bot != top) {
+    move_coord_by_delta(editor->cursor, bot, delta_bot);
+    move_coord_by_delta(editor->selection, bot, delta_bot);
+  }
+}
+
+void dedent_selection(Editor *editor) {
+  uint32_t top = MIN(editor->cursor.row, editor->selection.row);
+  uint32_t bot = MAX(editor->cursor.row, editor->selection.row);
+  if (bot - top > 1500) {
+    bar.log("Can't dedent more than 1500 lines at once!");
+    return;
+  }
+  if (bot - top >= 2)
+    editor->indents.dedent_block(top + 1, bot - 1);
+  uint32_t delta_top = editor->indents.dedent_line(top);
+  uint32_t delta_bot =
+      (bot == top) ? delta_top : editor->indents.dedent_line(bot);
+  move_coord_by_delta(editor->cursor, top, -(int64_t)delta_top);
+  move_coord_by_delta(editor->selection, top, -(int64_t)delta_top);
+  if (bot != top) {
+    move_coord_by_delta(editor->cursor, bot, -(int64_t)delta_bot);
+    move_coord_by_delta(editor->selection, bot, -(int64_t)delta_bot);
+  }
 }
 
 void insert_char(Editor *editor, char c) {
@@ -155,9 +213,7 @@ void insert_char(Editor *editor, char c) {
                   {"trimFinalNewlines", true}}}}}};
           LSPPending *pending = new LSPPending();
           pending->editor = editor;
-          pending->method = "textDocument/onTypeFormatting";
-          pending->callback = [version](Editor *editor, std::string,
-                                        json message) {
+          pending->callback = [version](Editor *editor, const json &message) {
             if (version != editor->lsp_version)
               return;
             auto &edits = message["result"];
@@ -201,11 +257,32 @@ void backspace_edit(Editor *editor) {
   LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
   if (!it)
     return;
-  char *line = next_line(it, nullptr);
-  char prev_char = line[prev_pos.col];
-  char next_char = line[editor->cursor.col];
+  uint32_t len;
+  char *line = next_line(it, &len);
+  if (!line) {
+    free(it->buffer);
+    free(it);
+    return;
+  }
+  if (len > 0 && line[len - 1] == '\n')
+    --len;
+  char prev_char = (prev_pos.col < len) ? line[prev_pos.col] : 0;
+  char next_char = (editor->cursor.col < len) ? line[editor->cursor.col] : 0;
+  bool before_content = false;
+  if (editor->cursor.col > 0) {
+    before_content = true;
+    for (uint32_t i = 0; i < editor->cursor.col; i++)
+      if (line[i] != ' ' && line[i] != '\t') {
+        before_content = false;
+        break;
+      }
+  }
   free(it->buffer);
   free(it);
+  if (before_content) {
+    dedent_current_line(editor);
+    return;
+  }
   bool is_pair = (prev_char == '{' && next_char == '}') ||
                  (prev_char == '(' && next_char == ')') ||
                  (prev_char == '[' && next_char == ']') ||
@@ -312,8 +389,7 @@ void fetch_lsp_hover(Editor *editor) {
           {"position", {{"line", editor->cursor.row}, {"character", col}}}}}};
     LSPPending *pending = new LSPPending();
     pending->editor = editor;
-    pending->method = "textDocument/hover";
-    pending->callback = [](Editor *editor, std::string, json hover) {
+    pending->callback = [](Editor *editor, const json &hover) {
       if (hover.contains("result") && !hover["result"].is_null()) {
         auto &contents = hover["result"]["contents"];
         std::string hover_text = "";

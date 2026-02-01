@@ -78,8 +78,7 @@ void completion_request(Editor *editor) {
   editor->completion.version = editor->lsp_version;
   LSPPending *pending = new LSPPending();
   pending->editor = editor;
-  pending->method = "textDocument/completion";
-  pending->callback = [](Editor *editor, std::string, json message) {
+  pending->callback = [](Editor *editor, const json &message) {
     auto &session = editor->completion;
     std::unique_lock lock(session.mtx);
     std::vector<json> items_json;
@@ -359,8 +358,7 @@ void completion_resolve_doc(Editor *editor) {
   item.documentation = "";
   LSPPending *pending = new LSPPending();
   pending->editor = editor;
-  pending->method = "completionItem/resolve";
-  pending->callback = [](Editor *editor, std::string, json message) {
+  pending->callback = [](Editor *editor, const json &message) {
     std::unique_lock lock(editor->completion.mtx);
     auto &item = editor->completion.items[editor->completion.select];
     if (message["result"].contains("documentation")) {

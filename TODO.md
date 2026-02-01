@@ -2,25 +2,32 @@ Copyright 2025 Syed Daanish
 
 # TODO
 
+# memory usage for debug build (release build will be smaller by about 25%)
+```
+8K   ->    13.2M
+128K ->    13.2M (expected worst case 16.6M)
+128M ->   412.0M (expected worst case 2.3G)
+```
+
 ##### BTW Check each lsp with each of the features implemented
 
-* Add ruby config for file detection (with `file` command by default)
+* Possibly in the future limit memory usage by parser for larger files
+* Also redo lsp threads such that no mutex needed for any rope stuff
+    - This will mean that parsers/renderers and keystrokes will not need to be individually locked
+    - And so it will be much faster
+    - While at it also make the lsp instead of a single thread be a pool of threads blocking on their stdio
+    - So one lsp being slower wont affect others and fps based reading wont be necessary saving cpu
+    - At which point the main thread can also be blocked on user input or lsp responses and still be fast
 * [ ] Add mgems for most common things and a ruby library to allow combining true ruby with mruby
       - Or revert to cruby and retry with manual linking . maybe it might work?
+* add command to set and use a file type at runtime
 * [ ] color alpha in ini files
 * [ ] Make warning before ctrl+q for saving
 * [ ] **LSP Bug:** Check why `fish-lsp` is behaving so off with completions filtering.
 * [ ] **Line move:** fix the move line functions to work without the calculations from folds as folds are removed.
 * [ ] **Editor Indentation Fix:** - Main : merger indentation with the parser for more accurate results.
-    * [ ] Keep cache of language maps in engine to reduce lookup time.
-    * [ ] In indents add function to support tab which indents if before any content and inserts a pure \t otherwise.
-    * [ ] And backspace which undents if before any content.
-    * [ ] Add block indentation support.
     * [ ] Ignore comments/strings from parser when auto-indenting.
-    * [ ] These will dedent when the block immediately after them is dedented
-    * [ ] Dont dedent if ending is valid starting is invalid but also empty
-    * [ ] Just leave asis if starting is empty
-* [ ] **Readme:** Update readme to show ruby based config.
+* [ ] **Readme:** Update readme to show ruby based config in detail.
 * [ ] **UI Refinement:**
     * [ ] Allow completion list to be scrolled; show only `x` max items.
     * [ ] Finish autocomplete box style functions.
@@ -30,6 +37,13 @@ Copyright 2025 Syed Daanish
 
 * Try to make all functions better now that folds have been purged
 * Cleanup syntax and renderer files
+
+* add `:j<n>` command to jump to line \<n> in the current file
+* and many more stuff like ruby execution
+* and give warning for invalid commands
+* and upon escape clear the current command
+* allow multiline logging which captures the input entirely and y will copy the log and anything else will exit
+* it will then collapse to being the first line from the log only
 
 * **RN** Add a thing called view which is a rect with speacial type editor . but otherwise a ruby or c++ view
 * can be used for stuff like file manager/git manager/theme picker.

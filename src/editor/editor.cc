@@ -97,9 +97,8 @@ void save_file(Editor *editor) {
                       {"trimFinalNewlines", true}}}}}};
       LSPPending *pending = new LSPPending();
       pending->editor = editor;
-      pending->method = "textDocument/formatting";
-      pending->callback = [save_msg, version](Editor *editor, std::string,
-                                              json message) {
+      pending->callback = [save_msg, version](Editor *editor,
+                                              const json &message) {
         if (version != editor->lsp_version)
           return;
         auto &edits = message["result"];

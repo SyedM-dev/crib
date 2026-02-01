@@ -6,11 +6,16 @@
 #include "utils/utils.h"
 
 struct LSPPending {
-  std::string method;
   Editor *editor = nullptr;
-
-  std::function<void(Editor *, std::string, json)> callback;
+  std::function<void(Editor *, const json &)> callback;
 };
+
+// TODO: Defer any editor mutation to main thread to get rid of
+//       all mutex locks on the editor rope.
+// struct LSPPendingResponse {
+//   LSPPending *pending = nullptr;
+//   json message;
+// };
 
 struct LSPOpenRequest {
   Language language;

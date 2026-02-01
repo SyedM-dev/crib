@@ -17,6 +17,8 @@ void fetch_lsp_hover(Editor *editor);
 void handle_mouse(Editor *editor, KeyEvent event);
 void indent_current_line(Editor *editor);
 void dedent_current_line(Editor *editor);
+void indent_selection(Editor *editor);
+void dedent_selection(Editor *editor);
 void paste(Editor *editor);
 void copy(Editor *editor);
 void cut(Editor *editor);
