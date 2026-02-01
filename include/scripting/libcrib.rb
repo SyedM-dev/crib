@@ -1,11 +1,12 @@
+def command_exists?(cmd)
+  system("command -v #{cmd} > /dev/null 2>&1")
+end
+
 module Clipboard
   @clip = ""
   @os = :os_name_placed_here
 
   class << self
-    def command_exists?(cmd)
-      system("command -v #{cmd} > /dev/null 2>&1")
-    end
     def copy(text)
       if @os == :windows
         IO.popen("clip", "w") { |f| f.write(text) }
@@ -375,12 +376,44 @@ module C
   @b_paste = proc do
     next Clipboard.paste
   end
+  @b_file_detect = proc do |filename|
+    type = :default
+    next type unless File.exist?(filename)
+    first_line = File.open(filename, &:readline).chomp
+    if first_line.start_with?("#!")
+      shebang = first_line[2..].downcase
+      type = case shebang
+             when /bash/, /sh/   then :bash
+             when /fish/         then :fish
+             when /python/       then :python
+             when /ruby/         then :ruby
+             when /lua/          then :lua
+             else :default
+             end
+      next type
+    end
+    next type if :os_name_placed_here != :linux || :os_name_placed_here != :mac
+    next type if !command_exists?("file")
+    mimetype = `file --mime-type -b #{filename}`.chomp
+    type = case mimetype
+           when /shellscript/ then :bash
+           when /ruby/        then :ruby
+           when /diff/        then :diff
+           when /html/        then :html
+           when /python/      then :python
+           when /javascript/  then :javascript
+           when /makefile/    then :makefile
+           when /-c$/         then :c
+           else :default
+           end
+    next type
+  end
 
   class << self
     attr_accessor :theme, :lsp_config, :languages,
                   :line_endings, :highlighters
     attr_reader :b_startup, :b_shutdown, :b_extra_highlights,
-                :b_bar, :b_copy, :b_paste
+                :b_bar, :b_copy, :b_paste, :b_file_detect
 
     def bar=(&block)
       @b_bar = block
@@ -400,6 +433,10 @@ module C
 
     def paste(&block)
       @b_paste = block
+    end
+
+    def file_detect(&block)
+      @b_file_detect = block
     end
 
     def extra_highlights(&block)
@@ -435,5 +472,24 @@ module C
         end
       end
     end
+  end
+end
+
+$LOADED ||= []
+
+module Kernel
+  def require_relative(path, bind = nil)
+    path += ".rb" unless path.end_with?(".rb")
+    path = File.expand_path(path, File.dirname(C.config_file))
+    return if $LOADED.include?(path)
+    $LOADED << path
+    code = File.read(path)
+    eval(code, bind || binding, path)
+  end
+  def load(path, bind = nil)
+    path += ".rb" unless path.end_with?(".rb")
+    path = File.expand_path(path, File.dirname(C.config_file))
+    $LOADED.delete(path)
+    require_relative(path, bind)
   end
 end

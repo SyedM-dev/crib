@@ -4,9 +4,12 @@
 #include "syntax/decl.h"
 #include "utils/utils.h"
 
+namespace fs = std::filesystem;
+
 extern std::unordered_map<std::string, std::pair<mrb_value, mrb_value>>
     custom_highlighters;
 extern mrb_state *mrb;
+extern fs::path ruby_config_path;
 
 struct BarLight {
   uint32_t start;
@@ -32,14 +35,16 @@ void ruby_start();
 void ruby_shutdown();
 void ruby_copy(const char *text, size_t len);
 std::string ruby_paste();
+std::string ruby_file_detect(std::string filename);
 void load_theme();
 void load_languages_info();
 uint8_t read_line_endings();
 void load_custom_highlighters();
-mrb_value parse_custom(std::vector<Token> *tokens, mrb_value parser_block,
-                       const char *line, uint32_t len, mrb_value state,
-                       uint32_t c_line);
-bool custom_compare(mrb_value match_block, mrb_value state1, mrb_value state2);
+bool custom_compare(mrb_value match_block, std::string state1,
+                    std::string state2);
+std::string parse_custom(std::vector<Token> *tokens, mrb_value parser_block,
+                         const char *line, uint32_t len, std::string state,
+                         uint32_t c_line);
 BarLine bar_contents(uint8_t mode, std::string lang_name, uint32_t warnings,
                      std::string lsp_name, std::string filename,
                      std::string foldername, uint32_t line, uint32_t max_line,

@@ -88,12 +88,12 @@ void Parser::work() {
       }
       std::shared_ptr<void> new_state;
       if (is_custom) {
-        mrb_value state = mrb_nil_value();
+        std::string state = "";
         if (prev_state)
-          state = std::static_pointer_cast<CustomState>(prev_state)->state;
-        mrb_value out_state = parse_custom(&line_data->tokens, parser_block,
-                                           line, len, state, cur_line);
-        new_state = std::make_shared<CustomState>(out_state);
+          state = std::static_pointer_cast<std::string>(prev_state)->c_str();
+        std::string out_state = parse_custom(&line_data->tokens, parser_block,
+                                             line, len, state, cur_line);
+        new_state = std::make_shared<std::string>(out_state);
       } else {
         new_state =
             parse_func(&line_data->tokens, prev_state, line, len, cur_line);
@@ -105,15 +105,15 @@ void Parser::work() {
         LineData *next_line_data = line_tree.at(cur_line + 1);
         if (next_line_data) {
           if (is_custom) {
-            mrb_value a =
+            std::string a =
                 prev_state
-                    ? std::static_pointer_cast<CustomState>(new_state)->state
-                    : mrb_nil_value();
-            mrb_value b = next_line_data->in_state
-                              ? std::static_pointer_cast<CustomState>(
-                                    next_line_data->in_state)
-                                    ->state
-                              : mrb_nil_value();
+                    ? std::static_pointer_cast<std::string>(new_state)->c_str()
+                    : "";
+            std::string b = next_line_data->in_state
+                                ? std::static_pointer_cast<std::string>(
+                                      next_line_data->in_state)
+                                      ->c_str()
+                                : "";
             done = custom_compare(match_block, a, b);
           } else {
             done = state_match_func(new_state, next_line_data->in_state);

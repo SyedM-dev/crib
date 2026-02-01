@@ -4,6 +4,7 @@ Copyright 2025 Syed Daanish
 
 ##### BTW Check each lsp with each of the features implemented
 
+* Add ruby config for file detection (with `file` command by default)
 * [ ] Add mgems for most common things and a ruby library to allow combining true ruby with mruby
       - Or revert to cruby and retry with manual linking . maybe it might work?
 * [ ] color alpha in ini files
@@ -30,7 +31,7 @@ Copyright 2025 Syed Daanish
 * Try to make all functions better now that folds have been purged
 * Cleanup syntax and renderer files
 
-* Add a thing called view which is a rect with speacial type editor . but otherwise a ruby or c++ view
+* **RN** Add a thing called view which is a rect with speacial type editor . but otherwise a ruby or c++ view
 * can be used for stuff like file manager/git manager/theme picker.
 * allow flushing functions in ruby to tell c++ to refresh keybinds/themes etc.
 * allow keybinds to be set in ruby

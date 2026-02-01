@@ -1,3 +1,4 @@
+#include "scripting/decl.h"
 #include "utils/utils.h"
 
 std::unordered_map<std::string, Language> languages;
@@ -107,11 +108,16 @@ static std::string file_extension(const char *filename) {
 
 Language language_for_file(const char *filename) {
   std::string ext = file_extension(filename);
-  std::string lang_name;
   if (!ext.empty()) {
     auto it = language_extensions.find(ext);
     if (it != language_extensions.end())
       return languages.find(it->second)->second;
+  }
+  std::string lang_name = ruby_file_detect(filename);
+  if (!lang_name.empty()) {
+    auto it = languages.find(lang_name);
+    if (it != languages.end())
+      return it->second;
   }
   return Language{};
 }

@@ -28,8 +28,7 @@ struct R_Language {
 
 mrb_state *mrb = nullptr;
 RClass *C_module;
-
-namespace fs = std::filesystem;
+fs::path ruby_config_path;
 
 void ruby_start() {
   mrb = mrb_open();
@@ -61,6 +60,7 @@ void ruby_start() {
     if (fs::exists(p)) {
       FILE *f = fopen(p.string().c_str(), "r");
       if (f) {
+        ruby_config_path = p;
         mrb_load_file(mrb, f);
         if (mrb->exc)
           exit(1);
@@ -204,6 +204,38 @@ BarLine bar_contents(uint8_t mode, std::string lang_name, uint32_t warnings,
   return bar_line;
 }
 
+std::string serialize_value(mrb_state *mrb, mrb_value val) {
+  int ai = mrb_gc_arena_save(mrb);
+  mrb_value marshal_module = mrb_obj_value(mrb_module_get(mrb, "Marshal"));
+  mrb_value dumped = mrb_funcall(mrb, marshal_module, "dump", 1, val);
+  if (mrb->exc) {
+    end_screen();
+    fputs("Error when executing Ruby code:\n", stderr);
+    mrb_print_error(mrb);
+    mrb_close(mrb);
+    exit(1);
+  }
+  std::string bytes(RSTRING_PTR(dumped), RSTRING_LEN(dumped));
+  mrb_gc_arena_restore(mrb, ai);
+  return bytes;
+}
+
+mrb_value deserialize_value(mrb_state *mrb, std::string bytes) {
+  if (bytes.empty())
+    return mrb_nil_value();
+  mrb_value marshal_module = mrb_obj_value(mrb_module_get(mrb, "Marshal"));
+  mrb_value val = mrb_funcall(mrb, marshal_module, "load", 1,
+                              mrb_str_new(mrb, bytes.c_str(), bytes.length()));
+  if (mrb->exc) {
+    end_screen();
+    fputs("Error when executing Ruby code:\n", stderr);
+    mrb_print_error(mrb);
+    mrb_close(mrb);
+    exit(1);
+  }
+  return val;
+}
+
 void ruby_copy(const char *text, size_t len) {
   int ai = mrb_gc_arena_save(mrb);
   if (C_module == nullptr)
@@ -220,6 +252,48 @@ void ruby_copy(const char *text, size_t len) {
     exit(1);
   }
   mrb_gc_arena_restore(mrb, ai);
+}
+
+std::string ruby_file_detect(std::string filename) {
+  int ai = mrb_gc_arena_save(mrb);
+  if (C_module == nullptr)
+    return "";
+  mrb_value mod_val = mrb_obj_value(C_module);
+  mrb_value block = mrb_funcall(mrb, mod_val, "b_file_detect", 0);
+  if (mrb->exc) {
+    end_screen();
+    fputs("Error when executing Ruby code:\n", stderr);
+    mrb_print_error(mrb);
+    mrb_close(mrb);
+    exit(1);
+  }
+  if (!mrb_nil_p(block)) {
+    mrb_value val =
+        mrb_funcall(mrb, block, "call", 1,
+                    mrb_str_new(mrb, filename.c_str(), filename.length()));
+    if (mrb->exc) {
+      end_screen();
+      fputs("Error when executing Ruby code:\n", stderr);
+      mrb_print_error(mrb);
+      mrb_close(mrb);
+      exit(1);
+    }
+    mrb_value s_val = mrb_funcall(mrb, val, "to_s", 0);
+    if (mrb->exc) {
+      end_screen();
+      fputs("Error when executing Ruby code:\n", stderr);
+      mrb_print_error(mrb);
+      mrb_close(mrb);
+      exit(1);
+    }
+    if (mrb_string_p(s_val)) {
+      std::string result = std::string(RSTRING_PTR(s_val), RSTRING_LEN(s_val));
+      mrb_gc_arena_restore(mrb, ai);
+      return result;
+    }
+  }
+  mrb_gc_arena_restore(mrb, ai);
+  return "";
 }
 
 std::string ruby_paste() {
@@ -302,23 +376,33 @@ void load_custom_highlighters() {
   mrb_garbage_collect(mrb);
 }
 
-bool custom_compare(mrb_value match_block, mrb_value state1, mrb_value state2) {
+bool custom_compare(mrb_value match_block, std::string state1,
+                    std::string state2) {
+  if (state1.empty() || state2.empty())
+    return false;
+  int ai = mrb_gc_arena_save(mrb);
   if (mrb_type(match_block) != MRB_TT_PROC)
     return false;
-  mrb_value ret = mrb_funcall(mrb, match_block, "call", 2, state1, state2);
-  return mrb_test(ret);
+  mrb_value ret =
+      mrb_funcall(mrb, match_block, "call", 2, deserialize_value(mrb, state1),
+                  deserialize_value(mrb, state2));
+  bool result = mrb_test(ret);
+  mrb_gc_arena_restore(mrb, ai);
+  return result;
 }
 
-mrb_value parse_custom(std::vector<Token> *tokens, mrb_value parser_block,
-                       const char *line, uint32_t len, mrb_value state,
-                       uint32_t c_line) {
+std::string parse_custom(std::vector<Token> *tokens, mrb_value parser_block,
+                         const char *line, uint32_t len, std::string state,
+                         uint32_t c_line) {
+  int ai = mrb_gc_arena_save(mrb);
   tokens->clear();
   if (mrb_nil_p(parser_block))
-    return mrb_nil_value();
+    return "";
   mrb_value ruby_line = mrb_str_new(mrb, line, len);
   mrb_value line_idx = mrb_fixnum_value(c_line);
   mrb_value tokens_and_state_hash =
-      mrb_funcall(mrb, parser_block, "call", 3, ruby_line, state, line_idx);
+      mrb_funcall(mrb, parser_block, "call", 3, ruby_line,
+                  deserialize_value(mrb, state), line_idx);
   mrb_sym tokens_sym = mrb_intern_lit(mrb, "tokens");
   mrb_value tokens_rb =
       mrb_hash_get(mrb, tokens_and_state_hash, mrb_symbol_value(tokens_sym));
@@ -338,7 +422,13 @@ mrb_value parse_custom(std::vector<Token> *tokens, mrb_value parser_block,
     }
   }
   mrb_sym state_sym = mrb_intern_lit(mrb, "state");
-  return mrb_hash_get(mrb, tokens_and_state_hash, mrb_symbol_value(state_sym));
+  mrb_value state_rb =
+      mrb_hash_get(mrb, tokens_and_state_hash, mrb_symbol_value(state_sym));
+  std::string result;
+  if (mrb_type(state_rb) == MRB_TT_STRING)
+    result = std::string(RSTRING_PTR(state_rb), RSTRING_LEN(state_rb));
+  mrb_gc_arena_restore(mrb, ai);
+  return result;
 }
 
 static std::vector<R_ThemeEntry> read_theme() {
