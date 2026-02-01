@@ -19,7 +19,6 @@ Copyright 2025 Syed Daanish
     - So one lsp being slower wont affect others and fps based reading wont be necessary saving cpu
     - At which point the main thread can also be blocked on user input or lsp responses and still be fast
 * [ ] Add mgems for most common things and a ruby library to allow combining true ruby with mruby
-      - Or revert to cruby and retry with manual linking . maybe it might work?
 * add command to set and use a file type at runtime
 * [ ] color alpha in ini files
 * [ ] Make warning before ctrl+q for saving
@@ -29,11 +28,11 @@ Copyright 2025 Syed Daanish
     * [ ] Ignore comments/strings from parser when auto-indenting.
 * [ ] **Readme:** Update readme to show ruby based config in detail.
 * [ ] **UI Refinement:**
-    * [ ] Allow completion list to be scrolled; show only `x` max items.
     * [ ] Finish autocomplete box style functions.
 * [ ] **Documentation UI:** Capture `Ctrl+h` / `Ctrl+l` for scrolling documentation windows.
 * [ ] Redo hooks as a struct.
 * [ ] breakdown the render function into smaller functions.
+    - Might allow for VAI integration easier
 
 * Try to make all functions better now that folds have been purged
 * Cleanup syntax and renderer files
@@ -87,8 +86,6 @@ move lsp configs to json and also allow configs for windows-style vs unix-style 
 
 ### UX
 
-* [ ] **Editor word highlighter:** Do not recompute word under cursor if not changed.
-
 * [ ] **Completion Filtering:**
     * [ ] Stop filtering case-sensitive.
     * [ ] Normalize completion edits if local filtering is used.
@@ -117,8 +114,6 @@ move lsp configs to json and also allow configs for windows-style vs unix-style 
 
 
 ### Visuals, UI & Extensions?
-
-* [ ] **Status Bar:** Complete status bar and command runner.
 
 * [ ] Add color picker/palette.
 

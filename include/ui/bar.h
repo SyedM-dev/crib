@@ -10,11 +10,8 @@ struct Bar {
   std::string command = "";
   std::string log_line = "";
   uint32_t cursor = 0;
-  BarLine bar_line;
-  std::mutex mtx;
 
   void init(Coord screen) { this->screen = screen; }
-  void work();
   void render();
   void handle(KeyEvent event);
   void log(std::string message);

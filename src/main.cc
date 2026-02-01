@@ -91,7 +91,6 @@ int main(int argc, char *argv[]) {
       free(event.c);
   render:
     throttle(4ms, editor_worker, editors[current_editor]);
-    bar.work();
     bar.render();
     render_editor(editors[current_editor]);
     throttle(4ms, render);

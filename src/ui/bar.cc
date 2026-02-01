@@ -4,24 +4,16 @@
 #include "main.h"
 #include "syntax/decl.h"
 
-void Bar::work() {
-  std::lock_guard<std::mutex> lock(mtx);
+void Bar::log(std::string message) { log_line = message; }
+
+void Bar::render() {
+  USING(LSPInstance);
   Editor *editor = editors[current_editor];
-  bar_line =
+  BarLine bar_line =
       bar_contents(mode, editor->lang.name, editor->warnings.size(),
                    editor->lsp ? editor->lsp->lsp->command : "",
                    editor->filename, editor->filename, editor->cursor.row + 1,
                    editor->root->line_count + 1, screen.col);
-}
-
-void Bar::log(std::string message) {
-  std::lock_guard<std::mutex> lock(mtx);
-  log_line = message;
-}
-
-void Bar::render() {
-  std::lock_guard<std::mutex> lock(mtx);
-  USING(LSPInstance);
   uint32_t row = screen.row - 2;
   uint32_t width = screen.col;
   std::string &line = bar_line.line;
@@ -59,6 +51,7 @@ void Bar::render() {
 void Bar::handle(KeyEvent event) {
   if (event.key_type == KEY_CHAR && event.len == 1) {
     if (event.c[0] == 0x1B) {
+      command = "";
       mode = NORMAL;
     } else if (event.c[0] == '\n' || event.c[0] == '\r') {
       command = trim(command);
