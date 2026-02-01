@@ -17,4 +17,6 @@ bin
 Gemfile*
 .ruby-lsp/
 
+include/scripting/ruby_compiled.h
+
 __old__
