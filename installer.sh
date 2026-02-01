@@ -4,7 +4,7 @@ set -eu
 
 install() {
   BINARY_NAME="crib"
-  BIN_URL="https://git.syedm.dev/SyedM/crib/releases/download/v0.0.4-alpha/crib"
+  BIN_URL="https://git.syedm.dev/SyedM/crib/releases/download/v0.0.5-alpha/crib"
 
   echo "Install or update locally (~/.local/bin) or globally (/usr/bin)? [l/g]"
   read -r choice </dev/tty
