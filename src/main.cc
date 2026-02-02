@@ -2,7 +2,7 @@
 #include "editor/editor.h"
 #include "io/sysio.h"
 #include "lsp/lsp.h"
-#include "scripting/decl.h"
+#include "ruby/decl.h"
 #include "ui/bar.h"
 #include "utils/utils.h"
 

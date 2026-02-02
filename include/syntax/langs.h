@@ -1,7 +1,6 @@
 #ifndef SYNTAX_LANGS_H
 #define SYNTAX_LANGS_H
 
-#include "scripting/decl.h"
 #include "syntax/decl.h"
 
 #define DEF_LANG(name)                                                         \

@@ -1,7 +1,7 @@
 #ifndef SYNTAX_PARSER_H
 #define SYNTAX_PARSER_H
 
-#include "scripting/decl.h"
+#include "ruby/decl.h"
 #include "syntax/decl.h"
 #include "syntax/line_tree.h"
 

@@ -11,7 +11,6 @@
 #include "ui/diagnostics.h"
 #include "ui/hover.h"
 #include "utils/utils.h"
-#include <cstdint>
 
 #define CHAR 0
 #define WORD 1

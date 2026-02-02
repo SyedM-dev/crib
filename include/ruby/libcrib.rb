@@ -357,14 +357,14 @@ module C
       lang_info = C.languages[:default]
     end
     filename = File.basename(info[:filename])
-    starting = " #{mode_symbol} #{info[:mode].to_s.upcase}  #{lang_info[:symbol]}#{filename}"
+    starting = " #{mode_symbol} #{info[:mode].to_s.upcase}  #{lang_info[:symbol]} #{filename}"
     highlights = []
     highlights << { fg: 0x0b0e14, bg: mode_color, flags: 1 << 1, start: 0, length: 10 }
     highlights << { fg: mode_color, bg: 0x33363c, start: 10, length: 1 }
     highlights << { fg: 0x33363c, bg: 0x24272d, start: 11, length: 1 }
     highlights << { fg: lang_info[:color], bg: 0x24272d, start: 13, length: 2 }
-    highlights << { fg: 0xced4df, bg: 0x24272d, start: 15, length: filename.length }
-    highlights << { fg: 0x24272d, bg: 0x000000, start: 15 + filename.length, length: 1 }
+    highlights << { fg: 0xced4df, bg: 0x24272d, start: 15, length: filename.length + 1 }
+    highlights << { fg: 0x24272d, bg: 0x000000, start: 15 + filename.length + 1, length: 1 }
     next {
       text: starting,
       highlights: highlights
@@ -476,6 +476,7 @@ module C
 end
 
 $LOADED ||= []
+$BIND_TOP = binding
 
 module Kernel
   def require_relative(path, bind = nil)
@@ -484,7 +485,7 @@ module Kernel
     return if $LOADED.include?(path)
     $LOADED << path
     code = File.read(path)
-    eval(code, bind || binding, path)
+    eval(code, bind || $BIND_TOP, path)
   end
   def load(path, bind = nil)
     path += ".rb" unless path.end_with?(".rb")

@@ -51,12 +51,6 @@ Make sure you have the following dependencies installed (apart from the standard
   #include <pcre2.h>
   ```
 
-* **[mruby](https://github.com/mruby/mruby)**
-  Install it via your package manager. Once installed, the header should be available as:
-  ```cpp
-  #include <mruby.h>
-  ```
-
 It also uses `xclip` at runtime for copying/pasting *(TODO: make it os portable)*.
 And any modern terminal should work fine - preferably `kitty` or `wezterm`.<br>
 
@@ -65,10 +59,32 @@ And any modern terminal should work fine - preferably `kitty` or `wezterm`.<br>
 Some other dependancies are added as submodules or copied.<br>
    - `unicode_width` is compiled by the makefile so nothing to do there.<br>
    - `libgrapheme` needs to be compiled using `make` in it's folder.<br>
+   - `mruby` needs to be compiled using `rake` in it's folder (needs ruby).<br>
+      - Need to add the following lines to the `build_config/default.rb` file (in the `MRuby::Build.new` block)
+        ```ruby
+        conf.gem :mgem => 'pure-regexp'
+        conf.gem :mgem => 'env'
+        conf.gem :mgem => 'process'
+        conf.gem :mgem => 'marshal-c'
+        ```
+
+#### config file
+
+The config file is a ruby file placed in one of these places (in order, first one found will be used):
+- `$CRIB_CONFIG`
+- `$CRIB_CONFIG_DIR/crib.rb`
+- `$CRIB_CONFIG_DIR/main.rb`
+- `./crib.rb`
+- `$XDG_CONFIG_HOME/crib/crib.rb`
+- `$XDG_CONFIG_HOME/crib/main.rb`
+- `$XDG_CONFIG_HOME/crib.rb`
+- `$HOME/.config/crib/crib.rb`
+- `$HOME/.config/crib/main.rb`
+- `$HOME/.config/crib.rb`
 
 #### LSPs
 
-Lsp's are defined in the `libcrib.rb` file and you can use your `config/main.rb` file to add more.<br>
+Lsp's are defined in the `libcrib.rb` file and you can use your config file to add more.<br>
 
 The following lsp's are added by default and can be installed anywhere in your `$PATH`<br>
 
@@ -121,7 +137,7 @@ crib ./filename.ext
 
 ## Keybindings
 
-TODO: add keybind information on how to set in `config/main.rb`
+TODO: add keybind information on how to set in config file
       and default / unchangeable keybinds
 
 ## Features Implemented

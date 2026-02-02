@@ -19,9 +19,9 @@ CFLAGS_DEBUG :=\
 	-std=c++20 -Wall -Wextra \
 	-O0 -fno-inline -gsplit-dwarf \
 	-g -fno-omit-frame-pointer \
+	-fsanitize=address \
 	-Wno-unused-command-line-argument \
 	-I./include -I./libs -I/home/syed/main/crib/libs/mruby/include
-# -fsanitize=address \
 
 CFLAGS_RELEASE :=\
 	-static --target=x86_64-linux-musl \
@@ -65,7 +65,7 @@ test: $(TARGET_DEBUG)
 
 release: $(TARGET_RELEASE)
 
-$(GENERATED_HEADER): $(INCLUDE_DIR)/syntax/tokens.def $(INCLUDE_DIR)/scripting/libcrib.rb src/ruby_compile.sh
+$(GENERATED_HEADER): $(INCLUDE_DIR)/syntax/tokens.def $(INCLUDE_DIR)/ruby/libcrib.rb src/ruby_compile.sh
 	src/ruby_compile.sh
 
 $(PCH_DEBUG): $(INCLUDE_DIR)/pch.h

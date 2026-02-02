@@ -9,15 +9,53 @@ Copyright 2025 Syed Daanish
 128M ->   412.0M (expected worst case 2.3G)
 ```
 
-##### BTW Check each lsp with each of the features implemented
-
-* Possibly in the future limit memory usage by parser for larger files
-* Also redo lsp threads such that no mutex needed for any rope stuff
+* Next few super long boring things to do
+* redo lsp threads such that no mutex needed for any rope stuff
+    - Also make the classes own the methods in lsp
     - This will mean that parsers/renderers and keystrokes will not need to be individually locked
     - And so it will be much faster
-    - While at it also make the lsp instead of a single thread be a pool of threads blocking on their stdio
-    - So one lsp being slower wont affect others and fps based reading wont be necessary saving cpu
     - At which point the main thread can also be blocked on user input or lsp responses and still be fast
+* Add a superclass for editor called Window (which can be popup or tiled)
+* Add a recursive tiling class for windows
+* Handled by a single renderer that calls and renders each window
+    - And a bg if no window open
+* Make editor's functions into its own methods (classify it)
+    - While at it
+        - Seperate system functions into a class that branches to support local / ssh / server modes.
+        - Even lsp shouldnt be directly controlled because it can branch on local and server modes
+    - Redo hooks as a engine of its own.
+    - And factorize renderer into its own class (and make it just return an array of the render without knowing teh x,y)
+        - which is just managed by the renderer
+    - which is reused by scrollers/ensurers too
+    - this will then allow inlay hints to be possible
+    - and also make VAI easier to implement
+* Allow keybinds to be set in ruby
+
+* then the fun part:
+* Then allow ruby code to create and handle windows as extentions
+* Then 3 inbuilt extentions being file manager, theme picker, tab selector
+
+* Extentions can also be used as file openers (for like databases . diffing . images . audio etc)
+* Local cache for state management (like undo history, cursor positions etc) (location can be set in config)
+* make sure to write inbuilt extentions in cpp and not ruby
+* also move default bar and clipboard back into cpp
+* all lsp popups are no longer their own classes but instead windows (extention like) in popup mode
+
+* skip opening binary files
+* apply themeing in bg log bar lsp popus etc. to keep visual consistency
+* searching/replace/Multi-Cursor (for just one lsp command for all) with pcre2 with regex (started by a slash) (disabled for large files)
+* add links support in xterm (kitty like clickable links)
+* And preprocess markdown in popups to be more like styled than just highlighted
+* In the ruby libcrib populate toplevel binding and file and dir and rubybuild stuff and other similar constants
+* in require_relative allow requiring without appending .rb if possible.
+* Possibly in the future limit memory usage by parser for larger files
+* Add a file picker suggestion while typing a path (including stuff like ~ and .. and $HOME etc)
+* allow opening directory after filemanger is sorted out.
+* commands to:
+    change pwd
+    load a rb file
+    run a ruby command
+    close a window etc.
 * [ ] Add mgems for most common things and a ruby library to allow combining true ruby with mruby
 * add command to set and use a file type at runtime
 * [ ] color alpha in ini files
@@ -26,30 +64,25 @@ Copyright 2025 Syed Daanish
 * [ ] **Line move:** fix the move line functions to work without the calculations from folds as folds are removed.
 * [ ] **Editor Indentation Fix:** - Main : merger indentation with the parser for more accurate results.
     * [ ] Ignore comments/strings from parser when auto-indenting.
+    * [ ] Support for stuff like bash \ and math operators in other languages and comma and line starting with a dot (like in ruby)
+          etc.
 * [ ] **Readme:** Update readme to show ruby based config in detail.
 * [ ] **UI Refinement:**
     * [ ] Finish autocomplete box style functions.
 * [ ] **Documentation UI:** Capture `Ctrl+h` / `Ctrl+l` for scrolling documentation windows.
-* [ ] Redo hooks as a struct.
-* [ ] breakdown the render function into smaller functions.
-    - Might allow for VAI integration easier
-
-* Try to make all functions better now that folds have been purged
-* Cleanup syntax and renderer files
+* Cap line_tree data limit for large files and just store about a thousand previous lines maybe? (lazily loaded)
 
 * add `:j<n>` command to jump to line \<n> in the current file
-* and many more stuff like ruby execution
 * and give warning for invalid commands
 * and upon escape clear the current command
 * allow multiline logging which captures the input entirely and y will copy the log and anything else will exit
 * it will then collapse to being the first line from the log only
 
-* **RN** Add a thing called view which is a rect with speacial type editor . but otherwise a ruby or c++ view
-* can be used for stuff like file manager/git manager/theme picker.
 * allow flushing functions in ruby to tell c++ to refresh keybinds/themes etc.
-* allow keybinds to be set in ruby
 
-check::
+* [ ] **LSP:**
+    support snippets in completion properly
+    check::
         pull diagnostics for ruby-lsp
         lsp selection range - use to highlight start / end of range maybe?
         goto definiton
@@ -60,18 +93,20 @@ check::
         Quick fixes
         Rename symbols
 
-probably remove solargraph support and use ruby-lsp (or sorbet?) instead because it is a pain for utf stuff
-ruby-lsp also supports erb so thats a plus
+* Allow ruby to config lsp capabilities
 
-move lsp configs to json and also allow configs for windows-style vs unix-style line endings and utf-8 vs utf-16
+* also try to fix why solargraph is the only one breaking on edits near emojis
+* ruby-lsp also supports erb so thats a plus
 
 * the ruby should have an api to be able to draw windows and add mappings to them
 
+* **Syntax highlighting**
+* ruby done!!
 * finish bash then do all the directive-like ones like jsonc (first to help with theme files) / toml / yaml / ini / nginx
+* then [ch](++)? then gdscript and python then erb then php
 * then markdown / html
 * then gitignore / gitattributes
-* then fish then sql then css and [jt]sx? then python then lua (make with type annotations for lsp results)
-* then [ch](++)? then gdscript then erb then php
+* then fish then sql then css and [jt]sx? then lua (make with type annotations for lsp results)
 * then haskell then gomod then go then rust
 
 * [ ] **Undo/Redo:** Add support for undo/redo history.
@@ -80,20 +115,11 @@ move lsp configs to json and also allow configs for windows-style vs unix-style 
 
 * [ ] **Tree-sitter Indent:** Attempt to allow Tree-sitter to handle indentation if possible.
 
-* [ ] **Scrolling:** Add logic where selecting at the end of the screen scrolls down (and vice versa).
-    * *Implementation:* Update `main.cc` to send drag events to the selected editor even if coordinates are out of bounds.
-
-
 ### UX
 
 * [ ] **Completion Filtering:**
     * [ ] Stop filtering case-sensitive.
     * [ ] Normalize completion edits if local filtering is used.
-
-* [ ] **LSP Features:**
-    * [ ] Add LSP jumping support (Go to Definition, Hover).
-    * [ ] Add LSP rename support.
-    * [ ] Handle snippets properly in autocomplete: use only the last word in signature when replacing and set cursor to the first one.
 
 * [ ] **Basic Autocomplete:** Keep a list of words in the current buffer for non-LSP fallback.
 
@@ -110,26 +136,24 @@ move lsp configs to json and also allow configs for windows-style vs unix-style 
     * [ ] Allow search and place cursor at all matches.
 
 * [ ] **Block Selection:**
-    * [ ] Double-clicking a bracket selects the whole block (first time only) and sets mode to `WORD`.
-
+    * [ ] Double-clicking a bracket selects the whole block and sets mode to `WORD`.
 
 ### Visuals, UI & Extensions?
 
-* [ ] Add color picker/palette.
+* [ ] Add color picker/palette (as a floating extention).
 
 * [ ] **Git:** Add Git integration (status, diffs).
 * [ ] **AI/Snippets:**
     * [ ] Add snippets support (LuaSnip/VSnip style).
     * [ ] Add Codeium/Copilot support (using VAI virtual text) as a test phase.
 
-* [ ] **SQL:** Add SQL support (Viewer and Basic Editor).
+* [ ] **SQL:** Add SQL support (Viewer and Basic Editor) (as ruby extension).
 * [ ] **Prolly?:** Add Splash Screen / Minigame.
 
 
-### Optimizations & Fluff
+### Unimportant optimizations
 
 * [ ] **Performance:**
     * [ ] Switch JSON parser to `RapidJSON` (or similar high-performance lib).
-    * [ ] Decrease usage of `std::string` in UI, LSP, and warnings.
+    * [ ] Decrease usage of `std::string` in UI, LSP, warnings etc.
     * [ ] Also for vectors into managed memory especially for completions/lsp-stuff.
-

@@ -1,8 +1,8 @@
 #include "io/sysio.h"
 #include "main.h"
 #include "pch.h"
-#include "scripting/decl.h"
-#include "scripting/ruby_compiled.h"
+#include "ruby/decl.h"
+#include "ruby/ruby_compiled.h"
 #include "utils/utils.h"
 
 std::unordered_map<std::string, std::pair<mrb_value, mrb_value>>
@@ -38,6 +38,14 @@ void ruby_start() {
   }
   fs::path exe_dir = get_exe_dir();
   std::vector<fs::path> candidates;
+  const char *crib_config = std::getenv("CRIB_CONFIG");
+  if (crib_config)
+    candidates.emplace_back(fs::path(crib_config));
+  const char *crib_config_dir = std::getenv("CRIB_CONFIG_DIR");
+  if (crib_config_dir) {
+    candidates.emplace_back(fs::path(crib_config_dir) / "crib.rb");
+    candidates.emplace_back(fs::path(crib_config_dir) / "main.rb");
+  }
   candidates.emplace_back("./crib.rb");
   const char *xdg = std::getenv("XDG_CONFIG_HOME");
   const char *home = std::getenv("HOME");
@@ -45,14 +53,13 @@ void ruby_start() {
     candidates.emplace_back(fs::path(xdg) / "crib/crib.rb");
     candidates.emplace_back(fs::path(xdg) / "crib/main.rb");
     candidates.emplace_back(fs::path(xdg) / "crib.rb");
-  } else if (home) {
+  }
+  if (home) {
     fs::path base = fs::path(home) / ".config";
     candidates.emplace_back(base / "crib/crib.rb");
     candidates.emplace_back(base / "crib/main.rb");
     candidates.emplace_back(base / "crib.rb");
   }
-  candidates.emplace_back(exe_dir / "../config/main.rb");
-  candidates.emplace_back(exe_dir / "../config/crib.rb");
   mrb_load_irep(mrb, _tmp___crib_precompiled_mrb);
   C_module = mrb_module_get(mrb, "C");
   setup_ruby_bindings(mrb, C_module);

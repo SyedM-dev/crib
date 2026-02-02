@@ -7,7 +7,7 @@ Coord editor_hit_test(Editor *editor, uint32_t x, uint32_t y) {
   uint32_t numlen =
       EXTRA_META + static_cast<int>(std::log10(editor->root->line_count + 1));
   uint32_t render_width = editor->size.col - numlen;
-  x = MAX(x, numlen) - numlen;
+  x = MAX(x, numlen) - numlen + 1;
   uint32_t target_visual_row = y;
   uint32_t visual_row = 0;
   uint32_t line_index = editor->scroll.row;

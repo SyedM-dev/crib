@@ -1,4 +1,4 @@
-#include "scripting/decl.h"
+#include "ruby/decl.h"
 #include "utils/utils.h"
 
 std::unordered_map<std::string, Language> languages;

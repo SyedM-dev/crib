@@ -1,4 +1,4 @@
-#include "scripting/decl.h"
+#include "ruby/decl.h"
 
 mrb_value get_config_file(mrb_state *mrb, mrb_value self) {
   return mrb_str_new_cstr(mrb, ruby_config_path.string().c_str());

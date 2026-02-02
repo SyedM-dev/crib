@@ -38,7 +38,7 @@ esac
   echo "  freeze"
   echo "end"
   echo
-  cat "$SCRIPT_DIR/../include/scripting/libcrib.rb" | sed "s/os_name_placed_here/$OS_TYPE/g"
+  cat "$SCRIPT_DIR/../include/ruby/libcrib.rb" | sed "s/os_name_placed_here/$OS_TYPE/g"
 } >>"$TMP"
 
 "$SCRIPT_DIR/../libs/mruby/bin/mrbc" -o$OUTPUT $TMP
@@ -47,7 +47,7 @@ esac
   echo "#pragma once"
   xxd -i $OUTPUT | sed 's/^unsigned char /constexpr unsigned char /' |
     sed 's/^unsigned int /constexpr unsigned int /'
-} >"$SCRIPT_DIR/../include/scripting/ruby_compiled.h"
+} >"$SCRIPT_DIR/../include/ruby/ruby_compiled.h"
 
 rm $TMP
 rm $OUTPUT
