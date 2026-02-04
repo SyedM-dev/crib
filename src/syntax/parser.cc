@@ -74,7 +74,6 @@ void Parser::work() {
     line_count = line_tree.count();
     if (c_line > 0 && c_line < line_count)
       prev_state = line_tree.at(c_line - 1)->out_state;
-    std::shared_lock k_lock(editor->knot_mtx);
     LineIterator *it = begin_l_iter(editor->root, c_line);
     if (!it)
       continue;

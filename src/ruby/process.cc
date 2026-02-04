@@ -89,8 +89,8 @@ static mrb_value sym_flags;
 static mrb_value sym_start;
 static mrb_value sym_length;
 static mrb_value sym_mode;
-static mrb_value sym_lang_name;
-static mrb_value sym_filename;
+static mrb_value sym_data;
+static mrb_value sym_foldername;
 static mrb_value sym_width;
 static mrb_value sym_normal;
 static mrb_value sym_insert;
@@ -105,8 +105,8 @@ inline void initialize_symbols() {
   sym_start = mrb_symbol_value(mrb_intern_cstr(mrb, "start"));
   sym_length = mrb_symbol_value(mrb_intern_cstr(mrb, "length"));
   sym_mode = mrb_symbol_value(mrb_intern_cstr(mrb, "mode"));
-  sym_lang_name = mrb_symbol_value(mrb_intern_cstr(mrb, "lang_name"));
-  sym_filename = mrb_symbol_value(mrb_intern_cstr(mrb, "filename"));
+  sym_data = mrb_symbol_value(mrb_intern_cstr(mrb, "data"));
+  sym_foldername = mrb_symbol_value(mrb_intern_cstr(mrb, "foldername"));
   sym_width = mrb_symbol_value(mrb_intern_cstr(mrb, "width"));
   sym_normal = mrb_symbol_value(mrb_intern_cstr(mrb, "normal"));
   sym_insert = mrb_symbol_value(mrb_intern_cstr(mrb, "insert"));
@@ -146,10 +146,8 @@ convert_highlights(mrb_state *mrb, mrb_value highlights_val) {
   return result;
 }
 
-BarLine bar_contents(uint8_t mode, std::string lang_name, uint32_t warnings,
-                     std::string lsp_name, std::string filename,
-                     std::string foldername, uint32_t line, uint32_t max_line,
-                     uint32_t width) {
+BarLine bar_contents(uint8_t mode, uint32_t width, std::string foldername,
+                     Window *window) {
   BarLine bar_line;
   static bool initialed = false;
   if (!initialed) {
@@ -158,7 +156,6 @@ BarLine bar_contents(uint8_t mode, std::string lang_name, uint32_t warnings,
   }
   int ai = mrb_gc_arena_save(mrb);
   mrb_value info = mrb_hash_new(mrb);
-  mrb_value key_mode = sym_mode;
   mrb_value val_mode;
   switch (mode) {
   case NORMAL:
@@ -177,18 +174,20 @@ BarLine bar_contents(uint8_t mode, std::string lang_name, uint32_t warnings,
     val_mode = sym_jumper;
     break;
   }
-  mrb_hash_set(mrb, info, key_mode, val_mode);
-  mrb_value key_lang_name = sym_lang_name;
-  mrb_value val_lang_name =
-      mrb_symbol_value(mrb_intern_cstr(mrb, lang_name.c_str()));
-  mrb_hash_set(mrb, info, key_lang_name, val_lang_name);
-  mrb_value key_filename = sym_filename;
-  mrb_value val_filename =
-      mrb_str_new(mrb, filename.c_str(), filename.length());
-  mrb_hash_set(mrb, info, key_filename, val_filename);
-  mrb_value key_width = sym_width;
+  mrb_hash_set(mrb, info, sym_mode, val_mode);
+  mrb_value val_foldername =
+      mrb_str_new(mrb, foldername.c_str(), foldername.length());
+  mrb_hash_set(mrb, info, sym_foldername, val_foldername);
+  std::array<std::string, 5> arr = window->bar_info();
+  mrb_value ary = mrb_ary_new(mrb);
+  mrb_ary_push(mrb, ary, mrb_str_new(mrb, arr[0].c_str(), arr[0].length()));
+  mrb_ary_push(mrb, ary, mrb_str_new(mrb, arr[1].c_str(), arr[1].length()));
+  mrb_ary_push(mrb, ary, mrb_str_new(mrb, arr[2].c_str(), arr[2].length()));
+  mrb_ary_push(mrb, ary, mrb_str_new(mrb, arr[3].c_str(), arr[3].length()));
+  mrb_ary_push(mrb, ary, mrb_str_new(mrb, arr[4].c_str(), arr[4].length()));
+  mrb_hash_set(mrb, info, sym_data, ary);
   mrb_value val_width = mrb_fixnum_value(width);
-  mrb_hash_set(mrb, info, key_width, val_width);
+  mrb_hash_set(mrb, info, sym_width, val_width);
   mrb_value mod_val = mrb_obj_value(C_module);
   mrb_value block = mrb_funcall(mrb, mod_val, "b_bar", 0);
   mrb_value val_line = mrb_funcall(mrb, block, "call", 1, info);

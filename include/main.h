@@ -12,8 +12,11 @@
 
 extern std::atomic<bool> running;
 extern std::atomic<uint8_t> mode;
-extern std::vector<struct Editor *> editors;
-extern uint8_t current_editor;
+extern fs::path pwd;
+
+namespace ui {
 extern Bar bar;
+extern TileRoot *hover_popup;
+} // namespace ui
 
 #endif

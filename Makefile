@@ -19,9 +19,10 @@ CFLAGS_DEBUG :=\
 	-std=c++20 -Wall -Wextra \
 	-O0 -fno-inline -gsplit-dwarf \
 	-g -fno-omit-frame-pointer \
-	-fsanitize=address \
 	-Wno-unused-command-line-argument \
 	-I./include -I./libs -I/home/syed/main/crib/libs/mruby/include
+
+# C_SANITIZER := -fsanitize=address
 
 CFLAGS_RELEASE :=\
 	-static --target=x86_64-linux-musl \
@@ -78,7 +79,7 @@ $(PCH_RELEASE): $(INCLUDE_DIR)/pch.h
 
 $(TARGET_DEBUG): $(PCH_DEBUG) $(OBJ_DEBUG) $(UNICODE_OBJ_DEBUG)
 	mkdir -p $(BIN_DIR)
-	$(CXX) $(CFLAGS_DEBUG) -o $@ $(OBJ_DEBUG) $(UNICODE_OBJ_DEBUG) $(LIBS_DEBUG)
+	$(CXX) $(CFLAGS_DEBUG) $(C_SANITIZER) -o $@ $(OBJ_DEBUG) $(UNICODE_OBJ_DEBUG) $(LIBS_DEBUG)
 
 $(TARGET_RELEASE): $(PCH_RELEASE) $(OBJ_RELEASE) $(UNICODE_OBJ_RELEASE)
 	mkdir -p $(BIN_DIR)

@@ -32,12 +32,9 @@ uint32_t scan_right(const char *line, uint32_t len, uint32_t off) {
   return i;
 }
 
-void word_boundaries_exclusive(Editor *editor, Coord coord, uint32_t *prev_col,
-                               uint32_t *next_col) {
-  if (!editor)
-    return;
-  std::shared_lock lock(editor->knot_mtx);
-  LineIterator *it = begin_l_iter(editor->root, coord.row);
+void Editor::word_boundaries_exclusive(Coord coord, uint32_t *prev_col,
+                                       uint32_t *next_col) {
+  LineIterator *it = begin_l_iter(this->root, coord.row);
   if (!it)
     return;
   uint32_t line_len;
@@ -85,13 +82,10 @@ uint32_t word_jump_left(const char *line, size_t len, uint32_t col) {
   return static_cast<uint32_t>(last);
 }
 
-void word_boundaries(Editor *editor, Coord coord, uint32_t *prev_col,
-                     uint32_t *next_col, uint32_t *prev_clusters,
-                     uint32_t *next_clusters) {
-  if (!editor)
-    return;
-  std::shared_lock lock(editor->knot_mtx);
-  LineIterator *it = begin_l_iter(editor->root, coord.row);
+void Editor::word_boundaries(Coord coord, uint32_t *prev_col,
+                             uint32_t *next_col, uint32_t *prev_clusters,
+                             uint32_t *next_clusters) {
+  LineIterator *it = begin_l_iter(this->root, coord.row);
   if (!it)
     return;
   uint32_t line_len;

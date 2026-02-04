@@ -12,8 +12,9 @@ struct Bar {
   uint32_t cursor = 0;
 
   void init(Coord screen) { this->screen = screen; }
-  void render();
-  void handle(KeyEvent event);
+  void render(std::vector<ScreenCell> &buffer);
+  void handle_event(KeyEvent event);
+  void handle_command(std::string &command);
   void log(std::string message);
 };
 

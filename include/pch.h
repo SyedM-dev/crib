@@ -50,6 +50,7 @@ extern "C" {
 #include <thread>
 #include <unistd.h>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 using json = nlohmann::json;

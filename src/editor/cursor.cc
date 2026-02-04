@@ -1,14 +1,14 @@
 #include "editor/editor.h"
 #include "utils/utils.h"
 
-Coord move_right(Editor *editor, Coord cursor, uint32_t number) {
+Coord Editor::move_right(Coord cursor, uint32_t number) {
   Coord result = cursor;
-  if (!editor || !editor->root || number == 0)
+  if (!this->root || number == 0)
     return result;
   uint32_t row = result.row;
   uint32_t col = result.col;
   uint32_t line_len = 0;
-  LineIterator *it = begin_l_iter(editor->root, row);
+  LineIterator *it = begin_l_iter(this->root, row);
   if (!it)
     return result;
   char *line = next_line(it, &line_len);
@@ -22,7 +22,7 @@ Coord move_right(Editor *editor, Coord cursor, uint32_t number) {
   while (number > 0) {
     if (col >= line_len) {
       uint32_t next_row = row + 1;
-      if (next_row >= editor->root->line_count) {
+      if (next_row >= this->root->line_count) {
         col = line_len;
         break;
       }
@@ -49,14 +49,16 @@ Coord move_right(Editor *editor, Coord cursor, uint32_t number) {
   return result;
 }
 
-Coord move_left(Editor *editor, Coord cursor, uint32_t number) {
+Coord Editor::move_left(Coord cursor, uint32_t number) {
   Coord result = cursor;
-  if (!editor || !editor->root || number == 0)
+  if (!this->root || number == 0)
     return result;
   uint32_t row = result.row;
   uint32_t col = result.col;
   uint32_t len = 0;
-  LineIterator *it = begin_l_iter(editor->root, row);
+  LineIterator *it = begin_l_iter(this->root, row);
+  if (!it)
+    return result;
   char *line = next_line(it, &len);
   if (!line) {
     free(it->buffer);
@@ -102,29 +104,28 @@ Coord move_left(Editor *editor, Coord cursor, uint32_t number) {
   return result;
 }
 
-void cursor_down(Editor *editor, uint32_t number) {
-  if (!editor || !editor->root || number == 0)
+void Editor::cursor_down(uint32_t number) {
+  if (!this->root || number == 0)
     return;
-  uint32_t visual_col = editor->cursor_preffered;
+  uint32_t visual_col = this->cursor_preffered;
   if (visual_col == UINT32_MAX) {
     uint32_t len;
-    LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
+    LineIterator *it = begin_l_iter(this->root, this->cursor.row);
     char *line = next_line(it, &len);
     if (!line) {
       free(it->buffer);
       free(it);
       return;
     }
-    editor->cursor_preffered =
-        get_visual_col_from_bytes(line, len, editor->cursor.col);
-    visual_col = editor->cursor_preffered;
+    this->cursor_preffered =
+        get_visual_col_from_bytes(line, len, this->cursor.col);
+    visual_col = this->cursor_preffered;
     free(it->buffer);
     free(it);
   }
-  editor->cursor.row =
-      MIN(editor->cursor.row + number, editor->root->line_count - 1);
+  this->cursor.row = MIN(this->cursor.row + number, this->root->line_count - 1);
   uint32_t len;
-  LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
+  LineIterator *it = begin_l_iter(this->root, this->cursor.row);
   char *line = next_line(it, &len);
   if (!line) {
     free(it->buffer);
@@ -133,26 +134,26 @@ void cursor_down(Editor *editor, uint32_t number) {
   }
   if (len > 0 && line[len - 1] == '\n')
     --len;
-  editor->cursor.col = get_bytes_from_visual_col(line, len, visual_col);
+  this->cursor.col = get_bytes_from_visual_col(line, len, visual_col);
   free(it->buffer);
   free(it);
 }
 
-void cursor_up(Editor *editor, uint32_t number) {
-  if (!editor || !editor->root || number == 0 || editor->cursor.row == 0)
+void Editor::cursor_up(uint32_t number) {
+  if (!this->root || number == 0 || this->cursor.row == 0)
     return;
   uint32_t len;
-  LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
+  LineIterator *it = begin_l_iter(this->root, this->cursor.row);
   char *line_content = next_line(it, &len);
   if (!line_content)
     return;
-  if (editor->cursor_preffered == UINT32_MAX)
-    editor->cursor_preffered =
-        get_visual_col_from_bytes(line_content, len, editor->cursor.col);
-  uint32_t visual_col = editor->cursor_preffered;
+  if (this->cursor_preffered == UINT32_MAX)
+    this->cursor_preffered =
+        get_visual_col_from_bytes(line_content, len, this->cursor.col);
+  uint32_t visual_col = this->cursor_preffered;
   free(it->buffer);
   free(it);
-  uint32_t target_row = editor->cursor.row;
+  uint32_t target_row = this->cursor.row;
   while (number > 0 && target_row > 0) {
     target_row--;
     if (target_row == 0) {
@@ -161,32 +162,31 @@ void cursor_up(Editor *editor, uint32_t number) {
     }
     number--;
   }
-  it = begin_l_iter(editor->root, target_row);
+  it = begin_l_iter(this->root, target_row);
   line_content = next_line(it, &len);
   if (line_content) {
     if (len > 0 && line_content[len - 1] == '\n')
       --len;
-    editor->cursor.row = target_row;
-    editor->cursor.col =
-        get_bytes_from_visual_col(line_content, len, visual_col);
+    this->cursor.row = target_row;
+    this->cursor.col = get_bytes_from_visual_col(line_content, len, visual_col);
   } else {
-    editor->cursor.row = 0;
-    editor->cursor.col = 0;
+    this->cursor.row = 0;
+    this->cursor.col = 0;
   }
   free(it->buffer);
   free(it);
 }
 
-void cursor_right(Editor *editor, uint32_t number) {
-  if (!editor || !editor->root || number == 0)
+void Editor::cursor_right(uint32_t number) {
+  if (!this->root || number == 0)
     return;
-  editor->cursor = move_right(editor, editor->cursor, number);
-  editor->cursor_preffered = UINT32_MAX;
+  this->cursor = this->move_right(this->cursor, number);
+  this->cursor_preffered = UINT32_MAX;
 }
 
-void cursor_left(Editor *editor, uint32_t number) {
-  if (!editor || !editor->root || number == 0)
+void Editor::cursor_left(uint32_t number) {
+  if (!this->root || number == 0)
     return;
-  editor->cursor = move_left(editor, editor->cursor, number);
-  editor->cursor_preffered = UINT32_MAX;
+  this->cursor = this->move_left(this->cursor, number);
+  this->cursor_preffered = UINT32_MAX;
 }

@@ -25,6 +25,7 @@ colorize() {
 handle_error() {
   log ERROR "An error occurred on line $1"
 }
+
 trap 'handle_error $LINENO' ERR
 # Multiline string test
 read -r -d '' MULTI <<'CPP'

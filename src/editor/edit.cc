@@ -2,20 +2,18 @@
 #include "lsp/lsp.h"
 #include "utils/utils.h"
 
-void edit_erase(Editor *editor, Coord pos, int64_t len) {
+void Editor::edit_erase(Coord pos, int64_t len) {
   if (len == 0)
     return;
   if (len < 0) {
-    std::shared_lock lock_1(editor->knot_mtx);
     uint32_t cursor_original =
-        line_to_byte(editor->root, editor->cursor.row, nullptr) +
-        editor->cursor.col;
-    uint32_t byte_pos = line_to_byte(editor->root, pos.row, nullptr) + pos.col;
-    Coord point = move_left(editor, pos, -len);
+        line_to_byte(this->root, this->cursor.row, nullptr) + this->cursor.col;
+    uint32_t byte_pos = line_to_byte(this->root, pos.row, nullptr) + pos.col;
+    Coord point = this->move_left(pos, -len);
     json lsp_range;
-    bool do_lsp = (editor->lsp != nullptr);
+    bool do_lsp = (this->lsp != nullptr);
     if (do_lsp) {
-      LineIterator *it = begin_l_iter(editor->root, point.row);
+      LineIterator *it = begin_l_iter(this->root, point.row);
       uint32_t len;
       char *line = next_line(it, &len);
       int utf16_start = 0;
@@ -23,7 +21,7 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
         utf16_start = utf8_offset_to_utf16(line, len, point.col);
       free(it->buffer);
       free(it);
-      it = begin_l_iter(editor->root, pos.row);
+      it = begin_l_iter(this->root, pos.row);
       line = next_line(it, &len);
       int utf16_end = 0;
       if (line)
@@ -33,62 +31,58 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
       lsp_range = {{"start", {{"line", point.row}, {"character", utf16_start}}},
                    {"end", {{"line", pos.row}, {"character", utf16_end}}}};
     }
-    uint32_t start = line_to_byte(editor->root, point.row, nullptr) + point.col;
+    uint32_t start = line_to_byte(this->root, point.row, nullptr) + point.col;
     if (cursor_original > start && cursor_original <= byte_pos) {
-      editor->cursor = point;
-      editor->cursor_preffered = UINT32_MAX;
+      this->cursor = point;
+      this->cursor_preffered = UINT32_MAX;
     } else if (cursor_original > byte_pos) {
       uint32_t cursor_new = cursor_original - (byte_pos - start);
       uint32_t new_col;
-      uint32_t new_row = byte_to_line(editor->root, cursor_new, &new_col);
-      editor->cursor = {new_row, new_col};
-      editor->cursor_preffered = UINT32_MAX;
+      uint32_t new_row = byte_to_line(this->root, cursor_new, &new_col);
+      this->cursor = {new_row, new_col};
+      this->cursor_preffered = UINT32_MAX;
     }
-    lock_1.unlock();
     uint32_t start_row = point.row;
     uint32_t end_row = pos.row;
-    apply_hook_deletion(editor, start_row + 1, end_row);
-    std::unique_lock lock_2(editor->knot_mtx);
-    editor->root = erase(editor->root, start, byte_pos - start);
-    lock_2.unlock();
-    if (editor->parser)
-      editor->parser->edit(start_row, end_row - start_row, 0);
+    this->apply_hook_deletion(start_row + 1, end_row);
+    this->root = erase(this->root, start, byte_pos - start);
+    if (this->parser)
+      this->parser->edit(start_row, end_row - start_row, 0);
     if (do_lsp) {
-      if (editor->lsp->incremental_sync) {
-        json message = {
-            {"jsonrpc", "2.0"},
+      auto lsp = this->lsp.load();
+      if (lsp->incremental_sync) {
+        auto message = std::make_unique<LSPMessage>();
+        message->message = {
             {"method", "textDocument/didChange"},
             {"params",
              {{"textDocument",
-               {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
+               {{"uri", this->uri}, {"version", ++this->lsp_version}}},
               {"contentChanges",
                json::array({{{"range", lsp_range}, {"text", ""}}})}}}};
-        lsp_send(editor->lsp, message, nullptr);
+        lsp->send(std::move(message));
       } else {
-        char *buf = read(editor->root, 0, editor->root->char_count);
+        char *buf = read(this->root, 0, this->root->char_count);
         std::string text(buf);
         free(buf);
-        json message = {
-            {"jsonrpc", "2.0"},
+        auto message = std::make_unique<LSPMessage>();
+        message->message = {
             {"method", "textDocument/didChange"},
             {"params",
              {{"textDocument",
-               {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
+               {{"uri", this->uri}, {"version", ++this->lsp_version}}},
               {"contentChanges", json::array({{{"text", text}}})}}}};
-        lsp_send(editor->lsp, message, nullptr);
+        lsp->send(std::move(message));
       }
     }
   } else {
-    std::shared_lock lock_1(editor->knot_mtx);
     uint32_t cursor_original =
-        line_to_byte(editor->root, editor->cursor.row, nullptr) +
-        editor->cursor.col;
-    uint32_t byte_pos = line_to_byte(editor->root, pos.row, nullptr) + pos.col;
-    Coord point = move_right(editor, pos, len);
+        line_to_byte(this->root, this->cursor.row, nullptr) + this->cursor.col;
+    uint32_t byte_pos = line_to_byte(this->root, pos.row, nullptr) + pos.col;
+    Coord point = this->move_right(pos, len);
     json lsp_range;
-    bool do_lsp = (editor->lsp != nullptr);
+    bool do_lsp = (this->lsp != nullptr);
     if (do_lsp) {
-      LineIterator *it = begin_l_iter(editor->root, pos.row);
+      LineIterator *it = begin_l_iter(this->root, pos.row);
       uint32_t line_len;
       char *line = next_line(it, &line_len);
       int utf16_start = 0;
@@ -96,7 +90,7 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
         utf16_start = utf8_offset_to_utf16(line, line_len, pos.col);
       free(it->buffer);
       free(it);
-      it = begin_l_iter(editor->root, point.row);
+      it = begin_l_iter(this->root, point.row);
       line = next_line(it, &line_len);
       int utf16_end = 0;
       if (line)
@@ -106,67 +100,63 @@ void edit_erase(Editor *editor, Coord pos, int64_t len) {
       lsp_range = {{"start", {{"line", pos.row}, {"character", utf16_start}}},
                    {"end", {{"line", point.row}, {"character", utf16_end}}}};
     }
-    uint32_t end = line_to_byte(editor->root, point.row, nullptr) + point.col;
+    uint32_t end = line_to_byte(this->root, point.row, nullptr) + point.col;
     if (cursor_original > byte_pos && cursor_original <= end) {
-      editor->cursor = pos;
-      editor->cursor_preffered = UINT32_MAX;
+      this->cursor = pos;
+      this->cursor_preffered = UINT32_MAX;
     } else if (cursor_original > end) {
       uint32_t cursor_new = cursor_original - (end - byte_pos);
       uint32_t new_col;
-      uint32_t new_row = byte_to_line(editor->root, cursor_new, &new_col);
-      editor->cursor = {new_row, new_col};
-      editor->cursor_preffered = UINT32_MAX;
+      uint32_t new_row = byte_to_line(this->root, cursor_new, &new_col);
+      this->cursor = {new_row, new_col};
+      this->cursor_preffered = UINT32_MAX;
     }
-    lock_1.unlock();
     uint32_t start_row = pos.row;
     uint32_t end_row = point.row;
-    apply_hook_deletion(editor, start_row + 1, end_row);
-    std::unique_lock lock_2(editor->knot_mtx);
-    editor->root = erase(editor->root, byte_pos, end - byte_pos);
-    lock_2.unlock();
-    if (editor->parser)
-      editor->parser->edit(start_row, end_row - start_row, 0);
+    this->apply_hook_deletion(start_row + 1, end_row);
+    this->root = erase(this->root, byte_pos, end - byte_pos);
+    if (this->parser)
+      this->parser->edit(start_row, end_row - start_row, 0);
     if (do_lsp) {
-      if (editor->lsp->incremental_sync) {
-        json message = {
-            {"jsonrpc", "2.0"},
+      auto lsp = this->lsp.load();
+      if (lsp->incremental_sync) {
+        auto message = std::make_unique<LSPMessage>();
+        message->message = {
             {"method", "textDocument/didChange"},
             {"params",
              {{"textDocument",
-               {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
+               {{"uri", this->uri}, {"version", ++this->lsp_version}}},
               {"contentChanges",
                json::array({{{"range", lsp_range}, {"text", ""}}})}}}};
-        lsp_send(editor->lsp, message, nullptr);
+        lsp->send(std::move(message));
       } else {
-        char *buf = read(editor->root, 0, editor->root->char_count);
+        char *buf = read(this->root, 0, this->root->char_count);
         std::string text(buf);
         free(buf);
-        json message = {
-            {"jsonrpc", "2.0"},
+        auto message = std::make_unique<LSPMessage>();
+        message->message = {
             {"method", "textDocument/didChange"},
             {"params",
              {{"textDocument",
-               {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
+               {{"uri", this->uri}, {"version", ++this->lsp_version}}},
               {"contentChanges", json::array({{{"text", text}}})}}}};
-        lsp_send(editor->lsp, message, nullptr);
+        lsp->send(std::move(message));
       }
     }
   }
 }
 
-void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
-  std::shared_lock lock_1(editor->knot_mtx);
+void Editor::edit_insert(Coord pos, char *data, uint32_t len) {
   uint32_t cursor_original =
-      line_to_byte(editor->root, editor->cursor.row, nullptr) +
-      editor->cursor.col;
-  uint32_t byte_pos = line_to_byte(editor->root, pos.row, nullptr) + pos.col;
+      line_to_byte(this->root, this->cursor.row, nullptr) + this->cursor.col;
+  uint32_t byte_pos = line_to_byte(this->root, pos.row, nullptr) + pos.col;
   if (cursor_original > byte_pos) {
     uint32_t cursor_new = cursor_original + len;
     uint32_t new_col;
-    uint32_t new_row = byte_to_line(editor->root, cursor_new, &new_col);
-    editor->cursor = {new_row, new_col};
+    uint32_t new_row = byte_to_line(this->root, cursor_new, &new_col);
+    this->cursor = {new_row, new_col};
   }
-  LineIterator *it = begin_l_iter(editor->root, pos.row);
+  LineIterator *it = begin_l_iter(this->root, pos.row);
   uint32_t line_len;
   char *line = next_line(it, &line_len);
   int utf16_col = 0;
@@ -174,55 +164,52 @@ void edit_insert(Editor *editor, Coord pos, char *data, uint32_t len) {
     utf16_col = utf8_offset_to_utf16(line, line_len, pos.col);
   free(it->buffer);
   free(it);
-  lock_1.unlock();
-  std::unique_lock lock_2(editor->knot_mtx);
-  editor->root = insert(editor->root, byte_pos, data, len);
+  this->root = insert(this->root, byte_pos, data, len);
   uint32_t rows = 0;
   for (uint32_t i = 0; i < len; i++)
     if (data[i] == '\n')
       rows++;
-  apply_hook_insertion(editor, pos.row, rows);
-  lock_2.unlock();
-  if (editor->parser)
-    editor->parser->edit(pos.row, 0, rows);
-  if (editor->lsp) {
-    if (editor->lsp->incremental_sync) {
-      json message = {
-          {"jsonrpc", "2.0"},
+  this->apply_hook_insertion(pos.row, rows);
+  if (this->parser)
+    this->parser->edit(pos.row, 0, rows);
+  auto lsp = this->lsp.load();
+  if (lsp) {
+    if (lsp->incremental_sync) {
+      auto message = std::make_unique<LSPMessage>();
+      message->message = {
           {"method", "textDocument/didChange"},
           {"params",
            {{"textDocument",
-             {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
+             {{"uri", this->uri}, {"version", ++this->lsp_version}}},
             {"contentChanges",
              json::array(
                  {{{"range",
                     {{"start", {{"line", pos.row}, {"character", utf16_col}}},
                      {"end", {{"line", pos.row}, {"character", utf16_col}}}}},
                    {"text", std::string(data, len)}}})}}}};
-      lsp_send(editor->lsp, message, nullptr);
+      lsp->send(std::move(message));
     } else {
-      char *buf = read(editor->root, 0, editor->root->char_count);
+      char *buf = read(this->root, 0, this->root->char_count);
       std::string text(buf);
       free(buf);
-      json message = {
-          {"jsonrpc", "2.0"},
+      auto message = std::make_unique<LSPMessage>();
+      message->message = {
           {"method", "textDocument/didChange"},
           {"params",
            {{"textDocument",
-             {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
+             {{"uri", this->uri}, {"version", ++this->lsp_version}}},
             {"contentChanges", json::array({{{"text", text}}})}}}};
-      lsp_send(editor->lsp, message, nullptr);
+      lsp->send(std::move(message));
     }
   }
 }
 
-void edit_replace(Editor *editor, Coord start, Coord end, const char *text,
-                  uint32_t len) {
-  std::unique_lock lock(editor->knot_mtx);
+void Editor::edit_replace(Coord start, Coord end, const char *text,
+                          uint32_t len) {
   uint32_t start_byte =
-      line_to_byte(editor->root, start.row, nullptr) + start.col;
-  uint32_t end_byte = line_to_byte(editor->root, end.row, nullptr) + end.col;
-  LineIterator *it = begin_l_iter(editor->root, start.row);
+      line_to_byte(this->root, start.row, nullptr) + start.col;
+  uint32_t end_byte = line_to_byte(this->root, end.row, nullptr) + end.col;
+  LineIterator *it = begin_l_iter(this->root, start.row);
   uint32_t line_len;
   char *line = next_line(it, &line_len);
   int utf16_start = 0;
@@ -230,7 +217,7 @@ void edit_replace(Editor *editor, Coord start, Coord end, const char *text,
     utf16_start = utf8_offset_to_utf16(line, line_len, start.col);
   free(it->buffer);
   free(it);
-  it = begin_l_iter(editor->root, end.row);
+  it = begin_l_iter(this->root, end.row);
   line = next_line(it, &line_len);
   int utf16_end = 0;
   if (line)
@@ -238,25 +225,26 @@ void edit_replace(Editor *editor, Coord start, Coord end, const char *text,
   free(it->buffer);
   free(it);
   if (start_byte != end_byte)
-    editor->root = erase(editor->root, start_byte, end_byte - start_byte);
+    this->root = erase(this->root, start_byte, end_byte - start_byte);
   if (len > 0)
-    editor->root = insert(editor->root, start_byte, (char *)text, len);
+    this->root = insert(this->root, start_byte, (char *)text, len);
   uint32_t rows = 0;
   for (uint32_t i = 0; i < len; i++)
     if (text[i] == '\n')
       rows++;
   if (rows > 0)
     rows--;
-  if (editor->parser)
-    editor->parser->edit(start.row, end.row - start.row, rows);
-  if (editor->lsp) {
-    if (editor->lsp->incremental_sync) {
-      json message = {
-          {"jsonrpc", "2.0"},
+  if (this->parser)
+    this->parser->edit(start.row, end.row - start.row, rows);
+  auto lsp = this->lsp.load();
+  if (lsp) {
+    if (lsp->incremental_sync) {
+      auto message = std::make_unique<LSPMessage>();
+      message->message = {
           {"method", "textDocument/didChange"},
           {"params",
            {{"textDocument",
-             {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
+             {{"uri", this->uri}, {"version", ++this->lsp_version}}},
             {"contentChanges",
              json::array(
                  {{{"range",
@@ -264,19 +252,19 @@ void edit_replace(Editor *editor, Coord start, Coord end, const char *text,
                       {{"line", start.row}, {"character", utf16_start}}},
                      {"end", {{"line", end.row}, {"character", utf16_end}}}}},
                    {"text", std::string(text, len)}}})}}}};
-      lsp_send(editor->lsp, message, nullptr);
+      lsp->send(std::move(message));
     } else {
-      char *buf = read(editor->root, 0, editor->root->char_count);
+      char *buf = read(this->root, 0, this->root->char_count);
       std::string full_text(buf);
       free(buf);
-      json message = {
-          {"jsonrpc", "2.0"},
+      auto message = std::make_unique<LSPMessage>();
+      message->message = {
           {"method", "textDocument/didChange"},
           {"params",
            {{"textDocument",
-             {{"uri", editor->uri}, {"version", ++editor->lsp_version}}},
+             {{"uri", this->uri}, {"version", ++this->lsp_version}}},
             {"contentChanges", json::array({{{"text", full_text}}})}}}};
-      lsp_send(editor->lsp, message, nullptr);
+      lsp->send(std::move(message));
     }
   }
 }

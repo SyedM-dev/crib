@@ -1,86 +1,83 @@
 #include "editor/helpers.h"
 #include "editor/editor.h"
+#include "extentions/hover.h"
 #include "io/sysio.h"
 #include "lsp/lsp.h"
 #include "main.h"
 #include "utils/utils.h"
-#include <sys/types.h>
 
-void cut(Editor *editor) {
-  if (ABS((int64_t)editor->cursor.row - (int64_t)editor->selection.row) >
-      1500) {
-    bar.log("Selection too large!");
+void Editor::cut() {
+  if (ABS((int64_t)this->cursor.row - (int64_t)this->selection.row) > 1500) {
+    ui::bar.log("Selection too large!");
     return;
   }
   if (mode != SELECT)
     return;
   Coord start;
   uint32_t len;
-  char *text = get_selection(editor, &len, &start);
+  char *text = this->get_selection(&len, &start);
   ruby_copy(text, len);
   len = count_clusters(text, len, 0, len);
-  edit_erase(editor, start, len);
+  this->edit_erase(start, len);
   free(text);
-  editor->selection_active = false;
+  this->selection_active = false;
 }
 
-void copy(Editor *editor) {
-  if (ABS((int64_t)editor->cursor.row - (int64_t)editor->selection.row) >
-      1500) {
-    bar.log("Selection too large!");
+void Editor::copy() {
+  if (ABS((int64_t)this->cursor.row - (int64_t)this->selection.row) > 1500) {
+    ui::bar.log("Selection too large!");
     return;
   }
   if (mode != SELECT)
     return;
   uint32_t len;
-  char *text = get_selection(editor, &len, nullptr);
+  char *text = this->get_selection(&len, nullptr);
   ruby_copy(text, len);
   free(text);
-  editor->selection_active = false;
+  this->selection_active = false;
 }
 
-void paste(Editor *editor) {
+void Editor::paste() {
   if (mode == NORMAL) {
     std::string text = ruby_paste();
     if (text.empty())
       return;
-    insert_str(editor, (char *)text.c_str(), text.length());
+    this->insert_str((char *)text.c_str(), text.length());
   } else if (mode == SELECT) {
     std::string text = ruby_paste();
     if (!text.empty()) {
       Coord start, end;
-      selection_bounds(editor, &start, &end);
+      this->selection_bounds(&start, &end);
       uint32_t start_byte =
-          line_to_byte(editor->root, start.row, nullptr) + start.col;
-      uint32_t end_byte =
-          line_to_byte(editor->root, end.row, nullptr) + end.col;
-      edit_erase(editor, start, end_byte - start_byte);
-      edit_insert(editor, editor->cursor, (char *)text.c_str(), text.length());
+          line_to_byte(this->root, start.row, nullptr) + start.col;
+      uint32_t end_byte = line_to_byte(this->root, end.row, nullptr) + end.col;
+      this->edit_erase(start, end_byte - start_byte);
+      this->edit_insert(this->cursor, (char *)text.c_str(), text.length());
     }
-    editor->selection_active = false;
+    this->selection_active = false;
   }
 }
 
-void insert_str(Editor *editor, char *c, uint32_t len) {
+void Editor::insert_str(char *c, uint32_t len) {
   if (c) {
-    edit_insert(editor, editor->cursor, c, len);
+    this->edit_insert(this->cursor, c, len);
     uint32_t grapheme_len = count_clusters(c, len, 0, len);
-    cursor_right(editor, grapheme_len);
+    this->cursor_right(grapheme_len);
   }
 }
 
-void indent_current_line(Editor *editor) {
-  Coord start = editor->cursor;
-  uint32_t delta = editor->indents.indent_line(editor->cursor.row);
-  editor->cursor.col = start.col + delta;
-  editor->cursor.row = start.row;
+void Editor::indent_current_line() {
+  Coord start = this->cursor;
+  uint32_t delta = this->indents.indent_line(this->cursor.row);
+  this->cursor.col = start.col + delta;
+  this->cursor.row = start.row;
 }
 
-void dedent_current_line(Editor *editor) {
-  Coord start = editor->cursor;
-  uint32_t delta = editor->indents.dedent_line(editor->cursor.row);
-  editor->cursor.col = MAX((int64_t)start.col - delta, 0);
-  editor->cursor.row = start.row;
+void Editor::dedent_current_line() {
+  Coord start = this->cursor;
+  uint32_t delta = this->indents.dedent_line(this->cursor.row);
+  this->cursor.col = MAX((int64_t)start.col - delta, 0);
+  this->cursor.row = start.row;
 }
 
 static void move_coord_by_delta(Coord &c, uint32_t row, int64_t delta) {
@@ -90,49 +87,49 @@ static void move_coord_by_delta(Coord &c, uint32_t row, int64_t delta) {
   }
 }
 
-void indent_selection(Editor *editor) {
-  uint32_t top = MIN(editor->cursor.row, editor->selection.row);
-  uint32_t bot = MAX(editor->cursor.row, editor->selection.row);
+void Editor::indent_selection() {
+  uint32_t top = MIN(this->cursor.row, this->selection.row);
+  uint32_t bot = MAX(this->cursor.row, this->selection.row);
   if (bot - top > 1500) {
-    bar.log("Can't indent more than 1500 lines at once!");
+    ui::bar.log("Can't indent more than 1500 lines at once!");
     return;
   }
   if (bot - top >= 2)
-    editor->indents.indent_block(top + 1, bot - 1);
-  uint32_t delta_top = editor->indents.indent_line(top);
+    this->indents.indent_block(top + 1, bot - 1);
+  uint32_t delta_top = this->indents.indent_line(top);
   uint32_t delta_bot =
-      (bot == top) ? delta_top : editor->indents.indent_line(bot);
-  move_coord_by_delta(editor->cursor, top, delta_top);
-  move_coord_by_delta(editor->selection, top, delta_top);
+      (bot == top) ? delta_top : this->indents.indent_line(bot);
+  move_coord_by_delta(this->cursor, top, delta_top);
+  move_coord_by_delta(this->selection, top, delta_top);
   if (bot != top) {
-    move_coord_by_delta(editor->cursor, bot, delta_bot);
-    move_coord_by_delta(editor->selection, bot, delta_bot);
+    move_coord_by_delta(this->cursor, bot, delta_bot);
+    move_coord_by_delta(this->selection, bot, delta_bot);
   }
 }
 
-void dedent_selection(Editor *editor) {
-  uint32_t top = MIN(editor->cursor.row, editor->selection.row);
-  uint32_t bot = MAX(editor->cursor.row, editor->selection.row);
+void Editor::dedent_selection() {
+  uint32_t top = MIN(this->cursor.row, this->selection.row);
+  uint32_t bot = MAX(this->cursor.row, this->selection.row);
   if (bot - top > 1500) {
-    bar.log("Can't dedent more than 1500 lines at once!");
+    ui::bar.log("Can't dedent more than 1500 lines at once!");
     return;
   }
   if (bot - top >= 2)
-    editor->indents.dedent_block(top + 1, bot - 1);
-  uint32_t delta_top = editor->indents.dedent_line(top);
+    this->indents.dedent_block(top + 1, bot - 1);
+  uint32_t delta_top = this->indents.dedent_line(top);
   uint32_t delta_bot =
-      (bot == top) ? delta_top : editor->indents.dedent_line(bot);
-  move_coord_by_delta(editor->cursor, top, -(int64_t)delta_top);
-  move_coord_by_delta(editor->selection, top, -(int64_t)delta_top);
+      (bot == top) ? delta_top : this->indents.dedent_line(bot);
+  move_coord_by_delta(this->cursor, top, -(int64_t)delta_top);
+  move_coord_by_delta(this->selection, top, -(int64_t)delta_top);
   if (bot != top) {
-    move_coord_by_delta(editor->cursor, bot, -(int64_t)delta_bot);
-    move_coord_by_delta(editor->selection, bot, -(int64_t)delta_bot);
+    move_coord_by_delta(this->cursor, bot, -(int64_t)delta_bot);
+    move_coord_by_delta(this->selection, bot, -(int64_t)delta_bot);
   }
 }
 
-void insert_char(Editor *editor, char c) {
-  uint32_t col = editor->cursor.col;
-  LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
+void Editor::insert_char(char c) {
+  uint32_t col = this->cursor.col;
+  LineIterator *it = begin_l_iter(this->root, this->cursor.row);
   if (!it)
     return;
   uint32_t len;
@@ -148,7 +145,7 @@ void insert_char(Editor *editor, char c) {
     if ((c == '}' && next == '}') || (c == ')' && next == ')') ||
         (c == ']' && next == ']') || (c == '"' && next == '"') ||
         (c == '\'' && next == '\'')) {
-      cursor_right(editor, 1);
+      this->cursor_right(1);
       skip_insert = true;
     }
   }
@@ -175,16 +172,17 @@ void insert_char(Editor *editor, char c) {
     }
     if (closing) {
       char pair[2] = {c, closing};
-      edit_insert(editor, editor->cursor, pair, 2);
-      cursor_right(editor, 1);
+      this->edit_insert(this->cursor, pair, 2);
+      this->cursor_right(1);
     } else {
-      edit_insert(editor, editor->cursor, &c, 1);
-      cursor_right(editor, 1);
+      this->edit_insert(this->cursor, &c, 1);
+      this->cursor_right(1);
     }
-    if (editor->lsp && editor->lsp->allow_formatting_on_type) {
-      for (char ch : editor->lsp->format_chars) {
+    auto lsp = this->lsp.load();
+    if (lsp && lsp->allow_formatting_on_type) {
+      for (char ch : lsp->format_chars) {
         if (ch == c) {
-          LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
+          LineIterator *it = begin_l_iter(this->root, this->cursor.row);
           if (!it)
             return;
           uint32_t len;
@@ -194,29 +192,27 @@ void insert_char(Editor *editor, char c) {
             free(it);
             return;
           }
-          uint32_t col = utf8_offset_to_utf16(line, len, editor->cursor.col);
+          uint32_t col = utf8_offset_to_utf16(line, len, this->cursor.col);
           free(it->buffer);
           free(it);
-          int version = editor->lsp_version;
-          json message = {
-              {"jsonrpc", "2.0"},
+          int version = this->lsp_version;
+          auto message = std::make_unique<LSPMessage>();
+          message->message = {
               {"method", "textDocument/onTypeFormatting"},
               {"params",
-               {{"textDocument", {{"uri", editor->uri}}},
-                {"position",
-                 {{"line", editor->cursor.row}, {"character", col}}},
+               {{"textDocument", {{"uri", this->uri}}},
+                {"position", {{"line", this->cursor.row}, {"character", col}}},
                 {"ch", std::string(1, c)},
                 {"options",
                  {{"tabSize", 2},
                   {"insertSpaces", true},
                   {"trimTrailingWhitespace", true},
                   {"trimFinalNewlines", true}}}}}};
-          LSPPending *pending = new LSPPending();
-          pending->editor = editor;
-          pending->callback = [version](Editor *editor, const json &message) {
-            if (version != editor->lsp_version)
+          message->editor = this;
+          message->callback = [version](const LSPMessage &message) {
+            if (version != message.editor->lsp_version)
               return;
-            auto &edits = message["result"];
+            auto &edits = message.message["result"];
             if (edits.is_array()) {
               std::vector<TextEdit> t_edits;
               t_edits.reserve(edits.size());
@@ -227,14 +223,14 @@ void insert_char(Editor *editor, char c) {
                 t_edit.start.col = edit["range"]["start"]["character"];
                 t_edit.end.row = edit["range"]["end"]["line"];
                 t_edit.end.col = edit["range"]["end"]["character"];
-                utf8_normalize_edit(editor, &t_edit);
+                message.editor->utf8_normalize_edit(&t_edit);
                 t_edits.push_back(t_edit);
               }
-              apply_lsp_edits(editor, t_edits, false);
-              ensure_scroll(editor);
+              message.editor->apply_lsp_edits(t_edits, false);
+              message.editor->ensure_scroll();
             }
           };
-          lsp_send(editor->lsp, message, pending);
+          lsp->send(std::move(message));
           break;
         }
       }
@@ -242,19 +238,19 @@ void insert_char(Editor *editor, char c) {
   }
 }
 
-void normal_mode(Editor *editor) {
-  Coord prev_pos = editor->cursor;
+void Editor::normal_mode() {
+  Coord prev_pos = this->cursor;
   mode = NORMAL;
-  cursor_left(editor, 1);
-  if (prev_pos.row != editor->cursor.row)
-    cursor_right(editor, 1);
+  this->cursor_left(1);
+  if (prev_pos.row != this->cursor.row)
+    this->cursor_right(1);
 }
 
-void backspace_edit(Editor *editor) {
-  Coord prev_pos = editor->cursor;
+void Editor::backspace_edit() {
+  Coord prev_pos = this->cursor;
   if (prev_pos.col > 0)
     prev_pos.col--;
-  LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
+  LineIterator *it = begin_l_iter(this->root, this->cursor.row);
   if (!it)
     return;
   uint32_t len;
@@ -267,11 +263,11 @@ void backspace_edit(Editor *editor) {
   if (len > 0 && line[len - 1] == '\n')
     --len;
   char prev_char = (prev_pos.col < len) ? line[prev_pos.col] : 0;
-  char next_char = (editor->cursor.col < len) ? line[editor->cursor.col] : 0;
+  char next_char = (this->cursor.col < len) ? line[this->cursor.col] : 0;
   bool before_content = false;
-  if (editor->cursor.col > 0) {
+  if (this->cursor.col > 0) {
     before_content = true;
-    for (uint32_t i = 0; i < editor->cursor.col; i++)
+    for (uint32_t i = 0; i < this->cursor.col; i++)
       if (line[i] != ' ' && line[i] != '\t') {
         before_content = false;
         break;
@@ -280,7 +276,7 @@ void backspace_edit(Editor *editor) {
   free(it->buffer);
   free(it);
   if (before_content) {
-    dedent_current_line(editor);
+    this->dedent_current_line();
     return;
   }
   bool is_pair = (prev_char == '{' && next_char == '}') ||
@@ -289,65 +285,65 @@ void backspace_edit(Editor *editor) {
                  (prev_char == '"' && next_char == '"') ||
                  (prev_char == '\'' && next_char == '\'');
   if (is_pair) {
-    edit_erase(editor, editor->cursor, 1);
-    edit_erase(editor, prev_pos, 1);
+    this->edit_erase(this->cursor, 1);
+    this->edit_erase(prev_pos, 1);
   } else {
-    edit_erase(editor, editor->cursor, -1);
+    this->edit_erase(this->cursor, -1);
   }
 }
 
-void delete_prev_word(Editor *editor) {
+void Editor::delete_prev_word() {
   uint32_t prev_col_byte, prev_col_cluster;
-  word_boundaries(editor, editor->cursor, &prev_col_byte, nullptr,
-                  &prev_col_cluster, nullptr);
-  if (prev_col_byte == editor->cursor.col)
-    edit_erase(editor, editor->cursor, -1);
+  this->word_boundaries(this->cursor, &prev_col_byte, nullptr,
+                        &prev_col_cluster, nullptr);
+  if (prev_col_byte == this->cursor.col)
+    this->edit_erase(this->cursor, -1);
   else
-    edit_erase(editor, editor->cursor, -(int64_t)prev_col_cluster);
+    this->edit_erase(this->cursor, -(int64_t)prev_col_cluster);
 }
 
-void delete_next_word(Editor *editor) {
+void Editor::delete_next_word() {
   uint32_t next_col_byte, next_col_cluster;
-  word_boundaries(editor, editor->cursor, nullptr, &next_col_byte, nullptr,
-                  &next_col_cluster);
-  if (next_col_byte == editor->cursor.col)
-    edit_erase(editor, editor->cursor, 1);
+  this->word_boundaries(this->cursor, nullptr, &next_col_byte, nullptr,
+                        &next_col_cluster);
+  if (next_col_byte == this->cursor.col)
+    this->edit_erase(this->cursor, 1);
   else
-    edit_erase(editor, editor->cursor, next_col_cluster);
+    this->edit_erase(this->cursor, next_col_cluster);
 }
 
-void clear_hooks_at_line(Editor *editor, uint32_t line) {
+void Editor::clear_hooks_at_line(uint32_t line) {
   for (uint8_t i = 0; i < 94; i++)
-    if (editor->hooks[i] == line + 1) {
-      editor->hooks[i] = 0;
+    if (this->hooks[i] == line + 1) {
+      this->hooks[i] = 0;
       break;
     }
 }
 
-void cursor_prev_word(Editor *editor) {
+void Editor::cursor_prev_word() {
   uint32_t prev_col;
-  word_boundaries(editor, editor->cursor, &prev_col, nullptr, nullptr, nullptr);
-  editor->cursor_preffered = UINT32_MAX;
-  if (prev_col == editor->cursor.col)
-    cursor_left(editor, 1);
+  word_boundaries(this->cursor, &prev_col, nullptr, nullptr, nullptr);
+  this->cursor_preffered = UINT32_MAX;
+  if (prev_col == this->cursor.col)
+    cursor_left(1);
   else
-    editor->cursor = {editor->cursor.row, prev_col};
+    this->cursor = {this->cursor.row, prev_col};
 }
 
-void cursor_next_word(Editor *editor) {
+void Editor::cursor_next_word() {
   uint32_t next_col;
-  word_boundaries(editor, editor->cursor, nullptr, &next_col, nullptr, nullptr);
-  editor->cursor_preffered = UINT32_MAX;
-  if (next_col == editor->cursor.col)
-    cursor_right(editor, 1);
+  word_boundaries(this->cursor, nullptr, &next_col, nullptr, nullptr);
+  this->cursor_preffered = UINT32_MAX;
+  if (next_col == this->cursor.col)
+    this->cursor_right(1);
   else
-    editor->cursor = {editor->cursor.row, next_col};
+    this->cursor = {this->cursor.row, next_col};
 }
 
-void select_all(Editor *editor) {
-  if (editor->root->line_count > 0) {
-    editor->cursor.row = editor->root->line_count - 1;
-    LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
+void Editor::select_all() {
+  if (this->root->line_count > 0) {
+    this->cursor.row = this->root->line_count - 1;
+    LineIterator *it = begin_l_iter(this->root, this->cursor.row);
     if (!it)
       return;
     uint32_t line_len;
@@ -359,18 +355,19 @@ void select_all(Editor *editor) {
     line_len = count_clusters(line, line_len, 0, line_len);
     free(it->buffer);
     free(it);
-    editor->cursor.col = line_len;
-    editor->cursor_preffered = UINT32_MAX;
+    this->cursor.col = line_len;
+    this->cursor_preffered = UINT32_MAX;
     mode = SELECT;
-    editor->selection_active = true;
-    editor->selection = {0, 0};
-    editor->selection_type = LINE;
+    this->selection_active = true;
+    this->selection = {0, 0};
+    this->selection_type = LINE;
   }
 }
 
-void fetch_lsp_hover(Editor *editor) {
-  if (editor->lsp && editor->lsp->allow_hover) {
-    LineIterator *it = begin_l_iter(editor->root, editor->cursor.row);
+void Editor::fetch_lsp_hover() {
+  auto lsp = this->lsp.load();
+  if (lsp && lsp->allow_hover) {
+    LineIterator *it = begin_l_iter(this->root, this->cursor.row);
     uint32_t line_len;
     char *line = next_line(it, &line_len);
     if (!line) {
@@ -378,18 +375,18 @@ void fetch_lsp_hover(Editor *editor) {
       free(it);
       return;
     }
-    uint32_t col = utf8_offset_to_utf16(line, line_len, editor->cursor.col);
+    uint32_t col = utf8_offset_to_utf16(line, line_len, this->cursor.col);
     free(it->buffer);
     free(it);
-    json hover_request = {
-        {"jsonrpc", "2.0"},
+    auto message = std::make_unique<LSPMessage>();
+    message->message = {
         {"method", "textDocument/hover"},
         {"params",
-         {{"textDocument", {{"uri", editor->uri}}},
-          {"position", {{"line", editor->cursor.row}, {"character", col}}}}}};
-    LSPPending *pending = new LSPPending();
-    pending->editor = editor;
-    pending->callback = [](Editor *editor, const json &hover) {
+         {{"textDocument", {{"uri", this->uri}}},
+          {"position", {{"line", this->cursor.row}, {"character", col}}}}}};
+    message->editor = this;
+    message->callback = [](const LSPMessage &message) {
+      auto &hover = message.message;
       if (hover.contains("result") && !hover["result"].is_null()) {
         auto &contents = hover["result"]["contents"];
         std::string hover_text = "";
@@ -413,19 +410,21 @@ void fetch_lsp_hover(Editor *editor) {
           hover_text += contents.get<std::string>();
         }
         if (!hover_text.empty()) {
-          editor->hover.clear();
-          editor->hover.text = clean_text(hover_text);
-          editor->hover.is_markup = is_markup;
-          editor->hover.render_first();
-          editor->hover_active = true;
+          auto hover_box = static_cast<HoverBox *>(ui::hover_popup->tile.get());
+          hover_box->clear();
+          hover_box->text = clean_text(hover_text);
+          hover_box->is_markup = is_markup;
+          message.editor->hover_active = true;
         }
       }
     };
-    lsp_send(editor->lsp, hover_request, pending);
+    lsp->send(std::move(message));
   }
 }
 
-void handle_mouse(Editor *editor, KeyEvent event) {
+void Editor::handle_click(KeyEvent event, Coord size) {
+  focused_window = this;
+  this->size = size;
   static std::chrono::steady_clock::time_point last_click_time =
       std::chrono::steady_clock::now();
   static uint32_t click_count = 0;
@@ -439,18 +438,18 @@ void handle_mouse(Editor *editor, KeyEvent event) {
     case SCROLL:
       switch (event.mouse_direction) {
       case SCROLL_UP:
-        scroll_up(editor, 4);
-        ensure_cursor(editor);
+        this->scroll_up(4);
+        this->ensure_cursor();
         break;
       case SCROLL_DOWN:
-        scroll_down(editor, 4);
-        ensure_cursor(editor);
+        this->scroll_down(4);
+        this->ensure_cursor();
         break;
       case SCROLL_LEFT:
-        cursor_left(editor, 10);
+        this->cursor_left(10);
         break;
       case SCROLL_RIGHT:
-        cursor_right(editor, 10);
+        this->cursor_right(10);
         break;
       }
       break;
@@ -463,35 +462,35 @@ void handle_mouse(Editor *editor, KeyEvent event) {
           click_count = 1;
         last_click_time = now;
         last_click_pos = cur_pos;
-        Coord p = editor_hit_test(editor, event.mouse_x, event.mouse_y);
+        Coord p = this->click_coord(event.mouse_x, event.mouse_y);
         if (p.row == UINT32_MAX && p.col == UINT32_MAX)
           return;
-        editor->cursor_preffered = UINT32_MAX;
+        this->cursor_preffered = UINT32_MAX;
         if (click_count == 1) {
-          editor->cursor = p;
-          editor->selection = p;
+          this->cursor = p;
+          this->selection = p;
           if (mode == SELECT) {
             mode = NORMAL;
-            editor->selection_active = false;
+            this->selection_active = false;
           }
         } else if (click_count == 2) {
           uint32_t prev_col, next_col;
-          word_boundaries(editor, editor->cursor, &prev_col, &next_col, nullptr,
-                          nullptr);
-          if (editor->cursor < editor->selection)
-            editor->cursor = {editor->cursor.row, prev_col};
+          this->word_boundaries(this->cursor, &prev_col, &next_col, nullptr,
+                                nullptr);
+          if (this->cursor < this->selection)
+            this->cursor = {this->cursor.row, prev_col};
           else
-            editor->cursor = {editor->cursor.row, next_col};
-          editor->cursor_preffered = UINT32_MAX;
-          editor->selection_type = WORD;
+            this->cursor = {this->cursor.row, next_col};
+          this->cursor_preffered = UINT32_MAX;
+          this->selection_type = WORD;
           mode = SELECT;
-          editor->selection_active = true;
+          this->selection_active = true;
         } else if (click_count >= 3) {
-          if (editor->cursor < editor->selection) {
-            editor->cursor = {p.row, 0};
+          if (this->cursor < this->selection) {
+            this->cursor = {p.row, 0};
           } else {
             uint32_t line_len;
-            LineIterator *it = begin_l_iter(editor->root, p.row);
+            LineIterator *it = begin_l_iter(this->root, p.row);
             char *line = next_line(it, &line_len);
             if (!line)
               return;
@@ -499,44 +498,44 @@ void handle_mouse(Editor *editor, KeyEvent event) {
               line_len--;
             free(it->buffer);
             free(it);
-            editor->cursor = {p.row, line_len};
+            this->cursor = {p.row, line_len};
           }
-          editor->cursor_preffered = UINT32_MAX;
-          editor->selection_type = LINE;
+          this->cursor_preffered = UINT32_MAX;
+          this->selection_type = LINE;
           mode = SELECT;
-          editor->selection_active = true;
+          this->selection_active = true;
           click_count = 3;
         }
       }
       break;
     case DRAG:
       if (event.mouse_button == LEFT_BTN) {
-        Coord p = editor_hit_test(editor, event.mouse_x, event.mouse_y);
+        Coord p = this->click_coord(event.mouse_x, event.mouse_y);
         if (p.row == UINT32_MAX && p.col == UINT32_MAX)
           return;
-        editor->cursor_preffered = UINT32_MAX;
+        this->cursor_preffered = UINT32_MAX;
         mode = SELECT;
-        if (!editor->selection_active) {
-          editor->selection_active = true;
-          editor->selection_type = CHAR;
+        if (!this->selection_active) {
+          this->selection_active = true;
+          this->selection_type = CHAR;
         }
         uint32_t prev_col, next_col, line_len;
-        switch (editor->selection_type) {
+        switch (this->selection_type) {
         case CHAR:
-          editor->cursor = p;
+          this->cursor = p;
           break;
         case WORD:
-          word_boundaries(editor, p, &prev_col, &next_col, nullptr, nullptr);
-          if (editor->cursor < editor->selection)
-            editor->cursor = {p.row, prev_col};
+          this->word_boundaries(p, &prev_col, &next_col, nullptr, nullptr);
+          if (this->cursor < this->selection)
+            this->cursor = {p.row, prev_col};
           else
-            editor->cursor = {p.row, next_col};
+            this->cursor = {p.row, next_col};
           break;
         case LINE:
-          if (editor->cursor < editor->selection) {
-            editor->cursor = {p.row, 0};
+          if (this->cursor < this->selection) {
+            this->cursor = {p.row, 0};
           } else {
-            LineIterator *it = begin_l_iter(editor->root, p.row);
+            LineIterator *it = begin_l_iter(this->root, p.row);
             char *line = next_line(it, &line_len);
             if (!line)
               return;
@@ -544,7 +543,7 @@ void handle_mouse(Editor *editor, KeyEvent event) {
               line_len--;
             free(it->buffer);
             free(it);
-            editor->cursor = {p.row, line_len};
+            this->cursor = {p.row, line_len};
           }
           break;
         }
@@ -552,10 +551,10 @@ void handle_mouse(Editor *editor, KeyEvent event) {
       break;
     case RELEASE:
       if (event.mouse_button == LEFT_BTN)
-        if (editor->cursor.row == editor->selection.row &&
-            editor->cursor.col == editor->selection.col) {
+        if (this->cursor.row == this->selection.row &&
+            this->cursor.col == this->selection.col) {
           mode = NORMAL;
-          editor->selection_active = false;
+          this->selection_active = false;
         }
       break;
     }

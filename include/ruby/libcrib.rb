@@ -177,7 +177,7 @@ module C
       color: 0x6e1516,
       symbol: " ",
       extensions: ["erb"],
-      lsp: "ruby-lsp"
+      lsp: "emmet-language-server"
     },
     lua: {
       color: 0x36a3d9,
@@ -331,7 +331,7 @@ module C
   @b_startup = nil
   @b_shutdown = nil
   @b_bar = proc do |info|
-    # mode, lang_name, warnings, lsp_name, filename, foldername, line, max_line, width
+    # mode, width, data[5] : strings (any data about the focused window)
     # puts info.inspect
     mode_color = 0x82AAFF
     mode_symbol = "  "
@@ -352,11 +352,15 @@ module C
       mode_color = 0xF29CC3
       mode_symbol = " "
     end
-    lang_info = C.languages[info[:lang_name]]
-    if lang_info.nil?
-      lang_info = C.languages[:default]
+    lang_info = C.languages[:default]
+    filename = ""
+    if info[:data][0] == "editor"
+      lang_info = C.languages[info[:data][2]] if info[:data][2] != ""
+      if lang_info.nil?
+        lang_info = C.languages[:default]
+      end
+      filename = File.basename(info[:data][1]) if info[:data][1] != ""
     end
-    filename = File.basename(info[:filename])
     starting = " #{mode_symbol} #{info[:mode].to_s.upcase}  #{lang_info[:symbol]} #{filename}"
     highlights = []
     highlights << { fg: 0x0b0e14, bg: mode_color, flags: 1 << 1, start: 0, length: 10 }

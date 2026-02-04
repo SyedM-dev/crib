@@ -23,6 +23,7 @@ struct CompletionItem {
 };
 
 struct CompletionSession {
+  struct Editor *editor;
   std::shared_mutex mtx;
   bool active = false;
   Coord hook;
@@ -40,7 +41,14 @@ struct CompletionSession {
   std::atomic<bool> hover_dirty = false;
   int version;
 
-  CompletionSession() : box(this) {}
+  CompletionSession(Editor *editor) : editor(editor), box(this) {}
+
+  void resolve_doc();
+  void accept();
+  void next();
+  void prev();
+  void choose(uint8_t index);
+  void handle(KeyEvent event);
 };
 
 #endif

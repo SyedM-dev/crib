@@ -3,6 +3,7 @@
 
 #include "syntax/decl.h"
 #include "utils/utils.h"
+#include "windows/decl.h"
 
 namespace fs = std::filesystem;
 
@@ -45,9 +46,7 @@ bool custom_compare(mrb_value match_block, std::string state1,
 std::string parse_custom(std::vector<Token> *tokens, mrb_value parser_block,
                          const char *line, uint32_t len, std::string state,
                          uint32_t c_line);
-BarLine bar_contents(uint8_t mode, std::string lang_name, uint32_t warnings,
-                     std::string lsp_name, std::string filename,
-                     std::string foldername, uint32_t line, uint32_t max_line,
-                     uint32_t width);
+BarLine bar_contents(uint8_t mode, uint32_t width, std::string foldername,
+                     Window *window);
 
 #endif

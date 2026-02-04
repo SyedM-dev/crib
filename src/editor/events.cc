@@ -1,60 +1,59 @@
 #include "editor/editor.h"
-#include "editor/helpers.h"
+#include "extentions/hover.h"
 #include "io/sysio.h"
 #include "main.h"
 #include "utils/utils.h"
 
-void handle_editor_event(Editor *editor, KeyEvent event) {
+void Editor::handle_event(KeyEvent event) {
   uint8_t old_mode = mode;
-  if (editor->hover_active)
-    editor->hover_active = false;
-  handle_mouse(editor, event);
+  if (this->hover_active)
+    this->hover_active = false;
   if (event.key_type == KEY_SPECIAL) {
     switch (event.special_modifier) {
     case 0:
       switch (event.special_key) {
       case KEY_DOWN:
-        cursor_down(editor, 1);
+        this->cursor_down(1);
         break;
       case KEY_UP:
-        cursor_up(editor, 1);
+        this->cursor_up(1);
         break;
       case KEY_LEFT:
-        cursor_left(editor, 1);
+        this->cursor_left(1);
         break;
       case KEY_RIGHT:
-        cursor_right(editor, 1);
+        this->cursor_right(1);
         break;
       }
       break;
     case CNTRL:
       switch (event.special_key) {
       case KEY_DOWN:
-        cursor_down(editor, 5);
+        this->cursor_down(5);
         break;
       case KEY_UP:
-        cursor_up(editor, 5);
+        this->cursor_up(5);
         break;
       case KEY_LEFT:
-        cursor_prev_word(editor);
+        this->cursor_prev_word();
       case KEY_RIGHT:
-        cursor_next_word(editor);
+        this->cursor_next_word();
         break;
       }
       break;
     case ALT:
       switch (event.special_key) {
       case KEY_DOWN:
-        move_line_down(editor);
+        this->move_line_down();
         break;
       case KEY_UP:
-        move_line_up(editor);
+        this->move_line_up();
         break;
       case KEY_LEFT:
-        cursor_left(editor, 8);
+        this->cursor_left(8);
         break;
       case KEY_RIGHT:
-        cursor_right(editor, 8);
+        this->cursor_right(8);
         break;
       }
       break;
@@ -65,86 +64,86 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
     if (event.key_type == KEY_CHAR && event.len == 1) {
       switch (event.c[0]) {
       case 'u':
-        select_all(editor);
+        this->select_all();
         break;
       case CTRL('h'):
-        editor->hover.scroll(-1);
-        editor->hover_active = true;
+        static_cast<HoverBox *>(ui::hover_popup->tile.get())->scroll(-1);
+        this->hover_active = true;
         break;
       case CTRL('l'):
-        editor->hover.scroll(1);
-        editor->hover_active = true;
+        static_cast<HoverBox *>(ui::hover_popup->tile.get())->scroll(1);
+        this->hover_active = true;
         break;
       case 'h':
-        fetch_lsp_hover(editor);
+        this->fetch_lsp_hover();
         break;
       case 'a': {
         mode = INSERT;
-        Coord start = editor->cursor;
-        cursor_right(editor, 1);
-        if (start.row != editor->cursor.row)
-          cursor_left(editor, 1);
+        Coord start = this->cursor;
+        this->cursor_right(1);
+        if (start.row != this->cursor.row)
+          this->cursor_left(1);
       } break;
       case 'i':
         mode = INSERT;
         break;
       case 'n':
         mode = JUMPER;
-        editor->jumper_set = true;
+        this->jumper_set = true;
         break;
       case 'm':
         mode = JUMPER;
-        editor->jumper_set = false;
+        this->jumper_set = false;
         break;
       case 'N':
-        clear_hooks_at_line(editor, editor->cursor.row);
+        this->clear_hooks_at_line(this->cursor.row);
         break;
       case 's':
       case 'v':
         mode = SELECT;
-        editor->selection_active = true;
-        editor->selection = editor->cursor;
-        editor->selection_type = CHAR;
+        this->selection_active = true;
+        this->selection = this->cursor;
+        this->selection_type = CHAR;
         break;
       case ';':
       case ':':
         mode = RUNNER;
         break;
       case 0x7F:
-        cursor_left(editor, 1);
+        this->cursor_left(1);
         break;
       case ' ':
-        cursor_right(editor, 1);
+        this->cursor_right(1);
         break;
       case '\r':
       case '\n':
-        cursor_down(editor, 1);
+        this->cursor_down(1);
         break;
       case '\\':
       case '|':
-        cursor_up(editor, 1);
+        this->cursor_up(1);
         break;
       case CTRL('d'):
-        scroll_down(editor, 1);
-        ensure_cursor(editor);
+        this->scroll_down(1);
+        this->ensure_cursor();
         break;
       case CTRL('u'):
-        scroll_up(editor, 1);
-        ensure_cursor(editor);
+        this->scroll_up(1);
+        this->ensure_cursor();
         break;
       case '>':
       case '.':
-        indent_current_line(editor);
+        this->indent_current_line();
         break;
       case '<':
       case ',':
-        dedent_current_line(editor);
+        this->dedent_current_line();
         break;
       case CTRL('s'):
-        save_file(editor);
+        this->save();
         break;
       case 'p':
-        paste(editor);
+        this->paste();
         break;
       }
     }
@@ -153,34 +152,34 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
     if (event.key_type == KEY_CHAR) {
       if (event.len == 1) {
         if (event.c[0] == '\t') {
-          editor->indents.insert_tab(editor->cursor);
+          this->indents.insert_tab(this->cursor);
         } else if (event.c[0] == '\n' || event.c[0] == '\r') {
-          editor->indents.insert_new_line(editor->cursor);
+          this->indents.insert_new_line(this->cursor);
         } else if (event.c[0] == CTRL('W')) {
-          delete_prev_word(editor);
+          this->delete_prev_word();
         } else if (isprint((unsigned char)(event.c[0]))) {
-          insert_char(editor, event.c[0]);
+          this->insert_char(event.c[0]);
         } else if (event.c[0] == 0x7F || event.c[0] == 0x08) {
-          backspace_edit(editor);
+          this->backspace_edit();
         } else if (event.c[0] == 0x1B) {
-          normal_mode(editor);
+          this->normal_mode();
         }
       } else if (event.len > 1) {
-        edit_insert(editor, editor->cursor, event.c, event.len);
-        cursor_right(editor, 1);
+        this->edit_insert(this->cursor, event.c, event.len);
+        this->cursor_right(1);
       }
     } else if (event.key_type == KEY_SPECIAL &&
                event.special_key == KEY_DELETE) {
       switch (event.special_modifier) {
       case 0:
-        edit_erase(editor, editor->cursor, 1);
+        this->edit_erase(this->cursor, 1);
         break;
       case CNTRL:
-        delete_next_word(editor);
+        this->delete_next_word();
         break;
       }
     } else if (event.key_type == KEY_PASTE) {
-      insert_str(editor, event.c, event.len);
+      this->insert_str(event.c, event.len);
     }
     break;
   case SELECT:
@@ -189,28 +188,28 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
       case 0x1B:
       case 's':
       case 'v':
-        editor->selection_active = false;
+        this->selection_active = false;
         mode = NORMAL;
         break;
       case 'y':
-        copy(editor);
+        this->copy();
         mode = NORMAL;
         break;
       case 'x':
-        cut(editor);
+        this->cut();
         mode = NORMAL;
         break;
       case 'p':
-        paste(editor);
+        this->paste();
         mode = NORMAL;
         break;
       case '<':
       case ',':
-        dedent_selection(editor);
+        this->dedent_selection();
         break;
       case '>':
       case '.':
-        indent_selection(editor);
+        this->indent_selection();
         break;
       }
     }
@@ -218,25 +217,25 @@ void handle_editor_event(Editor *editor, KeyEvent event) {
   case JUMPER:
     if (event.key_type == KEY_CHAR && event.len == 1 &&
         (event.c[0] >= '!' && event.c[0] <= '~')) {
-      if (editor->jumper_set) {
+      if (this->jumper_set) {
         for (uint8_t i = 0; i < 94; i++)
-          if (editor->hooks[i] == editor->cursor.row + 1) {
-            editor->hooks[i] = 0;
+          if (this->hooks[i] == this->cursor.row + 1) {
+            this->hooks[i] = 0;
             break;
           }
-        editor->hooks[event.c[0] - '!'] = editor->cursor.row + 1;
+        this->hooks[event.c[0] - '!'] = this->cursor.row + 1;
       } else {
-        uint32_t line = editor->hooks[event.c[0] - '!'] - 1;
+        uint32_t line = this->hooks[event.c[0] - '!'] - 1;
         if (line > 0) {
-          editor->cursor = {line, 0};
-          editor->cursor_preffered = UINT32_MAX;
+          this->cursor = {line, 0};
+          this->cursor_preffered = UINT32_MAX;
         }
       }
     }
     mode = NORMAL;
     break;
   }
-  if (old_mode == mode || mode != INSERT)
-    handle_completion(editor, event);
-  ensure_scroll(editor);
+  // if (old_mode == mode || mode != INSERT)
+  //   this->completion.handle(event);
+  this->ensure_scroll();
 }

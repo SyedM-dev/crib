@@ -1,10 +1,9 @@
 #include "io/sysio.h"
 
+std::vector<ScreenCell> new_screen;
 static uint32_t rows, cols;
 static bool show_cursor = 0;
-static std::vector<ScreenCell> screen;
 static std::vector<ScreenCell> old_screen;
-static std::mutex screen_mutex;
 static termios orig_termios;
 
 void disable_raw_mode() {
@@ -24,7 +23,7 @@ void enable_raw_mode() {
   raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
   raw.c_oflag &= ~(OPOST);
   raw.c_cflag |= (CS8);
-  raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+  raw.c_lflag &= ~(ECHO | ICANON | IEXTEN); // | ISIG);
   raw.c_cc[VMIN] = 0;
   raw.c_cc[VTIME] = 0;
   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1)
@@ -39,7 +38,7 @@ Coord start_screen() {
   ioctl(0, TIOCGWINSZ, &w);
   rows = w.ws_row;
   cols = w.ws_col;
-  screen.assign(rows * cols, {});
+  new_screen.assign(rows * cols, {});
   old_screen.assign(rows * cols, {});
   return {rows, cols};
 }
@@ -48,71 +47,7 @@ void end_screen() { disable_raw_mode(); }
 
 Coord get_size() { return {rows, cols}; }
 
-void update(uint32_t row, uint32_t col, std::string utf8, uint32_t fg,
-            uint32_t bg, uint8_t flags) {
-  if (row >= rows || col >= cols)
-    return;
-  uint32_t idx = row * cols + col;
-  std::lock_guard<std::mutex> lock(screen_mutex);
-  screen[idx].utf8 = utf8 != "" ? utf8 : "";
-  if (utf8 == "")
-    return;
-  screen[idx].width = display_width(utf8.c_str(), utf8.size());
-  screen[idx].fg = fg;
-  screen[idx].bg = bg;
-  screen[idx].flags = flags;
-  screen[idx].ul_color = 0;
-}
-
-void update(uint32_t row, uint32_t col, const char *utf8, uint32_t fg,
-            uint32_t bg, uint8_t flags) {
-  if (row >= rows || col >= cols)
-    return;
-  uint32_t idx = row * cols + col;
-  std::lock_guard<std::mutex> lock(screen_mutex);
-  screen[idx].utf8 = utf8 ? utf8 : "";
-  if (utf8 == nullptr)
-    return;
-  screen[idx].width = display_width(utf8, strlen(utf8));
-  screen[idx].fg = fg;
-  screen[idx].bg = bg;
-  screen[idx].flags = flags;
-  screen[idx].ul_color = 0;
-}
-
-void update(uint32_t row, uint32_t col, std::string utf8, uint32_t fg,
-            uint32_t bg, uint8_t flags, uint32_t ul_color) {
-  if (row >= rows || col >= cols)
-    return;
-  uint32_t idx = row * cols + col;
-  std::lock_guard<std::mutex> lock(screen_mutex);
-  screen[idx].utf8 = utf8 != "" ? utf8 : "";
-  if (utf8 == "")
-    return;
-  screen[idx].width = display_width(utf8.c_str(), utf8.size());
-  screen[idx].fg = fg;
-  screen[idx].bg = bg;
-  screen[idx].flags = flags;
-  screen[idx].ul_color = ul_color;
-}
-
-void update(uint32_t row, uint32_t col, const char *utf8, uint32_t fg,
-            uint32_t bg, uint8_t flags, uint32_t ul_color) {
-  if (row >= rows || col >= cols)
-    return;
-  uint32_t idx = row * cols + col;
-  std::lock_guard<std::mutex> lock(screen_mutex);
-  screen[idx].utf8 = utf8 ? utf8 : "";
-  if (utf8 == nullptr)
-    return;
-  screen[idx].width = display_width(utf8, strlen(utf8));
-  screen[idx].fg = fg;
-  screen[idx].bg = bg;
-  screen[idx].flags = flags;
-  screen[idx].ul_color = ul_color;
-}
-
-void render() {
+void io_render() {
   static bool first_render = true;
   uint32_t current_fg = 0;
   uint32_t current_bg = 0;
@@ -121,7 +56,6 @@ void render() {
   bool current_bold = false;
   bool current_strikethrough = false;
   bool current_underline = false;
-  std::lock_guard<std::mutex> lock(screen_mutex);
   std::string out;
   out.reserve(static_cast<size_t>(rows) * static_cast<size_t>(cols) * 4 + 256);
   out += "\x1b[s\x1b[?25l";
@@ -135,7 +69,7 @@ void render() {
     for (uint32_t col = 0; col < cols; ++col) {
       uint32_t idx = row * cols + col;
       ScreenCell &old_cell = old_screen[idx];
-      ScreenCell &new_cell = screen[idx];
+      ScreenCell &new_cell = new_screen[idx];
       bool content_changed =
           old_cell.utf8 != new_cell.utf8 || old_cell.fg != new_cell.fg ||
           old_cell.bg != new_cell.bg || old_cell.flags != new_cell.flags ||
@@ -147,7 +81,7 @@ void render() {
             for (int64_t back = 1; back <= 4 && first_change_col - back >= 0;
                  ++back) {
               ScreenCell &prev_cell =
-                  screen[row * cols + (first_change_col - back)];
+                  new_screen[row * cols + (first_change_col - back)];
               if (prev_cell.width > 1) {
                 first_change_col -= back;
                 break;
@@ -165,7 +99,7 @@ void render() {
     for (uint32_t col = first_change_col; col <= last_change_col; ++col) {
       uint32_t idx = row * cols + col;
       ScreenCell &old_cell = old_screen[idx];
-      ScreenCell &new_cell = screen[idx];
+      ScreenCell &new_cell = new_screen[idx];
       uint32_t width = new_cell.width > 0 ? new_cell.width : 1;
       bool overlap = false;
       if (width > 1) {
@@ -173,7 +107,7 @@ void render() {
           uint32_t next_col = col + i;
           if (next_col >= cols)
             break;
-          const ScreenCell &next = screen[row * cols + next_col];
+          const ScreenCell &next = new_screen[row * cols + next_col];
           if (!is_empty_cell(next)) {
             overlap = true;
             break;
@@ -244,7 +178,7 @@ void render() {
           uint32_t next_col = col + i;
           if (next_col >= cols)
             break;
-          const ScreenCell &next = screen[row * cols + next_col];
+          const ScreenCell &next = new_screen[row * cols + next_col];
           if (!is_empty_cell(next))
             break;
           out.push_back(' ');
@@ -260,7 +194,7 @@ void render() {
             ScreenCell *cell = &new_cell;
             int back = 0;
             while ((int)col - back >= 0 && cell->utf8[0] == '\x1b')
-              cell = &screen[row * cols + col - ++back];
+              cell = &new_screen[row * cols + col - ++back];
             if (width >= cell->width)
               out.append(" ");
           }

@@ -3,27 +3,24 @@
 #include "main.h"
 #include "syntax/decl.h"
 #include "syntax/parser.h"
-#include <cstdint>
 
-void render_editor(Editor *editor) {
+void Editor::render(std::vector<ScreenCell> &buffer, Coord size, Coord pos) {
+  this->size = size;
   uint32_t sel_start = 0, sel_end = 0;
-  std::shared_lock knot_lock(editor->knot_mtx);
   uint32_t numlen =
-      EXTRA_META + static_cast<int>(std::log10(editor->root->line_count + 1));
-  uint32_t render_width = editor->size.col - numlen;
-  uint32_t render_x = editor->position.col + numlen + 1;
+      EXTRA_META + static_cast<int>(std::log10(this->root->line_count + 1));
+  uint32_t render_width = size.col - numlen;
+  uint32_t render_x = pos.col + numlen + 1;
   std::vector<std::pair<uint32_t, char>> v;
   for (size_t i = 0; i < 94; ++i)
-    if (editor->hooks[i] != 0)
-      v.push_back({editor->hooks[i], '!' + i});
+    if (this->hooks[i] != 0)
+      v.push_back({this->hooks[i], '!' + i});
   std::sort(v.begin(), v.end());
   auto hook_it = v.begin();
-  while (hook_it != v.end() && hook_it->first <= editor->scroll.row)
+  while (hook_it != v.end() && hook_it->first <= this->scroll.row)
     ++hook_it;
-  std::unique_lock warn_lock(editor->v_mtx);
-  auto warn_it = editor->warnings.begin();
-  while (warn_it != editor->warnings.end() &&
-         warn_it->line < editor->scroll.row)
+  auto warn_it = this->warnings.begin();
+  while (warn_it != this->warnings.end() && warn_it->line < this->scroll.row)
     ++warn_it;
   LineData *line_data = nullptr;
   auto get_type = [&](uint32_t col) {
@@ -34,40 +31,54 @@ void render_editor(Editor *editor) {
         return (int)token.type;
     return 0;
   };
-  if (editor->selection_active) {
+  Coord screen = get_size();
+  auto update = [&](uint32_t row, uint32_t col, std::string text, uint32_t fg,
+                    uint32_t bg, uint8_t flags, uint32_t u_color,
+                    uint32_t width) {
+    if (row >= screen.row || col >= screen.col)
+      return;
+    ScreenCell &c = buffer[row * screen.col + col];
+    c.utf8 = text;
+    c.width = width;
+    c.fg = fg;
+    c.bg = bg;
+    c.flags = flags;
+    c.ul_color = u_color;
+  };
+  if (this->selection_active) {
     Coord start, end;
-    if (editor->cursor >= editor->selection) {
+    if (this->cursor >= this->selection) {
       uint32_t prev_col, next_col;
-      switch (editor->selection_type) {
+      switch (this->selection_type) {
       case CHAR:
-        start = editor->selection;
-        end = move_right(editor, editor->cursor, 1);
+        start = this->selection;
+        end = this->move_right(this->cursor, 1);
         break;
       case WORD:
-        word_boundaries(editor, editor->selection, &prev_col, &next_col,
-                        nullptr, nullptr);
-        start = {editor->selection.row, prev_col};
-        end = editor->cursor;
+        this->word_boundaries(this->selection, &prev_col, &next_col, nullptr,
+                              nullptr);
+        start = {this->selection.row, prev_col};
+        end = this->cursor;
         break;
       case LINE:
-        start = {editor->selection.row, 0};
-        end = editor->cursor;
+        start = {this->selection.row, 0};
+        end = this->cursor;
         break;
       }
     } else {
-      start = editor->cursor;
+      start = this->cursor;
       uint32_t prev_col, next_col, line_len;
-      switch (editor->selection_type) {
+      switch (this->selection_type) {
       case CHAR:
-        end = move_right(editor, editor->selection, 1);
+        end = this->move_right(this->selection, 1);
         break;
       case WORD:
-        word_boundaries(editor, editor->selection, &prev_col, &next_col,
-                        nullptr, nullptr);
-        end = {editor->selection.row, next_col};
+        this->word_boundaries(this->selection, &prev_col, &next_col, nullptr,
+                              nullptr);
+        end = {this->selection.row, next_col};
         break;
       case LINE:
-        LineIterator *it = begin_l_iter(editor->root, editor->selection.row);
+        LineIterator *it = begin_l_iter(this->root, this->selection.row);
         char *line = next_line(it, &line_len);
         if (!line)
           return;
@@ -75,40 +86,40 @@ void render_editor(Editor *editor) {
           line_len--;
         free(it->buffer);
         free(it);
-        end = {editor->selection.row, line_len};
+        end = {this->selection.row, line_len};
         break;
       }
     }
-    sel_start = line_to_byte(editor->root, start.row, nullptr) + start.col;
-    sel_end = line_to_byte(editor->root, end.row, nullptr) + end.col;
+    sel_start = line_to_byte(this->root, start.row, nullptr) + start.col;
+    sel_end = line_to_byte(this->root, end.row, nullptr) + end.col;
   }
   Coord cursor = {UINT32_MAX, UINT32_MAX};
-  uint32_t line_index = editor->scroll.row;
-  LineIterator *it = begin_l_iter(editor->root, line_index);
+  uint32_t line_index = this->scroll.row;
+  LineIterator *it = begin_l_iter(this->root, line_index);
   if (!it)
     return;
   uint32_t prev_col, next_col;
   std::string word;
-  word_boundaries_exclusive(editor, editor->cursor, &prev_col, &next_col);
+  this->word_boundaries_exclusive(this->cursor, &prev_col, &next_col);
   if (next_col - prev_col > 0 && next_col - prev_col < 256 - 4) {
-    uint32_t offset = line_to_byte(editor->root, editor->cursor.row, nullptr);
-    char *word_ptr = read(editor->root, offset + prev_col, next_col - prev_col);
+    uint32_t offset = line_to_byte(this->root, this->cursor.row, nullptr);
+    char *word_ptr = read(this->root, offset + prev_col, next_col - prev_col);
     if (word_ptr) {
       word = std::string(word_ptr, next_col - prev_col);
       free(word_ptr);
     }
   }
-  editor->extra_hl.render(editor->root, line_index, word, editor->is_css_color);
+  this->extra_hl.render(this->root, line_index, word, this->is_css_color);
   uint32_t rendered_rows = 0;
-  uint32_t global_byte_offset = line_to_byte(editor->root, line_index, nullptr);
-  while (rendered_rows < editor->size.row) {
+  uint32_t global_byte_offset = line_to_byte(this->root, line_index, nullptr);
+  while (rendered_rows < this->size.row) {
     uint32_t line_len;
     char *line = next_line(it, &line_len);
-    if (editor->parser) {
+    if (this->parser) {
       if (line_data)
-        line_data = editor->parser->line_tree.next();
+        line_data = this->parser->line_tree.next();
       else
-        line_data = editor->parser->line_tree.start_iter(line_index);
+        line_data = this->parser->line_tree.start_iter(line_index);
     }
     if (!line)
       break;
@@ -123,54 +134,51 @@ void render_editor(Editor *editor) {
            (line[content_start] == ' ' || line[content_start] == '\t'))
       content_start++;
     std::vector<VWarn> line_warnings;
-    while (warn_it != editor->warnings.end() && warn_it->line == line_index) {
+    while (warn_it != this->warnings.end() && warn_it->line == line_index) {
       line_warnings.push_back(*warn_it);
       ++warn_it;
     }
     uint32_t current_byte_offset = 0;
     if (rendered_rows == 0)
-      current_byte_offset += editor->scroll.col;
-    while (current_byte_offset < line_len && rendered_rows < editor->size.row) {
-      uint32_t color = editor->cursor.row == line_index ? 0x222222 : 0;
+      current_byte_offset += this->scroll.col;
+    while (current_byte_offset < line_len && rendered_rows < this->size.row) {
+      uint32_t color = this->cursor.row == line_index ? 0x222222 : 0;
       if (current_byte_offset == 0 || rendered_rows == 0) {
-        const char *hook = nullptr;
+        const char *hook = "";
         char h[2] = {0, 0};
         if (hook_it != v.end() && hook_it->first == line_index + 1) {
           h[0] = hook_it->second;
           hook = h;
           hook_it++;
         }
-        update(editor->position.row + rendered_rows, editor->position.col, hook,
-               0xAAAAAA, 0, 0);
+        update(pos.row + rendered_rows, pos.col, hook, 0xAAAAAA, 0, 0, 0, 1);
         char buf[16];
         int len = snprintf(buf, sizeof(buf), "%*u ", numlen, line_index + 1);
         uint32_t num_color =
-            editor->cursor.row == line_index ? 0xFFFFFF : 0x555555;
+            this->cursor.row == line_index ? 0xFFFFFF : 0x555555;
         for (int i = 0; i < len; i++)
-          update(editor->position.row + rendered_rows, editor->position.col + i,
-                 (char[2]){buf[i], 0}, num_color, 0, 0);
+          update(pos.row + rendered_rows, pos.col + i, (char[2]){buf[i], 0},
+                 num_color, 0, 0, 0, 1);
       } else {
         for (uint32_t i = 0; i < numlen + 1; i++)
-          update(editor->position.row + rendered_rows, editor->position.col + i,
-                 " ", 0, 0, 0);
+          update(pos.row + rendered_rows, pos.col + i, " ", 0, 0, 0, 0, 1);
       }
       uint32_t col = 0;
       uint32_t local_render_offset = 0;
       uint32_t line_left = line_len - current_byte_offset;
       while (line_left > 0 && col < render_width) {
-        if (line_index == editor->cursor.row &&
-            editor->cursor.col == (current_byte_offset + local_render_offset)) {
-          cursor.row = editor->position.row + rendered_rows;
+        if (line_index == this->cursor.row &&
+            this->cursor.col == (current_byte_offset + local_render_offset)) {
+          cursor.row = pos.row + rendered_rows;
           cursor.col = render_x + col;
         }
         uint32_t absolute_byte_pos =
             global_byte_offset + current_byte_offset + local_render_offset;
         const Highlight *hl = nullptr;
-        if (editor->parser)
+        if (this->parser)
           hl = &highlights[get_type(current_byte_offset + local_render_offset)];
-        std::optional<std::pair<uint32_t, uint32_t>> extra =
-            editor->extra_hl.get(
-                {line_index, current_byte_offset + local_render_offset});
+        std::optional<std::pair<uint32_t, uint32_t>> extra = this->extra_hl.get(
+            {line_index, current_byte_offset + local_render_offset});
         uint32_t fg = extra && extra->second != UINT32_MAX
                           ? extra->first
                           : (hl ? hl->fg : 0xFFFFFF);
@@ -181,7 +189,7 @@ void render_editor(Editor *editor) {
             (hl ? hl->flags : 0) |
             (extra ? (extra->second != UINT32_MAX ? CF_BOLD : CF_UNDERLINE)
                    : 0);
-        if (editor->selection_active && absolute_byte_pos >= sel_start &&
+        if (this->selection_active && absolute_byte_pos >= sel_start &&
             absolute_byte_pos < sel_end)
           bg = bg | 0x555555;
         uint32_t u_color = 0;
@@ -217,40 +225,39 @@ void render_editor(Editor *editor) {
           break;
         if (current_byte_offset + local_render_offset >= content_start &&
             current_byte_offset + local_render_offset < content_end) {
-          update(editor->position.row + rendered_rows, render_x + col,
-                 cluster.c_str(), fg, bg | color, fl, u_color);
+          update(pos.row + rendered_rows, render_x + col, cluster.c_str(), fg,
+                 bg | color, fl, u_color, width);
         } else {
           if (cluster[0] == ' ') {
-            update(editor->position.row + rendered_rows, render_x + col, "·",
-                   0x282828, bg | color, fl, u_color);
+            update(pos.row + rendered_rows, render_x + col, "·", 0x282828,
+                   bg | color, fl, u_color, 1);
           } else {
-            update(editor->position.row + rendered_rows, render_x + col, "->  ",
-                   0x282828, bg | color, (fl & ~CF_BOLD) | CF_ITALIC, u_color);
+            update(pos.row + rendered_rows, render_x + col, "->  ", 0x282828,
+                   bg | color, (fl & ~CF_BOLD) | CF_ITALIC, u_color, 4);
           }
         }
         local_render_offset += cluster_len;
         line_left -= cluster_len;
         col += width;
         while (width-- > 1)
-          update(editor->position.row + rendered_rows, render_x + col - width,
-                 "\x1b", fg, bg | color, fl);
+          update(pos.row + rendered_rows, render_x + col - width, "\x1b", fg,
+                 bg | color, fl, u_color, 0);
       }
-      if (line_index == editor->cursor.row &&
-          editor->cursor.col == (current_byte_offset + local_render_offset)) {
-        cursor.row = editor->position.row + rendered_rows;
+      if (line_index == this->cursor.row &&
+          this->cursor.col == (current_byte_offset + local_render_offset)) {
+        cursor.row = pos.row + rendered_rows;
         cursor.col = render_x + col;
       }
-      if (editor->selection_active &&
+      if (this->selection_active &&
           global_byte_offset + line_len + 1 > sel_start &&
           global_byte_offset + line_len + 1 <= sel_end && col < render_width) {
-        update(editor->position.row + rendered_rows, render_x + col, " ", 0,
-               0x555555 | color, 0);
+        update(pos.row + rendered_rows, render_x + col, " ", 0,
+               0x555555 | color, 0, 0, 1);
         col++;
       }
       if (!line_warnings.empty() && line_left == 0) {
         VWarn warn = line_warnings.front();
-        update(editor->position.row + rendered_rows, render_x + col, " ", 0,
-               color, 0);
+        update(pos.row + rendered_rows, render_x + col, " ", 0, color, 0, 0, 1);
         col++;
         for (size_t i = 0; i < line_warnings.size(); i++) {
           if (line_warnings[i].type < warn.type)
@@ -276,18 +283,18 @@ void render_editor(Editor *editor) {
             goto final;
           final:
             if (col < render_width) {
-              update(editor->position.row + rendered_rows, render_x + col,
-                     err_sym, fg_color, color, 0);
+              update(pos.row + rendered_rows, render_x + col, err_sym, fg_color,
+                     color, 0, 0, 1);
               col++;
-              update(editor->position.row + rendered_rows, render_x + col, " ",
-                     fg_color, color, 0);
+              update(pos.row + rendered_rows, render_x + col, " ", fg_color,
+                     color, 0, 0, 1);
               col++;
             }
           }
         }
         if (col < render_width) {
-          update(editor->position.row + rendered_rows, render_x + col, " ", 0,
-                 0 | color, 0);
+          update(pos.row + rendered_rows, render_x + col, " ", 0, 0 | color, 0,
+                 0, 1);
           col++;
         }
         size_t warn_idx = 0;
@@ -313,19 +320,19 @@ void render_editor(Editor *editor) {
           int width = display_width(cluster.c_str(), cluster_len);
           if (col + width > render_width)
             break;
-          update(editor->position.row + rendered_rows, render_x + col,
-                 cluster.c_str(), fg_color, color, 0);
+          update(pos.row + rendered_rows, render_x + col, cluster.c_str(),
+                 fg_color, color, 0, 0, width);
           col += width;
           warn_idx += cluster_len;
           while (width-- > 1)
-            update(editor->position.row + rendered_rows, render_x + col - width,
-                   "\x1b", fg_color, color, 0);
+            update(pos.row + rendered_rows, render_x + col - width, "\x1b",
+                   fg_color, color, 0, 0, 0);
         }
         line_warnings.clear();
       }
       while (col < render_width) {
-        update(editor->position.row + rendered_rows, render_x + col, " ", 0,
-               0 | color, 0);
+        update(pos.row + rendered_rows, render_x + col, " ", 0, 0 | color, 0, 0,
+               1);
         col++;
       }
       rendered_rows++;
@@ -333,39 +340,36 @@ void render_editor(Editor *editor) {
     }
     if (line_len == 0 ||
         (current_byte_offset >= line_len && rendered_rows == 0)) {
-      uint32_t color = editor->cursor.row == line_index ? 0x222222 : 0;
-      const char *hook = nullptr;
+      uint32_t color = this->cursor.row == line_index ? 0x222222 : 0;
+      const char *hook = "";
       char h[2] = {0, 0};
       if (hook_it != v.end() && hook_it->first == line_index + 1) {
         h[0] = hook_it->second;
         hook = h;
         hook_it++;
       }
-      update(editor->position.row + rendered_rows, editor->position.col, hook,
-             0xAAAAAA, 0, 0);
+      update(pos.row + rendered_rows, pos.col, hook, 0xAAAAAA, 0, 0, 0, 1);
       char buf[16];
       int len = snprintf(buf, sizeof(buf), "%*u ", numlen, line_index + 1);
-      uint32_t num_color =
-          editor->cursor.row == line_index ? 0xFFFFFF : 0x555555;
+      uint32_t num_color = this->cursor.row == line_index ? 0xFFFFFF : 0x555555;
       for (int i = 0; i < len; i++)
-        update(editor->position.row + rendered_rows, editor->position.col + i,
-               (char[2]){buf[i], 0}, num_color, 0, 0);
-      if (editor->cursor.row == line_index) {
-        cursor.row = editor->position.row + rendered_rows;
+        update(pos.row + rendered_rows, pos.col + i, (char[2]){buf[i], 0},
+               num_color, 0, 0, 0, 1);
+      if (this->cursor.row == line_index) {
+        cursor.row = pos.row + rendered_rows;
         cursor.col = render_x;
       }
       uint32_t col = 0;
-      if (editor->selection_active &&
+      if (this->selection_active &&
           global_byte_offset + line_len + 1 > sel_start &&
           global_byte_offset + line_len + 1 <= sel_end) {
-        update(editor->position.row + rendered_rows, render_x + col, " ", 0,
-               0x555555 | color, 0);
+        update(pos.row + rendered_rows, render_x + col, " ", 0,
+               0x555555 | color, 0, 0, 1);
         col++;
       }
       if (!line_warnings.empty()) {
         VWarn warn = line_warnings.front();
-        update(editor->position.row + rendered_rows, render_x + col, " ", 0,
-               color, 0);
+        update(pos.row + rendered_rows, render_x + col, " ", 0, color, 0, 0, 1);
         col++;
         for (size_t i = 0; i < line_warnings.size(); i++) {
           if (line_warnings[i].type < warn.type)
@@ -391,18 +395,18 @@ void render_editor(Editor *editor) {
             goto final2;
           final2:
             if (col < render_width) {
-              update(editor->position.row + rendered_rows, render_x + col,
-                     err_sym, fg_color, color, 0);
+              update(pos.row + rendered_rows, render_x + col, err_sym, fg_color,
+                     color, 0, 0, 1);
               col++;
-              update(editor->position.row + rendered_rows, render_x + col, " ",
-                     fg_color, color, 0);
+              update(pos.row + rendered_rows, render_x + col, " ", fg_color,
+                     color, 0, 0, 1);
               col++;
             }
           }
         }
         if (col < render_width) {
-          update(editor->position.row + rendered_rows, render_x + col, " ", 0,
-                 0 | color, 0);
+          update(pos.row + rendered_rows, render_x + col, " ", 0, 0 | color, 0,
+                 0, 1);
           col++;
         }
         size_t warn_idx = 0;
@@ -428,18 +432,18 @@ void render_editor(Editor *editor) {
           int width = display_width(cluster.c_str(), cluster_len);
           if (col + width > render_width)
             break;
-          update(editor->position.row + rendered_rows, render_x + col,
-                 cluster.c_str(), fg_color, color, 0);
+          update(pos.row + rendered_rows, render_x + col, cluster.c_str(),
+                 fg_color, color, 0, 0, width);
           col += width;
           warn_idx += cluster_len;
           while (width-- > 1)
-            update(editor->position.row + rendered_rows, render_x + col - width,
-                   "\x1b", fg_color, color, 0);
+            update(pos.row + rendered_rows, render_x + col - width, "\x1b",
+                   fg_color, color, 0, 0, 0);
         }
       }
       while (col < render_width) {
-        update(editor->position.row + rendered_rows, render_x + col, " ", 0,
-               0 | color, 0);
+        update(pos.row + rendered_rows, render_x + col, " ", 0, 0 | color, 0, 0,
+               1);
         col++;
       }
       rendered_rows++;
@@ -447,10 +451,9 @@ void render_editor(Editor *editor) {
     global_byte_offset += line_len + 1;
     line_index++;
   }
-  while (rendered_rows < editor->size.row) {
-    for (uint32_t col = 0; col < editor->size.col; col++)
-      update(editor->position.row + rendered_rows, editor->position.col + col,
-             " ", 0xFFFFFF, 0, 0);
+  while (rendered_rows < this->size.row) {
+    for (uint32_t col = 0; col < this->size.col; col++)
+      update(pos.row + rendered_rows, pos.col + col, " ", 0xFFFFFF, 0, 0, 0, 1);
     rendered_rows++;
   }
   if (cursor.row != UINT32_MAX && cursor.col != UINT32_MAX) {
@@ -468,15 +471,17 @@ void render_editor(Editor *editor) {
       break;
     }
     set_cursor(cursor.row, cursor.col, type, true);
-    if (editor->completion.active && !editor->completion.box.hidden)
-      editor->completion.box.render(cursor);
-    else if (editor->hover_active)
-      editor->hover.render(cursor);
-    else if (editor->diagnostics_active)
-      editor->diagnostics.render(cursor);
+    // if (this->completion.active && !this->completion.box.hidden)
+    //   this->completion.box.render(cursor);
+    // else if (this->hover_active)
+    //   this->hover.render(cursor);
+    // else if (this->diagnostics_active)
+    //   this->diagnostics.render(cursor);
+    if (this->hover_active)
+      ui::hover_popup->pos = cursor;
   }
   free(it->buffer);
   free(it);
-  if (editor->parser)
-    editor->parser->scroll(line_index + 5);
+  if (this->parser)
+    this->parser->scroll(line_index + 5);
 }

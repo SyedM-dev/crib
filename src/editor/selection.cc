@@ -1,47 +1,46 @@
 #include "editor/editor.h"
 #include "utils/utils.h"
 
-void selection_bounds(Editor *editor, Coord *out_start, Coord *out_end) {
-  std::shared_lock lock(editor->knot_mtx);
+void Editor::selection_bounds(Coord *out_start, Coord *out_end) {
   Coord start, end;
-  if (editor->cursor >= editor->selection) {
+  if (this->cursor >= this->selection) {
     uint32_t prev_col;
-    switch (editor->selection_type) {
+    switch (this->selection_type) {
     case CHAR:
-      start = editor->selection;
-      end = move_right(editor, editor->cursor, 1);
+      start = this->selection;
+      end = this->move_right(this->cursor, 1);
       break;
     case WORD:
-      word_boundaries(editor, editor->selection, &prev_col, nullptr, nullptr,
-                      nullptr);
-      start = {editor->selection.row, prev_col};
-      end = editor->cursor;
+      this->word_boundaries(this->selection, &prev_col, nullptr, nullptr,
+                            nullptr);
+      start = {this->selection.row, prev_col};
+      end = this->cursor;
       break;
     case LINE:
-      start = {editor->selection.row, 0};
-      end = editor->cursor;
+      start = {this->selection.row, 0};
+      end = this->cursor;
       break;
     }
   } else {
-    start = editor->cursor;
+    start = this->cursor;
     uint32_t next_col, line_len;
-    switch (editor->selection_type) {
+    switch (this->selection_type) {
     case CHAR:
-      end = move_right(editor, editor->selection, 1);
+      end = this->move_right(this->selection, 1);
       break;
     case WORD:
-      word_boundaries(editor, editor->selection, nullptr, &next_col, nullptr,
-                      nullptr);
-      end = {editor->selection.row, next_col};
+      this->word_boundaries(this->selection, nullptr, &next_col, nullptr,
+                            nullptr);
+      end = {this->selection.row, next_col};
       break;
     case LINE:
-      LineIterator *it = begin_l_iter(editor->root, editor->selection.row);
+      LineIterator *it = begin_l_iter(this->root, this->selection.row);
       char *line = next_line(it, &line_len);
       if (!line)
         return;
       if (line_len > 0 && line[line_len - 1] == '\n')
         line_len--;
-      end = {editor->selection.row, line_len};
+      end = {this->selection.row, line_len};
       free(it->buffer);
       free(it);
       break;
@@ -53,47 +52,46 @@ void selection_bounds(Editor *editor, Coord *out_start, Coord *out_end) {
     *out_end = end;
 }
 
-char *get_selection(Editor *editor, uint32_t *out_len, Coord *out_start) {
-  std::shared_lock lock(editor->knot_mtx);
+char *Editor::get_selection(uint32_t *out_len, Coord *out_start) {
   Coord start, end;
-  if (editor->cursor >= editor->selection) {
+  if (this->cursor >= this->selection) {
     uint32_t prev_col;
-    switch (editor->selection_type) {
+    switch (this->selection_type) {
     case CHAR:
-      start = editor->selection;
-      end = move_right(editor, editor->cursor, 1);
+      start = this->selection;
+      end = this->move_right(this->cursor, 1);
       break;
     case WORD:
-      word_boundaries(editor, editor->selection, &prev_col, nullptr, nullptr,
-                      nullptr);
-      start = {editor->selection.row, prev_col};
-      end = editor->cursor;
+      this->word_boundaries(this->selection, &prev_col, nullptr, nullptr,
+                            nullptr);
+      start = {this->selection.row, prev_col};
+      end = this->cursor;
       break;
     case LINE:
-      start = {editor->selection.row, 0};
-      end = editor->cursor;
+      start = {this->selection.row, 0};
+      end = this->cursor;
       break;
     }
   } else {
-    start = editor->cursor;
+    start = this->cursor;
     uint32_t next_col, line_len;
-    switch (editor->selection_type) {
+    switch (this->selection_type) {
     case CHAR:
-      end = move_right(editor, editor->selection, 1);
+      end = this->move_right(this->selection, 1);
       break;
     case WORD:
-      word_boundaries(editor, editor->selection, nullptr, &next_col, nullptr,
-                      nullptr);
-      end = {editor->selection.row, next_col};
+      this->word_boundaries(this->selection, nullptr, &next_col, nullptr,
+                            nullptr);
+      end = {this->selection.row, next_col};
       break;
     case LINE:
-      LineIterator *it = begin_l_iter(editor->root, editor->selection.row);
+      LineIterator *it = begin_l_iter(this->root, this->selection.row);
       char *line = next_line(it, &line_len);
       if (!line)
         return nullptr;
       if (line_len > 0 && line[line_len - 1] == '\n')
         line_len--;
-      end = {editor->selection.row, line_len};
+      end = {this->selection.row, line_len};
       free(it->buffer);
       free(it);
       break;
@@ -102,9 +100,9 @@ char *get_selection(Editor *editor, uint32_t *out_len, Coord *out_start) {
   if (out_start)
     *out_start = start;
   uint32_t start_byte =
-      line_to_byte(editor->root, start.row, nullptr) + start.col;
-  uint32_t end_byte = line_to_byte(editor->root, end.row, nullptr) + end.col;
-  char *text = read(editor->root, start_byte, end_byte - start_byte);
+      line_to_byte(this->root, start.row, nullptr) + start.col;
+  uint32_t end_byte = line_to_byte(this->root, end.row, nullptr) + end.col;
+  char *text = read(this->root, start_byte, end_byte - start_byte);
   if (out_len)
     *out_len = end_byte - start_byte;
   return text;

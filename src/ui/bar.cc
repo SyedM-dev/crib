@@ -3,17 +3,24 @@
 #include "lsp/lsp.h"
 #include "main.h"
 #include "syntax/decl.h"
+#include "windows/decl.h"
 
 void Bar::log(std::string message) { log_line = message; }
 
-void Bar::render() {
+void Bar::render(std::vector<ScreenCell> &buffer) {
   USING(LSPInstance);
-  Editor *editor = editors[current_editor];
-  BarLine bar_line =
-      bar_contents(mode, editor->lang.name, editor->warnings.size(),
-                   editor->lsp ? editor->lsp->lsp->command : "",
-                   editor->filename, editor->filename, editor->cursor.row + 1,
-                   editor->root->line_count + 1, screen.col);
+  BarLine bar_line;
+  bar_line = bar_contents(mode, screen.col, pwd.string(), focused_window);
+  auto update = [&](uint32_t row, uint32_t col, std::string text, uint32_t fg,
+                    uint32_t bg, uint8_t flags, uint32_t width) {
+    ScreenCell &c = buffer[row * screen.col + col];
+    c.utf8 = text;
+    c.width = width;
+    c.fg = fg;
+    c.bg = bg;
+    c.flags = flags;
+    c.ul_color = 0;
+  };
   uint32_t row = screen.row - 2;
   uint32_t width = screen.col;
   std::string &line = bar_line.line;
@@ -26,43 +33,46 @@ void Bar::render() {
     int width = display_width(cluster.c_str(), cluster_len);
     Highlight highlight = bar_line.get_highlight(col);
     update(row, col, cluster.c_str(), highlight.fg, highlight.bg,
-           highlight.flags);
+           highlight.flags, width);
     col += width;
     i += cluster_len;
     for (int w = 1; w < width; w++)
-      update(row, col - w, "\x1b", highlight.fg, highlight.bg, highlight.flags);
+      update(row, col - w, "\x1b", highlight.fg, highlight.bg, highlight.flags,
+             0);
   }
   while (col < width)
-    update(row, col++, " ", 0, 0, 0);
+    update(row, col++, " ", 0, 0, 0, 1);
   col = 0;
   row++;
   if (mode == RUNNER) {
-    update(row, col++, ":", 0xFFFFFF, 0, 0);
+    update(row, col++, ":", 0xFFFFFF, 0, 0, 1);
     for (char c : command)
-      update(row, col++, (char[2]){c, 0}, 0xFFFFFF, 0, 0);
+      update(row, col++, (char[2]){c, 0}, 0xFFFFFF, 0, 0, 1);
   } else {
     for (char c : log_line)
-      update(row, col++, (char[2]){c, 0}, 0xFFFFFF, 0, 0);
+      update(row, col++, (char[2]){c, 0}, 0xFFFFFF, 0, 0, 1);
   }
   while (col < width)
-    update(row, col++, " ", 0, 0, 0);
+    update(row, col++, " ", 0, 0, 0, 1);
 }
 
-void Bar::handle(KeyEvent event) {
+void Bar::handle_command(std::string &command) {
+  if (command == "q") {
+    running = false;
+    return;
+  }
+  if (focused_window)
+    focused_window->handle_command(command);
+}
+
+void Bar::handle_event(KeyEvent event) {
   if (event.key_type == KEY_CHAR && event.len == 1) {
     if (event.c[0] == 0x1B) {
       command = "";
       mode = NORMAL;
     } else if (event.c[0] == '\n' || event.c[0] == '\r') {
       command = trim(command);
-      if (command == "w") {
-        save_file(editors[current_editor]);
-      } else if (command == "q") {
-        running = false;
-      } else if (command == "wq") {
-        save_file(editors[current_editor]);
-        running = false;
-      }
+      handle_command(command);
       mode = NORMAL;
       command = "";
     } else if (isprint((unsigned char)(event.c[0]))) {

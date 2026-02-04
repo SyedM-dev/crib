@@ -96,19 +96,13 @@ inline bool is_empty_cell(const ScreenCell &c) {
   return c.utf8.empty() || c.utf8 == " " || c.utf8 == "\x1b";
 }
 
+extern std::vector<ScreenCell> new_screen;
+
 Coord start_screen();
 void end_screen();
-void update(uint32_t row, uint32_t col, std::string utf8, uint32_t fg,
-            uint32_t bg, uint8_t flags);
-void update(uint32_t row, uint32_t col, const char *utf8, uint32_t fg,
-            uint32_t bg, uint8_t flags);
-void update(uint32_t row, uint32_t col, std::string utf8, uint32_t fg,
-            uint32_t bg, uint8_t flags, uint32_t ul_color);
-void update(uint32_t row, uint32_t col, const char *utf8, uint32_t fg,
-            uint32_t bg, uint8_t flags, uint32_t ul_color);
 void set_cursor(uint8_t row, uint8_t col, uint32_t type,
                 bool show_cursor_param);
-void render();
+void io_render();
 Coord get_size();
 
 KeyEvent read_key();
