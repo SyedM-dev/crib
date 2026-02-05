@@ -95,7 +95,6 @@ struct LSPInstance {
       return;
     }
     json response = *read_lsp_message();
-    log("Lsp response: %s", response.dump().c_str());
     if (response.contains("result") &&
         response["result"].contains("capabilities")) {
       auto &caps = response["result"]["capabilities"];
@@ -191,11 +190,11 @@ struct LSPInstance {
     json shutdown = {{"id", ++last_id}, {"method", "shutdown"}};
     send_raw(shutdown);
     pollfd pfd{stdout_fd, POLLIN, 0};
-    poll(&pfd, 1, LSP_TIMEOUT);
+    poll(&pfd, 1, 500);
     json exit_msg = {{"method", "exit"}};
     send_raw(exit_msg);
     int waited = 0;
-    while (waited < LSP_TIMEOUT) {
+    while (waited < 100) {
       int status;
       pid_t res = waitpid(pid, &status, WNOHANG);
       if (res == pid)
@@ -252,22 +251,20 @@ struct LSPInstance {
     return true;
   }
   void add(Editor *ed) {
-    std::unique_lock lock(lsp::lsp_mutex);
     editors.push_back(ed);
-    lock.unlock();
     ed->lsp.store(this);
     char *buf = read(ed->root, 0, ed->root->char_count);
     std::string text(buf);
     free(buf);
-    auto message = std::make_unique<LSPMessage>();
-    message->message = {{"method", "textDocument/didOpen"},
-                        {"params",
-                         {{"textDocument",
-                           {{"uri", ed->uri},
-                            {"languageId", ed->lang.name},
-                            {"version", 1},
-                            {"text", text}}}}}};
-    send(std::move(message));
+    json message = {{"jsonrpc", "2.0"},
+                    {"method", "textDocument/didOpen"},
+                    {"params",
+                     {{"textDocument",
+                       {{"uri", ed->uri},
+                        {"languageId", ed->lang.name},
+                        {"version", 1},
+                        {"text", text}}}}}};
+    send_raw(message);
   }
   void remove(Editor *ed) {
     std::unique_lock lock(lsp::lsp_mutex);

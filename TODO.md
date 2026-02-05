@@ -9,11 +9,11 @@ Copyright 2025 Syed Daanish
 128M ->   412.0M (expected worst case 2.3G)
 ```
 
-* Next few super long boring things to do
-* redo lsp threads such that no mutex needed for any rope stuff (necessary rn)
-    - Also make the classes own the methods in lsp
-    - This will mean that parsers/renderers and keystrokes will not need to be individually locked
-    - And so it will be much faster
+## Next few super long boring things to do::
+* redo lsp threads such that no mutex needed for any rope stuff (done)
+    - Also make the classes own the methods in lsp (done)
+    - This will mean that parsers/renderers and keystrokes will not need to be individually locked (done)
+    - And so it will be much faster (done)
     - At which point the main thread can also be blocked on user input or lsp responses and still be fast
 * Add a superclass for editor called Window (which can be popup or tiled) (done)
 * Add a recursive tiling class for windows (done)
@@ -23,6 +23,9 @@ Copyright 2025 Syed Daanish
         - Seperate system functions into a class that branches to support local / ssh / server modes.
         - Even lsp shouldnt be directly controlled because it can branch on local and server modes
             - check wolfSSH stuff for remote editing
+            - Thick and thin mode
+                - thin mode only shares screen diffing over the network - uses server settings / themes
+                - thick only shared fileio and lsp data with local used for all else - uses local settings / themes
     - Redo hooks as a engine of its own.
     - And factorize renderer into its own class (and make it just return an array of the render without knowing teh x,y)
         - which is just managed by the renderer
